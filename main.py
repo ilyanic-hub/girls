@@ -182,71 +182,74 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Некорректная сумма")
 
-    order_id = f"pay_{uuid.uuid4().hex[:10]}"
-    currency = "RUB"
+    # orderId должен состоять из латинских букв и цифр без спецзнаков (убрали нижнее подчеркивание)
+    order_id = f"pay{uuid.uuid4().hex[:10]}"
+    currency = "RUB"  # В документации пример маленькими буквами: rub. Попробуем маленькими.
+    str_currency = currency.lower() 
 
     cursor = db.cursor()
+    # В базе оставляем как есть, чтобы не ломать таблицы
     cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')",
                    (order_id, user["id"], req.amount))
     db.commit()
 
-    # Округляем сумму до 2 знаков после запятой, как они требуют
+    # Сумма строго в формате 12345.00
     str_amount = f"{req.amount:.2f}"
     
-    # Собираем параметры в список строго по порядку
-    params_list = [
-        str(BETATRANSFER_PROJECT_ID),
-        str_amount,
-        str(currency),
-        str(order_id)
-    ]
-    
-    # Склеиваем параметры между собой и в самый конец добавляем секретный ключ
-    sign_str = "".join(params_list) + BETATRANSFER_API_KEY
+    url_result = f"{YOUR_DOMAIN}/api/payment/betatransfer-callback"
+    url_success = f"{YOUR_DOMAIN}/"
+    url_fail = f"{YOUR_DOMAIN}/"
+
+    # Согласно документации (стр. 11), параметры для подписи:
+    # amount, currency, orderId, urlResult, urlSuccess, urlFail
+    # Важно: Склеиваем именно ЗНАЧЕНИЯ параметров в одну строку
+    sign_str = (
+        str_amount + 
+        str_currency + 
+        order_id + 
+        url_result + 
+        url_success + 
+        url_fail + 
+        BETATRANSFER_API_KEY  # Здесь должен быть твой API SECRET (секретный ключ)
+    )
     sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
 
+    # Формируем параметры для отправки методом POST (форма/data, а не json!)
     payload = {
-        "project_id": BETATRANSFER_PROJECT_ID,
         "amount": str_amount,
-        "currency": currency,
-        "order_id": order_id,
-        "sign": sign,
-        "redirect_url": f"{YOUR_DOMAIN}/",
-        "callback_url": f"{YOUR_DOMAIN}/api/payment/betatransfer-callback"
+        "currency": str_currency,
+        "orderId": order_id,
+        "urlResult": url_result,
+        "urlSuccess": url_success,
+        "urlFail": url_fail,
+        "sign": sign
     }
 
-    proxies = {
-        "http": "http://114.129.2.14:8081",
-        "https": "http://114.129.2.14:8081"
-    }
+    # Точный URL из доки: токен передается как GET-параметр. 
+    # В поле BETATRANSFER_PROJECT_ID у тебя должен быть PUBLIC KEY (публичный токен)
+    TARGET_URL = f"https://merchant.betatransfer.io/api/payment?token={BETATRANSFER_PROJECT_ID}"
 
-    response_text = ""
     try:
-        # Пробуем отправить через бесплатный прокси
-        response = requests.post(BETATRANSFER_URL, json=payload, proxies=proxies, timeout=10)
-        response_text = response.text
-        print("ОТВЕТ ОТ БЕТАТРАНСФЕР ЧЕРЕЗ ПРОКСИ:", response_text)
-    except Exception as proxy_err:
-        print("Ошибка прокси (умер или завис), пробуем напрямую:", proxy_err)
-        # Если прокси лежит — отправляем напрямую, чтобы не ломать сайт
-        response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
-        response_text = response.text
-        print("ОТВЕТ ОТ БЕТАТРАНСФЕР НАПРЯМУЮ:", response_text)
-
-    # Разбираем ответ от платежной системы
-    try:
+        # Документация описывает это как HTML-форму, поэтому шлем обычный POST-data (data=, а не json=)
+        response = requests.post(TARGET_URL, data=payload, timeout=15)
+        print("СТАТУС ОТВЕТА BETATRANSFER:", response.status_code)
+        print("ТЕКСТ ОТВЕТА BETATRANSFER:", response.text)
+        
         data = response.json()
-    except Exception:
-        raise HTTPException(status_code=500, detail=f"Платежный шлюз вернул не JSON: {response_text}")
+    except Exception as err:
+        print("Ошибка при отправке запроса в BetaTransfer:", err)
+        raise HTTPException(status_code=500, detail=f"Ошибка платежного шлюза: {err}")
 
-    # Если платежка вернула ошибку (например, ту самую 403)
-    if "url" not in data and "payment_url" not in data:
-        raise HTTPException(status_code=400, detail=f"Ошибка платежного шлюза: {response_text}")
+    # Проверяем статус ответа платежки (Стр. 14: возвращает "status": "success" и "url")
+    if data.get("status") != "success":
+        raise HTTPException(status_code=400, detail=f"Отказ платежной системы: {response.text}")
 
-    # Возвращаем ссылку на оплату на твой фронтенд (поддерживаем оба варианта ключа ссылки)
-    payment_url = data.get("url") or data.get("payment_url")
+    # Извлекаем ссылку на оплату
+    payment_url = data.get("url")
+    if not payment_url:
+        raise HTTPException(status_code=500, detail="Платежная система не вернула ссылку url")
+
     return {"payment_url": payment_url}
-@app.post("/api/payment/betatransfer-callback")
 async def betatransfer_callback(request: Request, db=Depends(get_db)):
     form_data = await request.form()
     if form_data.get("status") != "success":
