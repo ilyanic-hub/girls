@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель Администратора</title>
+    <style>
+        body { font-family: sans-serif; background: #0f0f12; color: #fff; padding: 40px; }
+        .box { background: #1e1e24; padding: 25px; border-radius: 12px; max-width: 500px; margin-bottom: 30px; }
+        input { width: 95%; padding: 10px; margin: 10px 0; background: #121216; color: white; border: 1px solid #3a3a4a; border-radius: 6px; }
+        .btn { background: #ff3366; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-del { background: #cc3333; padding: 5px 10px; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e24; border-radius: 12px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #3a3a4a; }
+        a { color: #ff3366; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+    <p><a href="/">⬅️ Вернуться на Главную</a></p>
+    <h1>Панель администратора</h1>
+
+    <div class="box">
+        <h3>Добавить новую участницу</h3>
+        <input type="text" id="girl-name" placeholder="Имя девушки">
+        <label style="display: block; margin: 10px 0; color: #8a8a93;">Выберите фото (JPG/PNG):</label>
+        <input type="file" id="girl-photo-file" accept="image/*">
+        <br><br>
+        <button class="btn" onclick="addGirl()">Добавить в конкурс</button>
+    </div>
+
+    <h2>Список всех участниц</h2>
+    <table>
+        <thead>
+            <tr><th>ID</th><th>Имя</th><th>Голоса</th><th>Действие</th></tr>
+        </thead>
+        <tbody id="admin-table"></tbody>
+    </table>
+
+    <script>
+        async function loadAdminData() {
+            let res = await fetch('/api/contestants');
+            if (!res.ok) { alert("Ошибка доступа"); window.location.href = "/"; return; }
+            let list = await res.json();
+            let tbody = document.getElementById('admin-table');
+            tbody.innerHTML = '';
+            list.forEach(girl => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${girl.id}</td>
+                        <td>${girl.name}</td>
+                        <td>${girl.votes_count}</td>
+                        <td><button class="btn btn-del" onclick="deleteGirl(${girl.id})">Удалить</button></td>
+                    </tr>`;
+            });
+        }
+
+        async function addGirl() {
+            let name = document.getElementById('girl-name').value;
+            let fileInput = document.getElementById('girl-photo-file');
+
+            if (!name || fileInput.files.length === 0) {
+                alert("Пожалуйста, введите имя и выберите файл изображения!");
+                return;
+            }
+
+            // Создаем объект FormData для отправки файлов
+            let formData = new FormData();
+            formData.append("name", name);
+            formData.append("file", fileInput.files[0]);
+
+            try {
+                let res = await fetch('/api/admin/contestants', {
+                    method: 'POST',
+                    body: formData // Отправляем formData (заголовки Content-Type браузер поставит сам)
+                });
+
+                let data = await res.json();
+
+                if(res.ok) {
+                    alert(data.message);
+                    document.getElementById('girl-name').value = '';
+                    fileInput.value = ''; // Очищаем поле файла
+                    loadAdminData(); // Перезагружаем таблицу
+                } else {
+                    alert("Ошибка: " + data.detail);
+                }
+            } catch(err) {
+                alert("Ошибка при отправке данных на сервер");
+            }
+        }
+
+        async function deleteGirl(id) {
+            if(!confirm("Удалить эту участницу?")) return;
+            let res = await fetch(`/api/admin/contestants/${id}`, {method: 'DELETE'});
+            if(res.ok) loadAdminData();
+        }
+
+        loadAdminData();
+    </script>
+</body>
+</html>
