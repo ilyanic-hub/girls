@@ -190,7 +190,19 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
                    (order_id, user["id"], req.amount))
     db.commit()
 
-    sign_str = f"{req.amount:.2f}{currency}{order_id}{BETATRANSFER_PROJECT_ID}{BETATRANSFER_API_KEY}"
+    # Округляем сумму до 2 знаков после запятой, как они требуют
+    str_amount = f"{req.amount:.2f}"
+    
+    # Собираем параметры в список строго по порядку
+    params_list = [
+        str(BETATRANSFER_PROJECT_ID),
+        str_amount,
+        str(currency),
+        str(order_id)
+    ]
+    
+    # Склеиваем параметры между собой и в самый конец добавляем секретный ключ
+    sign_str = "".join(params_list) + BETATRANSFER_API_KEY
     sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
 
     payload = {
