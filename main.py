@@ -29,7 +29,7 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 # НАСТРОЙКИ BETATRANSFER
 BETATRANSFER_PROJECT_ID = "97225043ff25d8830c407802569e15c11e73138251142406cfcf9640f3108a20"
 BETATRANSFER_API_KEY = "5b914ced89d02da9aad41058383c4e100cdbfa86a0c49f05e656fe4f4e53437a"
-BETATRANSFER_URL = "https://me.betatransfer.io/api/v1/payment/create"
+BETATRANSFER_URL = "https://betatransfer.io/api/v1/payment/create"
 YOUR_DOMAIN = "https://dankir0admin.pythonanywhere.com"
 
 # Точный путь к базе данных
