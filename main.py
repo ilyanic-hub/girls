@@ -207,32 +207,45 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
 
     payload = {
         "project_id": BETATRANSFER_PROJECT_ID,
-        "amount": f"{req.amount:.2f}",
+        "amount": str_amount,
         "currency": currency,
         "order_id": order_id,
         "sign": sign,
         "redirect_url": f"{YOUR_DOMAIN}/",
         "callback_url": f"{YOUR_DOMAIN}/api/payment/betatransfer-callback"
     }
-    proxies = {
-            "http": "http://185.224.57.17:80",
-            "https": "http://185.224.57.17:80"
-        }
 
+    proxies = {
+        "http": "http://185.224.57.17:80",
+        "https": "http://185.224.57.17:80"
+    }
+
+    response_text = ""
     try:
-            response = requests.post(
-                BETATRANSFER_URL, 
-                json=payload, 
-                proxies=proxies, 
-                timeout=10
-            )
-            print("ОТВЕТ ОТ БЕТАТРАНСФЕР ЧЕРЕЗ ПРОКСИ:", response.text)
-            data = response.json()
-        except Exception as proxy_err:
-            print("Ошибка прокси (умер или завис):", proxy_err)
-            # Если прокси не ответит, пробуем без него, чтобы сайт не падал
-            response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
-            data = response.json()
+        # Пробуем отправить через бесплатный прокси
+        response = requests.post(BETATRANSFER_URL, json=payload, proxies=proxies, timeout=10)
+        response_text = response.text
+        print("ОТВЕТ ОТ БЕТАТРАНСФЕР ЧЕРЕЗ ПРОКСИ:", response_text)
+    except Exception as proxy_err:
+        print("Ошибка прокси (умер или завис), пробуем напрямую:", proxy_err)
+        # Если прокси лежит — отправляем напрямую, чтобы не ломать сайт
+        response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
+        response_text = response.text
+        print("ОТВЕТ ОТ БЕТАТРАНСФЕР НАПРЯМУЮ:", response_text)
+
+    # Разбираем ответ от платежной системы
+    try:
+        data = response.json()
+    except Exception:
+        raise HTTPException(status_code=500, detail=f"Платежный шлюз вернул не JSON: {response_text}")
+
+    # Если платежка вернула ошибку (например, ту самую 403)
+    if "url" not in data and "payment_url" not in data:
+        raise HTTPException(status_code=400, detail=f"Ошибка платежного шлюза: {response_text}")
+
+    # Возвращаем ссылку на оплату на твой фронтенд (поддерживаем оба варианта ключа ссылки)
+    payment_url = data.get("url") or data.get("payment_url")
+    return {"payment_url": payment_url}
 @app.post("/api/payment/betatransfer-callback")
 async def betatransfer_callback(request: Request, db=Depends(get_db)):
     form_data = await request.form()
