@@ -214,28 +214,25 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
         "redirect_url": f"{YOUR_DOMAIN}/",
         "callback_url": f"{YOUR_DOMAIN}/api/payment/betatransfer-callback"
     }
+    proxies = {
+            "http": "http://185.224.57.17:80",
+            "https": "http://185.224.57.17:80"
+        }
 
     try:
-        # Проверяем, видит ли код переменные (выведем только длину, чтобы не палить ключи в логах)
-        print("ДЛИНА SHOP_ID:", len(str(os.getenv("BETATRANSFER_PROJECT_ID") or "")))
-        print("ДЛИНА API_KEY:", len(str(os.getenv("BETATRANSFER_API_KEY") or "")))
-        
-        # Узнаем внешний IP-адрес, под которым Railway стучится в платежку
-        try:
-            current_ip = requests.get("https://api.ipify.org", timeout=5).text
-            print("ВНЕШНИЙ IP СЕРВЕРА RAILWAY:", current_ip)
-        except Exception as e:
-            print("Не удалось узнать IP:", e)
-        response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
-        print("ОТВЕТ ОТ БЕТАТРАНСФЕР:", response.text)  # <-- Поменяли res на response
-        data = response.json()
-        if response.status_code == 200 and data.get("status") == "success":
-            return {"payment_url": data.get("url")}
-        else:
-            raise HTTPException(status_code=400, detail=data.get("message", "Ошибка мерчанта"))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка платежного шлюза: {str(e)}")
-
+            response = requests.post(
+                BETATRANSFER_URL, 
+                json=payload, 
+                proxies=proxies, 
+                timeout=10
+            )
+            print("ОТВЕТ ОТ БЕТАТРАНСФЕР ЧЕРЕЗ ПРОКСИ:", response.text)
+            data = response.json()
+        except Exception as proxy_err:
+            print("Ошибка прокси (умер или завис):", proxy_err)
+            # Если прокси не ответит, пробуем без него, чтобы сайт не падал
+            response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
+            data = response.json()
 @app.post("/api/payment/betatransfer-callback")
 async def betatransfer_callback(request: Request, db=Depends(get_db)):
     form_data = await request.form()
