@@ -205,7 +205,7 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
 
     try:
         # Проверяем, видит ли код переменные (выведем только длину, чтобы не палить ключи в логах)
-        print("ДЛИНА SHOP_ID:", len(str(os.getenv("BETATRANSFER_SHOP_ID") or "")))
+        print("ДЛИНА SHOP_ID:", len(str(os.getenv("BETATRANSFER_PROJECT_ID") or "")))
         print("ДЛИНА API_KEY:", len(str(os.getenv("BETATRANSFER_API_KEY") or "")))
         
         # Узнаем внешний IP-адрес, под которым Railway стучится в платежку
