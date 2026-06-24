@@ -29,7 +29,7 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 # НАСТРОЙКИ BETATRANSFER
 BETATRANSFER_PROJECT_ID = "67d93fe44b6ff2e40cfda6b4cf619b87fc589c54a38c554406927a1a43413744"
 BETATRANSFER_API_KEY = "f5788e7476822122a81f6690446bfead7ee9d5e736a02d0259727f6b5e242243"
-BETATRANSFER_URL = "https://me.betatransfer.io/api/payment"
+BETATRANSFER_URL = "https://merchant.betatransfer.io/api/payment"
 YOUR_DOMAIN = "https://girls-production.up.railway.app"
 
 # Точный путь к базе данных
