@@ -216,8 +216,8 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
     }
 
     proxies = {
-        "http": "http://185.224.57.17:80",
-        "https": "http://185.224.57.17:80"
+        "http": "http://114.129.2.14:8081",
+        "https": "http://114.129.2.14:8081"
     }
 
     response_text = ""
