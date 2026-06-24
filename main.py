@@ -27,10 +27,10 @@ if not os.path.exists(static_path):
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # НАСТРОЙКИ BETATRANSFER
-BETATRANSFER_PROJECT_ID = "97225043ff25d8830c407802569e15c11e73138251142406cfcf9640f3108a20"
-BETATRANSFER_API_KEY = "5b914ced89d02da9aad41058383c4e100cdbfa86a0c49f05e656fe4f4e53437a"
+BETATRANSFER_PROJECT_ID = "67d93fe44b6ff2e40cfda6b4cf619b87fc589c54a38c554406927a1a43413744"
+BETATRANSFER_API_KEY = "f5788e7476822122a81f6690446bfead7ee9d5e736a02d0259727f6b5e242243"
 BETATRANSFER_URL = "https://me.betatransfer.io/api/payment"
-YOUR_DOMAIN = "https://dankir0admin.pythonanywhere.com"
+YOUR_DOMAIN = "https://girls-production.up.railway.app"
 
 # Точный путь к базе данных
 DB_PATH = os.path.join(BASE_DIR, "voting_platform.db")
