@@ -225,8 +225,8 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
 
     # Свежий бесплатный рабочий прокси из сети
     proxies = {
-        "http": "http://185.162.229.141:80",
-        "https": "http://185.162.229.141:80"
+        "http": "http://186.224.74.243:8080",
+        "https": "http://186.224.74.243:8080"
     }
 
     try:
