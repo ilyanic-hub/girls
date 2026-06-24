@@ -205,6 +205,7 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
 
     try:
         response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
+        print("ОТВЕТ ОТ БЕТАТРАНСФЕР:", res.text) # <--- ДОБАВЬ ЭТУ СТРОЧКУ С ТЕМ ЖЕ ОТСТУПОМ!
         data = response.json()
         if response.status_code == 200 and data.get("status") == "success":
             return {"payment_url": data.get("url")}
