@@ -204,6 +204,16 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
     }
 
     try:
+        # Проверяем, видит ли код переменные (выведем только длину, чтобы не палить ключи в логах)
+        print("ДЛИНА SHOP_ID:", len(str(os.getenv("BETATRANSFER_SHOP_ID") or "")))
+        print("ДЛИНА API_KEY:", len(str(os.getenv("BETATRANSFER_API_KEY") or "")))
+        
+        # Узнаем внешний IP-адрес, под которым Railway стучится в платежку
+        try:
+            current_ip = requests.get("https://api.ipify.org", timeout=5).text
+            print("ВНЕШНИЙ IP СЕРВЕРА RAILWAY:", current_ip)
+        except Exception as e:
+            print("Не удалось узнать IP:", e)
         response = requests.post(BETATRANSFER_URL, json=payload, timeout=10)
         print("ОТВЕТ ОТ БЕТАТРАНСФЕР:", response.text)  # <-- Поменяли res на response
         data = response.json()
