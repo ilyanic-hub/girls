@@ -2,145 +2,250 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Панель Администратора</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Админ-панель</title>
     <style>
-        body { font-family: sans-serif; background: #0f0f12; color: #fff; padding: 40px; }
-        .box { background: #1e1e24; padding: 25px; border-radius: 12px; max-width: 500px; margin-bottom: 30px; }
-        input { width: 95%; padding: 10px; margin: 10px 0; background: #121216; color: white; border: 1px solid #3a3a4a; border-radius: 6px; }
-        .btn { background: #ff3366; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .btn-del { background: #cc3333; padding: 5px 10px; font-size: 12px; }
-        table { width: 100%; border-collapse: collapse; background: #1e1e24; border-radius: 12px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #3a3a4a; }
-        a { color: #ff3366; text-decoration: none; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fb; color: #2d3748; padding: 30px; margin: 0;
+        }
+        header { display: flex; justify-content: space-between; align-items: center; max-width: 1000px; margin: 0 auto 30px auto; }
+        .admin-container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .admin-box { background: #fff; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 1.3rem; border-bottom: 2px solid #edf2f7; padding-bottom: 10px; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+        .btn { background: #ff4757; color: #fff; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-blue { background: #3182ce; }
+        .btn-gray { background: #e2e8f0; color: #333; margin-top: 5px;}
+        
+        /* Списки элементов */
+        .item-list { margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #edf2f7; background: #fff; }
+        .item-row img { width: 45px; height: 50px; object-fit: cover; border-radius: 6px; }
+        .item-info { flex-grow: 1; margin-left: 15px; font-size: 0.95rem; }
+        .actions { display: flex; gap: 5px; }
+        .action-btn { border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+        .edit-btn { background: #feebc8; color: #c05621; }
+        .del-btn { background: #fed7d7; color: #9b2c2c; }
+
+        /* Окно редактирования (Модалка) */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: #fff; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; position: relative; }
     </style>
 </head>
 <body>
 
-    <p><a href="/">⬅️ Вернуться на Главную</a></p>
-    <h1>Панель администратора</h1>
+    <header>
+        <h1>⚙️ Панель управления</h1>
+        <a href="/" style="font-weight: bold; color: #2d3748; text-decoration: none;">⬅ На сайт</a>
+    </header>
 
-    <div class="box">
-        <h3>Добавить новую участницу</h3>
-        <input type="text" id="girl-name" placeholder="Имя девушки">
-        <label style="display: block; margin: 10px 0; color: #8a8a93;">Выберите фото (JPG/PNG):</label>
-        <input type="file" id="girl-photo-file" accept="image/*">
-        <br><br>
-        <button class="btn" onclick="addGirl()">Добавить в конкурс</button>
+    <div class="admin-container">
+        
+        <div>
+            <div class="admin-box">
+                <h2>💃 Добавить новую участницу</h2>
+                <form id="girlForm" onsubmit="addContestant(event)">
+                    <input type="text" id="girlName" placeholder="Имя Фамилия" required>
+                    <input type="file" id="girlFile" accept="image/*" required style="margin-bottom:15px;">
+                    <button type="submit" class="btn">Загрузить на голосование</button>
+                </form>
+            </div>
+            
+            <h3 style="margin-top: 25px;">Список участниц на сайте:</h3>
+            <div class="item-list" id="girlsList"></div>
+        </div>
+
+        <div>
+            <div class="admin-box">
+                <h2>🏆 Добавить победительницу в архив</h2>
+                <form id="historyForm" onsubmit="addHistoryWinner(event)">
+                    <input type="text" id="histName" placeholder="Имя королевы" required>
+                    <input type="text" id="histDate" placeholder="Период (например: Июнь 2026)" required>
+                    <label style="font-size:0.85rem; font-weight:bold;">Главное фото:</label>
+                    <input type="file" id="histFile" accept="image/*" required style="margin-bottom:10px;">
+                    <label style="font-size:0.85rem; font-weight:bold;">Альбом фотосессии (несколько):</label>
+                    <input type="file" id="histAlbumFiles" accept="image/*" multiple style="margin-bottom:15px;">
+                    <button type="submit" class="btn btn-blue">Загрузить победительницу</button>
+                </form>
+            </div>
+
+            <h3 style="margin-top: 25px;">Зал славы (Архив):</h3>
+            <div class="item-list" id="historyList"></div>
+        </div>
+
     </div>
 
-    <h2>Список всех участниц</h2>
-    <table>
-        <thead>
-            <tr><th>ID</th><th>Имя</th><th>Голоса</th><th>Действие</th></tr>
-        </thead>
-        <tbody id="admin-table"></tbody>
-    </table>
+    <div id="editGirlModal" class="modal">
+        <div class="modal-content">
+            <h2>📝 Редактировать участницу</h2>
+            <form id="editGirlForm" onsubmit="submitEditGirl(event)">
+                <input type="hidden" id="editGirlId">
+                <label>Имя:</label>
+                <input type="text" id="editGirlName" required>
+                <label>Количество голосов:</label>
+                <input type="number" id="editGirlVotes" required>
+                <label>Сменить фото (необязательно):</label>
+                <input type="file" id="editGirlFile" accept="image/*" style="margin-bottom:15px;">
+                <button type="submit" class="btn">Сохранить изменения</button>
+                <button type="button" class="btn btn-gray" onclick="closeModals()">Отмена</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="editHistModal" class="modal">
+        <div class="modal-content">
+            <h2>📝 Редактировать королеву архива</h2>
+            <form id="editHistForm" onsubmit="submitEditHist(event)">
+                <input type="hidden" id="editHistId">
+                <label>Имя:</label>
+                <input type="text" id="editHistName" required>
+                <label>Период:</label>
+                <input type="text" id="editHistDate" required>
+                <label>Сменить главное фото (необязательно):</label>
+                <input type="file" id="editHistFile" accept="image/*" style="margin-bottom:10px;">
+                <label>Добавить еще фото в альбом:</label>
+                <input type="file" id="editHistAlbum" accept="image/*" multiple style="margin-bottom:15px;">
+                <button type="submit" class="btn btn-blue">Сохранить архив</button>
+                <button type="button" class="btn btn-gray" onclick="closeModals()">Отмена</button>
+            </form>
+        </div>
+    </div>
 
     <script>
-        async function loadAdminData() {
-            let res = await fetch('/api/contestants');
-            if (!res.ok) { alert("Ошибка доступа"); window.location.href = "/"; return; }
-            let list = await res.json();
-            let tbody = document.getElementById('admin-table');
-            tbody.innerHTML = '';
-            list.forEach(girl => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${girl.id}</td>
-                        <td>${girl.name}</td>
-                        <td>${girl.votes_count}</td>
-                        <td><button class="btn btn-del" onclick="deleteGirl(${girl.id})">Удалить</button></td>
-                    </tr>`;
-            });
-        }
-
-        async function addGirl() {
-            let name = document.getElementById('girl-name').value;
-            let fileInput = document.getElementById('girl-photo-file');
-
-            if (!name || fileInput.files.length === 0) {
-                alert("Пожалуйста, введите имя и выберите файл изображения!");
-                return;
-            }
-
-            // Создаем объект FormData для отправки файлов
-            let formData = new FormData();
-            formData.append("name", name);
-            formData.append("file", fileInput.files[0]);
-
-            try {
-                let res = await fetch('/api/admin/contestants', {
-                    method: 'POST',
-                    body: formData // Отправляем formData (заголовки Content-Type браузер поставит сам)
+        // ЗАГРУЗКА ДАННЫХ В СПИСКИ
+        async function loadAllData() {
+            // Загрузка голосующих девушек
+            let resG = await fetch('/api/contestants');
+            if (resG.ok) {
+                let girls = await resG.json();
+                let div = document.getElementById('girlsList');
+                div.innerHTML = '';
+                girls.forEach(g => {
+                    div.innerHTML += `
+                        <div class="item-row">
+                            <img src="${g.photo_url}">
+                            <div class="item-info"><b>${g.name}</b><br><span style="color:#718096">Голосов: ${g.votes_count}</span></div>
+                            <div class="actions">
+                                <button class="action-btn edit-btn" onclick="openEditGirl(${g.id}, '${g.name}', ${g.votes_count})">📝</button>
+                                <button class="action-btn del-btn" onclick="deleteGirl(${g.id})">❌</button>
+                            </div>
+                        </div>`;
                 });
+            }
 
-                let data = await res.json();
-
-                if(res.ok) {
-                    alert(data.message);
-                    document.getElementById('girl-name').value = '';
-                    fileInput.value = ''; // Очищаем поле файла
-                    loadAdminData(); // Перезагружаем таблицу
-                } else {
-                    alert("Ошибка: " + data.detail);
-                }
-            } catch(err) {
-                alert("Ошибка при отправке данных на сервер");
+            // Загрузка архивных
+            let resH = await fetch('/api/history');
+            if (resH.ok) {
+                let history = await resH.json();
+                let div = document.getElementById('historyList');
+                div.innerHTML = '';
+                history.forEach(h => {
+                    div.innerHTML += `
+                        <div class="item-row">
+                            <img src="${h.photo_url}">
+                            <div class="item-info"><b>${h.name}</b><br><span style="color:#3182ce">${h.title_date}</span></div>
+                            <div class="actions">
+                                <button class="action-btn edit-btn" onclick="openEditHist(${h.id}, '${h.name}', '${h.title_date}')">📝</button>
+                                <button class="action-btn del-btn" onclick="deleteHist(${h.id})">❌</button>
+                            </div>
+                        </div>`;
+                });
             }
         }
 
-        async function deleteGirl(id) {
-            if(!confirm("Удалить эту участницу?")) return;
-            let res = await fetch(`/api/admin/contestants/${id}`, {method: 'DELETE'});
-            if(res.ok) loadAdminData();
+        // ОТКРЫТИЕ МОДАЛОК РЕДАКТИРОВАНИЯ
+        function openEditGirl(id, name, votes) {
+            document.getElementById('editGirlId').value = id;
+            document.getElementById('editGirlName').value = name;
+            document.getElementById('editGirlVotes').value = votes;
+            document.getElementById('editGirlModal').style.display = 'flex';
         }
 
-        loadAdminData();
+        function openEditHist(id, name, date) {
+            document.getElementById('editHistId').value = id;
+            document.getElementById('editHistName').value = name;
+            document.getElementById('editHistDate').value = date;
+            document.getElementById('editHistModal').style.display = 'flex';
+        }
+
+        function closeModals() {
+            document.getElementById('editGirlModal').style.display = 'none';
+            document.getElementById('editHistModal').style.display = 'none';
+        }
+
+        // ОТПРАВКА ИЗМЕНЕНИЙ НА СЕРВЕР (PUT-запросы)
+        async function submitEditGirl(e) {
+            e.preventDefault();
+            let id = document.getElementById('editGirlId').value;
+            let formData = new FormData();
+            formData.append("name", document.getElementById('editGirlName').value);
+            formData.append("votes_count", document.getElementById('editGirlVotes').value);
+            
+            let fileInput = document.getElementById('editGirlFile');
+            if(fileInput.files.length > 0) formData.append("file", fileInput.files[0]);
+
+            let res = await fetch(`/api/admin/contestants/${id}`, { method: 'PUT', body: formData });
+            if (res.ok) { closeModals(); loadAllData(); document.getElementById('editGirlFile').value=''; }
+            else { alert("Ошибка сохранения"); }
+        }
+
+        async function submitEditHist(e) {
+            e.preventDefault();
+            let id = document.getElementById('editHistId').value;
+            let formData = new FormData();
+            formData.append("name", document.getElementById('editHistName').value);
+            formData.append("title_date", document.getElementById('editHistDate').value);
+
+            let fileInput = document.getElementById('editHistFile');
+            if(fileInput.files.length > 0) formData.append("file", fileInput.files[0]);
+
+            let albInput = document.getElementById('editHistAlbum');
+            for (let i = 0; i < albInput.files.length; i++) {
+                formData.append("album_files", albInput.files[i]);
+            }
+
+            let res = await fetch(`/api/admin/history/${id}`, { method: 'PUT', body: formData });
+            if (res.ok) { closeModals(); loadAllData(); document.getElementById('editHistFile').value=''; document.getElementById('editHistAlbum').value=''; }
+            else { alert("Ошибка сохранения"); }
+        }
+
+        // УДАЛЕНИЕ СТАТЕЙ
+        async function deleteGirl(id) {
+            if(!confirm("Удалить эту участницу из голосования?")) return;
+            let res = await fetch(`/api/admin/contestants/${id}`, { method: 'DELETE' });
+            if(res.ok) loadAllData();
+        }
+
+        async function deleteHist(id) {
+            if(!confirm("Удалить эту королеву и её фотосессию из архива?")) return;
+            let res = await fetch(`/api/admin/history/${id}`, { method: 'DELETE' });
+            if(res.ok) loadAllData();
+        }
+
+        // ДОБАВЛЕНИЕ НОВЫХ ЗАРЕПЕЙТИРОВАННЫХ ФУНКЦИЙ
+        async function addContestant(e) {
+            e.preventDefault();
+            let formData = new FormData();
+            formData.append("name", document.getElementById("girlName").value);
+            formData.append("file", document.getElementById("girlFile").files[0]);
+            let res = await fetch("/api/admin/contestants", { method: "POST", body: formData });
+            if (res.ok) { document.getElementById("girlForm").reset(); loadAllData(); }
+        }
+
+        async function addHistoryWinner(e) {
+            e.preventDefault();
+            let formData = new FormData();
+            formData.append("name", document.getElementById("histName").value);
+            formData.append("title_date", document.getElementById("histDate").value);
+            formData.append("file", document.getElementById("histFile").files[0]);
+            let albumInput = document.getElementById("histAlbumFiles");
+            for (let i = 0; i < albumInput.files.length; i++) { formData.append("album_files", albumInput.files[i]); }
+            let res = await fetch("/api/admin/history", { method: "POST", body: formData });
+            if (res.ok) { document.getElementById("historyForm").reset(); loadAllData(); }
+        }
+
+        loadAllData();
     </script>
-    <hr style="margin: 40px 0; border: 1px solid #eee;">
-
-<div class="admin-box" style="background:#fff; padding:25px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.05); max-width:400px; margin: 20px auto;">
-    <h2>🏆 Добавить победительницу и альбом</h2>
-    <form id="historyForm" onsubmit="addHistoryWinner(event)">
-        <input type="text" id="histName" placeholder="Имя победительницы" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
-        <input type="text" id="histDate" placeholder="Период (например: Июнь 2026)" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
-        
-        <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">Главное фото карточки:</label>
-        <input type="file" id="histFile" accept="image/*" required style="margin-bottom:15px;">
-        
-        <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">Фотографии для альбома (можно выбрать несколько):</label>
-        <input type="file" id="histAlbumFiles" accept="image/*" multiple style="margin-bottom:20px;">
-        
-        <button type="submit" class="btn" style="background:#ff4757; color:#fff; border:none; padding:10px 20px; border-radius:20px; cursor:pointer; font-weight:bold; width:100%;">Загрузить победительницу</button>
-    </form>
-</div>
-
-<script>
-async function addHistoryWinner(event) {
-    event.preventDefault();
-    let formData = new FormData();
-    formData.append("name", document.getElementById("histName").value);
-    formData.append("title_date", document.getElementById("histDate").value);
-    formData.append("file", document.getElementById("histFile").files[0]);
-
-    // Забираем все выбранные файлы для альбома фотосессии
-    let albumInput = document.getElementById("histAlbumFiles");
-    for (let i = 0; i < albumInput.files.length; i++) {
-        formData.append("album_files", albumInput.files[i]);
-    }
-
-    let res = await fetch("/api/admin/history", {
-        method: "POST",
-        body: formData
-    });
-
-    if (res.ok) {
-        alert("Успешно! Победительница и её фотосессия добавлены в архив.");
-        document.getElementById("historyForm").reset();
-    } else {
-        alert("Произошла ошибка при загрузке файлов.");
-    }
-}
-</script>
 </body>
 </html>
