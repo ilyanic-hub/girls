@@ -171,40 +171,43 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
-    # --- ИНТЕГРАЦИЯ С ТВОИМ TRYBIT МЕРЧАНТОМ ---
-    # Замени значения ниже на свои реальные ключи из личного кабинета TryBit
-    TRYBIT_MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  
-    TRYBIT_SECRET_KEY = "7Z8Q5qj8f3PDS5iz"
+    # --- НАСТРОЙКИ TRYBIT ---
+    MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  # Твой ID мерчанта
+    SECRET_KEY = "7Z8Q5qj8f3PDS5iz"   # Твой приватный ключ
     
     order_id = f"order_{uuid.uuid4().hex[:8]}"
+    amount = data.amount
+
+    # Тот самый рабочий эндпоинт и простой формат параметров, который мы подобрали
+    url = "https://api.trybit.pro/v1/invoice/create"
     
-    # Сборка параметров платежа по документации TryBit
+    # TryBit принимает параметры авторизации и платежа вот в таком виде
     payload = {
-        "merchant_id": TRYBIT_MERCHANT_ID,
-        "amount": data.amount,
-        "currency": "RUB",
+        "merchant_id": MERCHANT_ID,
+        "secret": SECRET_KEY,
+        "amount": amount,
         "order_id": order_id,
-        "description": f"Пополнение баланса пользователя ID {user_id}",
-        "success_url": "https://girls-production.up.railway.app/",
-        "fail_url": "https://girls-production.up.railway.app/"
+        "description": f"Пополнение баланса пользователя ID {user_id}"
     }
-    
+
     try:
-        # Отправляем запрос создания инвойса к TryBit API
-        api_res = requests.post("https://api.trybit.pro/v1/invoice/create", json=payload, timeout=10)
+        # Отправляем как обычную форму (data= вместо json=), чтобы TryBit её принял
+        api_res = requests.post(url, data=payload, timeout=10)
         api_data = api_res.json()
         
-        # Парсим ответ кассы и ищем ссылку на форму оплатыカード
-        if api_res.status_code == 200 and "payment_url" in api_data:
-            return {"payment_url": api_data["payment_url"]}
-        elif api_res.status_code == 200 and "data" in api_data and "payment_url" in api_data["data"]:
-            return {"payment_url": api_data["data"]["payment_url"]}
+        # Проверяем успешный ответ
+        if api_res.status_code == 200 and "response" in api_data and "url" in api_data["response"]:
+            # Возвращаем рабочую ссылку на оплату во фронтенд
+            return {"payment_url": api_data["response"]["url"]}
+        elif api_res.status_code == 200 and "url" in api_data:
+            return {"payment_url": api_data["url"]}
         else:
-            raise HTTPException(status_code=400, detail=api_data.get("message", "Ошибка инициализации платежа в TryBit"))
+            error_msg = api_data.get("message", "Ошибка платежной системы")
+            raise HTTPException(status_code=400, detail=error_msg)
             
     except Exception as e:
         print(f"Ошибка вызова API TryBit: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось соединиться с платежной системой")
+        raise HTTPException(status_code=500, detail="Не удалось связаться с TryBit")
 
 
 # ================= ПУБЛИЧНЫЙ API ДЛЯ ГАЛЕРЕИ И ГОЛОСОВАНИЯ =================
