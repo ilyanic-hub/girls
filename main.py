@@ -235,22 +235,20 @@ async def admin_add_contestant(
     file: UploadFile = File(...),
     db=Depends(get_db)
 ):
-    try:
-        file_ext = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = os.path.join(PHOTOS_DIR, filename)
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(PHOTOS_DIR, filename)
+    
+    # Читаем и сохраняем файл напрямую
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
         
-        with open(file_path, "wb") as f:
-            f.write(await file.read())
-            
-        photo_url = f"/static/photos/{filename}"
-        cursor = db.cursor()
-        cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
-        db.commit()
-        return {"status": "success"}
-    except Exception as e:
-        print(f"--- ОШИБКА ДОБАВЛЕНИЯ УЧАСТНИЦЫ: {e} ---", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
+    photo_url = f"/static/photos/{filename}"
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
+    db.commit()
+    return {"status": "success"}
 
 @app.put("/api/admin/contestants/{girl_id}")
 async def admin_edit_contestant(
@@ -260,31 +258,114 @@ async def admin_edit_contestant(
     file: Optional[UploadFile] = File(None),
     db=Depends(get_db)
 ):
-    try:
-        cursor = db.cursor()
-        if file and file.filename:
-            file_ext = os.path.splitext(file.filename)[1]
-            filename = f"{uuid.uuid4()}{file_ext}"
-            file_path = os.path.join(PHOTOS_DIR, filename)
+    cursor = db.cursor()
+    if file and file.filename:
+        file_ext = os.path.splitext(file.filename)[1]
+        filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = os.path.join(PHOTOS_DIR, filename)
+        
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
             
-            with open(file_path, "wb") as f:
-                f.write(await file.read())
-                
-            photo_url = f"/static/photos/{filename}"
-            cursor.execute("UPDATE contestants SET name = ?, votes_count = ?, photo_url = ? WHERE id = ?", (name, votes_count, photo_url, girl_id))
-        else:
-            cursor.execute("UPDATE contestants SET name = ?, votes_count = ? WHERE id = ?", (name, votes_count, girl_id))
-            
-        db.commit()
-        return {"status": "success"}
-    except Exception as e:
-        print(f"--- ОШИБКА РЕДАКТИРОВАНИЯ УЧАСТНИЦЫ: {e} ---", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=str(e))
+        photo_url = f"/static/photos/{filename}"
+        cursor.execute("UPDATE contestants SET name = ?, votes_count = ?, photo_url = ? WHERE id = ?", (name, votes_count, photo_url, girl_id))
+    else:
+        cursor.execute("UPDATE contestants SET name = ?, votes_count = ? WHERE id = ?", (name, votes_count, girl_id))
+        
+    db.commit()
+    return {"status": "success"}
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("DELETE FROM contestants WHERE id = ?", (girl_id,))
+    db.commit()
+    return {"status": "success"}
+
+
+# ================= ЗАЛ СЛАВЫ / АРХИВ (УПРАВЛЕНИЕ КОРОЛЕВАМИ) =================
+
+@app.post("/api/admin/history")
+async def admin_add_history_winner(
+    name: str = Form(...),
+    title_date: str = Form(...),
+    file: UploadFile = File(...),
+    album_files: List[UploadFile] = File([]),
+    db=Depends(get_db)
+):
+    cursor = db.cursor()
+    
+    # Главное фото
+    main_ext = os.path.splitext(file.filename)[1]
+    main_filename = f"winner_{uuid.uuid4()}{main_ext}"
+    main_path = os.path.join(PHOTOS_DIR, main_filename)
+    
+    main_content = await file.read()
+    with open(main_path, "wb") as f:
+        f.write(main_content)
+    main_photo_url = f"/static/photos/{main_filename}"
+    
+    cursor.execute("INSERT INTO history_winners (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, main_photo_url))
+    winner_id = cursor.lastrowid
+    
+    # Альбом фотосессии
+    for alb_file in album_files:
+        if alb_file.filename:
+            alb_ext = os.path.splitext(alb_file.filename)[1]
+            alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
+            alb_path = os.path.join(PHOTOS_DIR, alb_filename)
+            
+            alb_content = await alb_file.read()
+            with open(alb_path, "wb") as f:
+                f.write(alb_content)
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
+            
+    db.commit()
+    return {"status": "success"}
+
+@app.put("/api/admin/history/{winner_id}")
+async def admin_edit_history_winner(
+    winner_id: int,
+    name: str = Form(...),
+    title_date: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    album_files: List[UploadFile] = File([]),
+    db=Depends(get_db)
+):
+    cursor = db.cursor()
+
+    if file and file.filename:
+        main_ext = os.path.splitext(file.filename)[1]
+        main_filename = f"winner_{uuid.uuid4()}{main_ext}"
+        main_path = os.path.join(PHOTOS_DIR, main_filename)
+        
+        main_content = await file.read()
+        with open(main_path, "wb") as f:
+            f.write(main_content)
+        cursor.execute("UPDATE history_winners SET name = ?, title_date = ?, photo_url = ? WHERE id = ?", (name, title_date, f"/static/photos/{main_filename}", winner_id))
+    else:
+        cursor.execute("UPDATE history_winners SET name = ?, title_date = ? WHERE id = ?", (name, title_date, winner_id))
+
+    for alb_file in album_files:
+        if alb_file.filename:
+            alb_ext = os.path.splitext(alb_file.filename)[1]
+            alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
+            alb_path = os.path.join(PHOTOS_DIR, alb_filename)
+            
+            alb_content = await alb_file.read()
+            with open(alb_path, "wb") as f:
+                f.write(alb_content)
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
+
+    db.commit()
+    return {"status": "success"}
+
+@app.delete("/api/admin/history/{winner_id}")
+def admin_delete_history_winner(winner_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM history_winners WHERE id = ?", (winner_id,))
+    cursor.execute("DELETE FROM winner_photos WHERE winner_id = ?", (winner_id,))
     db.commit()
     return {"status": "success"}
 
