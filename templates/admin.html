@@ -100,12 +100,18 @@
     <hr style="margin: 40px 0; border: 1px solid #eee;">
 
 <div class="admin-box" style="background:#fff; padding:25px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.05); max-width:400px; margin: 20px auto;">
-    <h2>🏆 Добавить победительницу в архив</h2>
+    <h2>🏆 Добавить победительницу и альбом</h2>
     <form id="historyForm" onsubmit="addHistoryWinner(event)">
         <input type="text" id="histName" placeholder="Имя победительницы" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
         <input type="text" id="histDate" placeholder="Период (например: Июнь 2026)" required style="width:100%; padding:10px; margin-bottom:10px; border:1px solid #ccc; border-radius:8px; box-sizing:border-box;">
+        
+        <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">Главное фото карточки:</label>
         <input type="file" id="histFile" accept="image/*" required style="margin-bottom:15px;">
-        <button type="submit" class="btn" style="background:#ff4757; color:#fff; border:none; padding:10px 20px; border-radius:20px; cursor:pointer; font-weight:bold; width:100%;">Загрузить в архив</button>
+        
+        <label style="display:block; margin-bottom:5px; font-weight:bold; font-size:0.9rem;">Фотографии для альбома (можно выбрать несколько):</label>
+        <input type="file" id="histAlbumFiles" accept="image/*" multiple style="margin-bottom:20px;">
+        
+        <button type="submit" class="btn" style="background:#ff4757; color:#fff; border:none; padding:10px 20px; border-radius:20px; cursor:pointer; font-weight:bold; width:100%;">Загрузить победительницу</button>
     </form>
 </div>
 
@@ -117,16 +123,22 @@ async function addHistoryWinner(event) {
     formData.append("title_date", document.getElementById("histDate").value);
     formData.append("file", document.getElementById("histFile").files[0]);
 
+    // Забираем все выбранные файлы для альбома фотосессии
+    let albumInput = document.getElementById("histAlbumFiles");
+    for (let i = 0; i < albumInput.files.length; i++) {
+        formData.append("album_files", albumInput.files[i]);
+    }
+
     let res = await fetch("/api/admin/history", {
         method: "POST",
         body: formData
     });
 
     if (res.ok) {
-        alert("Победительница добавлена в архив славы!");
+        alert("Успешно! Победительница и её фотосессия добавлены в архив.");
         document.getElementById("historyForm").reset();
     } else {
-        alert("Ошибка при добавлена.");
+        alert("Произошла ошибка при загрузке файлов.");
     }
 }
 </script>
