@@ -71,7 +71,6 @@ def init_db():
         title_date TEXT NOT NULL
     )""")
 
-    # ТАБЛИЦА ДЛЯ АЛЬБОМОВ ФОТОСЕССИЙ
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS winner_photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,10 +129,7 @@ class DepositRequest(BaseModel):
 def register(user: UserAuth, db=Depends(get_db)):
     cursor = db.cursor()
     try:
-        cursor.execute(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            (user.username, hash_password(user.password))
-        )
+        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (user.username, hash_password(user.password)))
         db.commit()
         return {"status": "success"}
     except sqlite3.IntegrityError:
@@ -155,8 +151,7 @@ def logout(response: Response):
     return {"status": "success"}
 
 @app.get("/api/me")
-def get_me(user=Depends(get_current_user)):
-    return user
+def get_me(user=Depends(get_current_user)): return user
 
 @app.get("/api/contestants")
 def get_contestants(db=Depends(get_db)):
@@ -170,7 +165,6 @@ def get_history_winners(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history_winners ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
 
-# ПОЛУЧИТЬ АЛЬБОМ ДЛЯ КОНКРЕТНОЙ ПОБЕДИТЕЛЬНИЦЫ
 @app.get("/api/history/{winner_id}/photos")
 def get_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor = db.cursor()
@@ -180,18 +174,15 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
 @app.post("/api/vote")
 def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db)):
     vote_cost = 10.0
-    if user["balance"] < vote_cost:
-        raise HTTPException(status_code=400, detail="Недостаточно средств")
+    if user["balance"] < vote_cost: raise HTTPException(status_code=400, detail="Недостаточно средств")
     cursor = db.cursor()
     cursor.execute("SELECT id FROM contestants WHERE id = ?", (contestant_id,))
-    if not cursor.fetchone():
-        raise HTTPException(status_code=404, detail="Участница не найдена")
+    if not cursor.fetchone(): raise HTTPException(status_code=404, detail="Участница не найдена")
     try:
         db.execute("BEGIN")
         cursor.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (vote_cost, user["id"]))
         cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
-        cursor.execute("INSERT INTO votes_log (user_id, contestant_id, amount_paid) VALUES (?, ?, ?)",
-                       (user["id"], contestant_id, vote_cost))
+        cursor.execute("INSERT INTO votes_log (user_id, contestant_id, amount_paid) VALUES (?, ?, ?)", (user["id"], contestant_id, vote_cost))
         db.commit()
         return {"status": "success"}
     except Exception:
@@ -200,20 +191,17 @@ def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db))
 
 @app.post("/api/deposit")
 def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_db)):
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Некорректная сумма")
+    if req.amount <= 0: raise HTTPException(status_code=400, detail="Некорректная сумма")
     order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
     cursor = db.cursor()
-    cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')",
-                   (order_id, user["id"], req.amount))
+    cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')", (order_id, user["id"], req.amount))
     db.commit()
     headers = {"Authorization": f"Token {TRYBIT_API_KEY}", "Content-Type": "application/json"}
     payload = {"amount": float(req.amount), "shop_id": TRYBIT_SHOP_ID, "currency": "RUB", "order_id": order_id}
     try:
         response = requests.post(TRYBIT_URL, json=payload, headers=headers, timeout=15)
         data = response.json()
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=f"Ошибка: {err}")
+    except Exception as err: raise HTTPException(status_code=500, detail=f"Ошибка: {err}")
     result_data = data.get("result", {})
     return {"payment_url": result_data.get("link") or result_data.get("url")}
 
@@ -239,7 +227,9 @@ async def trybit_callback(request: Request, db=Depends(get_db)):
         except Exception: db.rollback()
     return "OK"
 
-# --- АДМИН-ПАНЕЛЬ ---
+
+# --- АДМИН-ПАНЕЛЬ (ДОБАВЛЕНИЕ И ИЗМЕНЕНИЕ) ---
+
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(name: str = Form(...), file: UploadFile = File(...), user=Depends(get_current_user), db=Depends(get_db)):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
@@ -252,37 +242,28 @@ async def admin_add_contestant(name: str = Form(...), file: UploadFile = File(..
     db.commit()
     return {"status": "success"}
 
-# ЗАГРУЗКА ПОБЕДИТЕЛЬНИЦЫ + КУЧИ ФОТО ДЛЯ АЛЬБОМА
-@app.post("/api/admin/history")
-async def admin_add_history_winner(
+# РЕДАКТИРОВАНИЕ ТЕКУЩЕЙ УЧАСТНИЦЫ
+@app.put("/api/admin/contestants/{girl_id}")
+async def admin_edit_contestant(
+        girl_id: int,
         name: str = Form(...),
-        title_date: str = Form(...),
-        file: UploadFile = File(...),              # Главное фото
-        album_files: List[UploadFile] = File([]),  # Дополнительные фото альбома
+        votes_count: int = Form(...),
+        file: Optional[UploadFile] = File(None),
         user=Depends(get_current_user),
         db=Depends(get_db)
 ):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
-    photos_dir = os.path.join(BASE_DIR, "static", "photos")
-    if not os.path.exists(photos_dir): os.makedirs(photos_dir)
-
-    # Сохраняем главное фото
-    main_path = os.path.join(photos_dir, f"winner_{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
-    with open(main_path, "wb") as f: f.write(await file.read())
-    main_url = f"/static/photos/{os.path.basename(main_path)}"
-
     cursor = db.cursor()
-    cursor.execute("INSERT INTO history_winners (name, photo_url, title_date) VALUES (?, ?, ?)", (name, main_url, title_date))
-    winner_id = cursor.lastrowid
-
-    # Сохраняем фотографии альбома (если они есть)
-    for album_file in album_files:
-        if album_file.filename:
-            alb_path = os.path.join(photos_dir, f"alb_{uuid.uuid4()}{os.path.splitext(album_file.filename)[1]}")
-            with open(alb_path, "wb") as f: f.write(await album_file.read())
-            alb_url = f"/static/photos/{os.path.basename(alb_path)}"
-            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, alb_url))
-
+    
+    if file and file.filename:
+        photos_dir = os.path.join(BASE_DIR, "static", "photos")
+        file_path = os.path.join(photos_dir, f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+        with open(file_path, "wb") as f: f.write(await file.read())
+        photo_url = f"/static/photos/{os.path.basename(file_path)}"
+        cursor.execute("UPDATE contestants SET name = ?, votes_count = ?, photo_url = ? WHERE id = ?", (name, votes_count, photo_url, girl_id))
+    else:
+        cursor.execute("UPDATE contestants SET name = ?, votes_count = ? WHERE id = ?", (name, votes_count, girl_id))
+        
     db.commit()
     return {"status": "success"}
 
@@ -291,6 +272,78 @@ def admin_delete_contestant(girl_id: int, user=Depends(get_current_user), db=Dep
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
     cursor = db.cursor()
     cursor.execute("DELETE FROM contestants WHERE id = ?", (girl_id,))
+    db.commit()
+    return {"status": "success"}
+
+@app.post("/api/admin/history")
+async def admin_add_history_winner(
+        name: str = Form(...),
+        title_date: str = Form(...),
+        file: UploadFile = File(...),
+        album_files: List[UploadFile] = File([]),
+        user=Depends(get_current_user),
+        db=Depends(get_db)
+):
+    if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
+    photos_dir = os.path.join(BASE_DIR, "static", "photos")
+    if not os.path.exists(photos_dir): os.makedirs(photos_dir)
+
+    main_path = os.path.join(photos_dir, f"winner_{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+    with open(main_path, "wb") as f: f.write(await file.read())
+    main_url = f"/static/photos/{os.path.basename(main_path)}"
+
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO history_winners (name, photo_url, title_date) VALUES (?, ?, ?)", (name, main_url, title_date))
+    winner_id = cursor.lastrowid
+
+    for album_file in album_files:
+        if album_file.filename:
+            alb_path = os.path.join(photos_dir, f"alb_{uuid.uuid4()}{os.path.splitext(album_file.filename)[1]}")
+            with open(alb_path, "wb") as f: f.write(await album_file.read())
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{os.path.basename(alb_path)}"))
+
+    db.commit()
+    return {"status": "success"}
+
+# РЕДАКТИРОВАНИЕ ПОБЕДИТЕЛЬНИЦЫ ИЗ АРХИВА
+@app.put("/api/admin/history/{winner_id}")
+async def admin_edit_history_winner(
+        winner_id: int,
+        name: str = Form(...),
+        title_date: str = Form(...),
+        file: Optional[UploadFile] = File(None),
+        album_files: List[UploadFile] = File([]),
+        user=Depends(get_current_user),
+        db=Depends(get_db)
+):
+    if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
+    cursor = db.cursor()
+    photos_dir = os.path.join(BASE_DIR, "static", "photos")
+
+    if file and file.filename:
+        main_path = os.path.join(photos_dir, f"winner_{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
+        with open(main_path, "wb") as f: f.write(await file.read())
+        cursor.execute("UPDATE history_winners SET name = ?, title_date = ?, photo_url = ? WHERE id = ?", (name, title_date, f"/static/photos/{os.path.basename(main_path)}", winner_id))
+    else:
+        cursor.execute("UPDATE history_winners SET name = ?, title_date = ? WHERE id = ?", (name, title_date, winner_id))
+
+    # Если докинули новые фото в фотосессию, просто добавляем их к старым
+    for album_file in album_files:
+        if album_file.filename:
+            alb_path = os.path.join(photos_dir, f"alb_{uuid.uuid4()}{os.path.splitext(album_file.filename)[1]}")
+            with open(alb_path, "wb") as f: f.write(await album_file.read())
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{os.path.basename(alb_path)}"))
+
+    db.commit()
+    return {"status": "success"}
+
+# УДАЛЕНИЕ ИЗ АРХИВА ХОСТА
+@app.delete("/api/admin/history/{winner_id}")
+def admin_delete_history(winner_id: int, user=Depends(get_current_user), db=Depends(get_db)):
+    if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
+    cursor = db.cursor()
+    cursor.execute("DELETE FROM history_winners WHERE id = ?", (winner_id,))
+    cursor.execute("DELETE FROM winner_photos WHERE winner_id = ?", (winner_id,))
     db.commit()
     return {"status": "success"}
 
