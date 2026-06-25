@@ -162,8 +162,10 @@ def get_contestants(db=Depends(get_db)):
 @app.get("/api/history")
 def get_history_winners(db=Depends(get_db)):
     cursor = db.cursor()
+    # Мы добавили nocache как параметр, FastAPI его проигнорирует, но браузер обновит запрос
     cursor.execute("SELECT * FROM history_winners ORDER BY id DESC")
-    return [dict(row) for row in cursor.fetchall()]
+    rows = cursor.fetchall()
+    return [dict(row) for row in rows]
 
 @app.get("/api/history/{winner_id}/photos")
 def get_winner_photos(winner_id: int, db=Depends(get_db)):
