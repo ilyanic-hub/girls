@@ -26,10 +26,10 @@ if not os.path.exists(static_path):
     os.makedirs(static_path)
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-# НАСТРОЙКИ BETATRANSFER
-BETATRANSFER_PROJECT_ID = "67d93fe44b6ff2e40cfda6b4cf619b87fc589c54a38c554406927a1a43413744"
-BETATRANSFER_API_KEY = "f5788e7476822122a81f6690446bfead7ee9d5e736a02d0259727f6b5e242243"
-BETATRANSFER_URL = "https://merchant.betatransfer.io/api/payment"
+# НАСТРОЙКИ TRYBIT (КРИПТО-ЭКВАЙРИНГ)
+TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
+TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 YOUR_DOMAIN = "https://girls-production.up.railway.app"
 
 # Точный путь к базе данных
@@ -177,91 +177,76 @@ def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db))
         db.rollback()
         raise HTTPException(status_code=500, detail="Ошибка транзакции")
 
+# --- ПОПОЛНЕНИЕ БАЛАНСА ЧЕРЕЗ TRYBIT ---
 @app.post("/api/deposit")
 def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_db)):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Некорректная сумма")
 
-    # orderId строго латиница и цифры без спецсимволов (стр. 4 документации)
-    order_id = f"pay{uuid.uuid4().hex[:10]}"
-    str_currency = "rub"  # Валюта мелкими буквами согласно доке
+    # Генерируем уникальный номер заказа для системы
+    order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
 
     cursor = db.cursor()
     cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')",
                    (order_id, user["id"], req.amount))
     db.commit()
 
-    str_amount = f"{req.amount:.2f}" # Формат 12345.00
-    
-    url_result = f"{YOUR_DOMAIN}/api/payment/betatransfer-callback"
-    url_success = f"{YOUR_DOMAIN}/"
-    url_fail = f"{YOUR_DOMAIN}/"
-
-    # Строка подписи: склеиваем значения по алфавитному порядку полей (стр. 11, 14)
-    sign_str = (
-        str_amount + 
-        str_currency + 
-        order_id + 
-        url_result + 
-        url_success + 
-        url_fail + 
-        BETATRANSFER_API_KEY
-    )
-    sign = hashlib.md5(sign_str.encode('utf-8')).hexdigest()
-
-    # Данные формы (передаем через data=, а не json=)
-    payload = {
-        "amount": str_amount,
-        "currency": str_currency,
-        "orderId": order_id,
-        "urlResult": url_result,
-        "urlSuccess": url_success,
-        "urlFail": url_fail,
-        "sign": sign
+    # Заголовки авторизации Trybit API v2
+    headers = {
+        "Authorization": f"Token {TRYBIT_API_KEY}",
+        "Content-Type": "application/json"
     }
 
-    # Точный URL шлюза из документации (токен идет как GET-параметр)
-    TARGET_URL = f"https://merchant.betatransfer.io/api/payment?token={BETATRANSFER_PROJECT_ID}"
-
-    # Свежий бесплатный рабочий прокси из сети
-    proxies = {
-        "http": "http://186.224.74.243:8080",
-        "https": "http://186.224.74.243:8080"
+    # Полезная нагрузка (в рублях, крипто-шлюз сам предложит эквивалент)
+    payload = {
+        "amount": float(req.amount),
+        "shop_id": TRYBIT_SHOP_ID,
+        "currency": "RUB",
+        "order_id": order_id
     }
 
     try:
-        # Отправляем запрос через прокси
-        response = requests.post(TARGET_URL, data=payload, proxies=proxies, timeout=15)
-        print("СТАТУС ОТВЕТА:", response.status_code)
-        print("ТЕКСТ ОТВЕТА БЕТАТРАНСФЕР:", response.text)
+        # Отправляем JSON запрос
+        response = requests.post(TRYBIT_URL, json=payload, headers=headers, timeout=15)
+        print("СТАТУС ОТВЕТА TRYBIT:", response.status_code)
+        print("ЛОГ ОТВЕТА TRYBIT:", response.text)
         data = response.json()
     except Exception as err:
-        print("Этот прокси тоже не ответил, ошибка:", err)
-        raise HTTPException(status_code=500, detail="Ошибка прокси, пробуем другой")
+        print("Ошибка запроса к Trybit API:", err)
+        raise HTTPException(status_code=500, detail=f"Ошибка крипто-шлюза: {err}")
 
-    # Проверяем успешность ответа (стр. 15)
-    if data.get("status") != "success":
-        raise HTTPException(status_code=400, detail=f"Ошибка платежного шлюза: {response.text}")
+    if response.status_code != 200 or "result" not in data:
+        raise HTTPException(status_code=400, detail=f"Крипто-шлюз вернул ошибку: {response.text}")
 
-    payment_url = data.get("url")
+    result_data = data.get("result", {})
+    payment_url = result_data.get("link") or result_data.get("url")
+    
     if not payment_url:
-        raise HTTPException(status_code=500, detail="Шлюз не вернул ссылку на оплату")
+        raise HTTPException(status_code=500, detail="Шлюз не вернул ссылку на платежную страницу")
 
     return {"payment_url": payment_url}
-async def betatransfer_callback(request: Request, db=Depends(get_db)):
-    form_data = await request.form()
-    if form_data.get("status") != "success":
+
+# --- ОБРАБОТЧИК УСПЕШНОЙ ОПЛАТЫ ОТ TRYBIT (WEBHOOK) ---
+@app.post("/api/payment/trybit-callback")
+async def trybit_callback(request: Request, db=Depends(get_db)):
+    try:
+        data = await request.json()
+    except Exception:
+        form_data = await request.form()
+        data = dict(form_data)
+
+    print("ПОЛУЧЕН CALLBACK ОТ TRYBIT:", data)
+
+    # Проверяем успешный статус
+    status = data.get("status")
+    if status not in ["success", "paid"]:
         return "OK"
 
-    received_sign = form_data.get("sign")
-    amount = form_data.get("amount")
-    order_id = form_data.get("order_id")
+    order_id = data.get("order_id")
+    amount = data.get("amount")
 
-    check_str = f"{amount}{order_id}{BETATRANSFER_API_KEY}"
-    expected_sign = hashlib.md5(check_str.encode('utf-8')).hexdigest()
-
-    if received_sign != expected_sign:
-        raise HTTPException(status_code=400, detail="Sign mismatch")
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Missing order_id")
 
     cursor = db.cursor()
     cursor.execute("SELECT user_id, status FROM payments WHERE id = ?", (order_id,))
@@ -274,12 +259,15 @@ async def betatransfer_callback(request: Request, db=Depends(get_db)):
             cursor.execute("UPDATE payments SET status = 'success' WHERE id = ?", (order_id,))
             cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (float(amount), user_id))
             db.commit()
-        except Exception:
+            print(f"Баланс пользователя {user_id} успешно пополнен на {amount} через Trybit!")
+        except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail="Database error during top-up")
+            print("Ошибка базы данных при обработке callback:", e)
+            raise HTTPException(status_code=500, detail="Database error")
 
     return "OK"
 
+# --- АДМИН-ПАНЕЛЬ (УПРАВЛЕНИЕ УЧАСТНИЦАМИ) ---
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
         name: str = Form(...),
@@ -326,21 +314,7 @@ def admin_delete_contestant(girl_id: int, user=Depends(get_current_user), db=Dep
     db.commit()
     return {"status": "success", "message": "Участница удалена"}
 
-@app.get("/", response_class=HTMLResponse)
-def page_main():
-    with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f:
-        return f.read()
-
-@app.get("/admin", response_class=HTMLResponse)
-def page_admin():
-    with open(os.path.join(BASE_DIR, "templates", "admin.html"), "r", encoding="utf-8") as f:
-        return f.read()
-
-# --- ПРИНУДИТЕЛЬНЫЙ СТАРТ БАЗЫ ДАННЫХ ПРИ ЗАПУСКЕ ---
-init_db()
-
 # --- СТРАНИЦЫ САЙТА ---
-
 @app.get("/", response_class=HTMLResponse)
 def page_main():
     with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f:
