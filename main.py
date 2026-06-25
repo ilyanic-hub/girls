@@ -91,19 +91,28 @@ async def get_current_user():
     return {"username": "admin", "is_admin": True}
 
 
-# ================= СТРАНИЦЫ (ФРОНТЕНД) =================
+# ================= СТРАНИЦЫ (ФРОНТЕНД) С ОТЛАДКОЙ =================
 
 @app.get("/", response_class=HTMLResponse)
 async def index_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    try:
+        return templates.TemplateResponse("index.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse(content=f"<h3>Ошибка в файле index.html:</h3><pre>{e}</pre>", status_code=500)
 
 @app.get("/history", response_class=HTMLResponse)
 async def history_page(request: Request):
-    return templates.TemplateResponse("history.html", {"request": request})
+    try:
+        return templates.TemplateResponse("history.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse(content=f"<h3>Ошибка в файле history.html:</h3><pre>{e}</pre>", status_code=500)
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request})
+    try:
+        return templates.TemplateResponse("admin.html", {"request": request})
+    except Exception as e:
+        return HTMLResponse(content=f"<h3>Ошибка в файле admin.html:</h3><pre>{e}</pre>", status_code=500)
 
 
 # ================= ПУБЛИЧНЫЙ API =================
