@@ -104,6 +104,7 @@ def init_db():
     
     conn.commit()
     conn.close()
+    cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)", ("admin", "твой_пароль", "admin"))
     print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ (ВКЛЮЧАЯ USERS) ИНИЦИАЛИЗИРОВАНЫ ---")
     print("--- ТАБЛИЦЫ БАЗЫ ДАННЫХ УСПЕШНО ПРОВЕРЕНЫ/СОЗДАНЫ ---", file=sys.stdout)
 
