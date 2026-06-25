@@ -210,14 +210,14 @@
             if (res.ok) {
                 let user = await res.json();
                 
-                // ИСПРАВЛЕНИЕ: Если бэкенд отдал "Гостя", значит сессии нет — принудительно открываем окно логина
+                // ИСПРАВЛЕНО: Если бэкенд отдал "Гостя", перенаправляем на форму логина
                 if (!user.username || user.username === "Гость") {
-                    document.getElementById('main-page').style.style.display = 'none';
+                    document.getElementById('main-page').style.display = 'none';
                     document.getElementById('auth-page').style.display = 'flex';
                     return;
                 }
 
-                // Если всё хорошо и это реальный пользователь:
+                // Если это реальный залогиненный пользователь:
                 document.getElementById('auth-page').style.display = 'none';
                 document.getElementById('main-page').style.display = 'block';
                 document.getElementById('user-name').innerText = user.username;
@@ -251,7 +251,6 @@
                     alert("Регистрация успешна! Теперь войдите."); 
                     toggleAuthMode(); 
                 } else { 
-                    // После успешного входа полностью обновляем страницу, чтобы перестроить DOM сессии
                     window.location.reload(); 
                 }
             } else { 
@@ -260,7 +259,6 @@
         }
 
         async function logout() {
-            // ИСПРАВЛЕНИЕ: Делаем запрос на выход и сразу перезагружаем страницу на уровне браузера
             await fetch('/api/logout', {method: 'POST'});
             window.location.href = '/';
         }
