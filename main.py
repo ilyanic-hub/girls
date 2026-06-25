@@ -164,15 +164,11 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
     response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400)
     return {"status": "success"}
 
-@app.route("/api/logout", methods=["GET", "POST"])
+@app.post("/api/logout")
 def api_logout(response: Response):
-    """Максимально надежный сброс авторизации"""
-    # Удаляем куку со всеми возможными параметрами путей
-    response.delete_cookie(key="user_id", path="/")
-    response.delete_cookie(key="user_id")
-    
-    # Возвращаем статус, который обычно ждет фронтенд
-    return {"status": "success", "message": "Logged out"}
+    """Эндпоинт для выхода: полностью удаляет куку из браузера пользователя"""
+    response.delete_cookie(key="user_id", path="/")  # path="/" гарантирует удаление куки на всем сайте
+    return {"status": "success"}
 
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
