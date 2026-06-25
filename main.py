@@ -49,7 +49,8 @@ class DepositModel(BaseModel):
 CURRENT_USER_ID = 1  # По умолчанию дефолтный админ
 
 def get_db():
-    conn = sqlite3.connect("database.db", check_same_thread=False)
+    # Подключаемся именно к ПРАВИЛЬНОЙ базе данных в data/database.db с обходом потоков
+    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -58,7 +59,7 @@ def get_db():
 
 def init_db():
     """Функция автоматического создания ВСЕХ таблиц, если их нет"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DATABASE_PATH) # ИСПРАВЛЕНО: было DB_PATH
     cursor = conn.cursor()
     
     # 1. Таблица участников для голосования
@@ -91,23 +92,26 @@ def init_db():
         )
     """)
     
-    # 4. Таблица пользователей / админов (для входа и регистрации)
-    # ПРИМЕЧАНИЕ: Проверь, как в твоем коде называются поля! Обычно это username и password (или password_hash)
+    # 4. Таблица пользователей / админов
+    # ИСПРАВЛЕНО: поле role заменено на is_admin, как требует остальной твой код
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            role TEXT DEFAULT 'user'
+            balance REAL DEFAULT 100.0,
+            is_admin INTEGER DEFAULT 0
         )
     """)
     
+    # Автоматически создаем стандартного админа, если таблицы были пустыми
+    cursor.execute("INSERT OR IGNORE INTO users (id, username, password, balance, is_admin) VALUES (1, 'admin', 'admin', 500.0, 1)")
+    
     conn.commit()
     conn.close()
-    cursor.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)", ("admin", "твой_пароль", "admin"))
-    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ (ВКЛЮЧАЯ USERS) ИНИЦИАЛИЗИРОВАНЫ ---")
-    print("--- ТАБЛИЦЫ БАЗЫ ДАННЫХ УСПЕШНО ПРОВЕРЕНЫ/СОЗДАНЫ ---", file=sys.stdout)
+    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ИНИЦИАЛИЗИРОВАНА И ПРОВЕРЕНЫ ---", file=sys.stdout)
 
+# Запуск проверки таблиц
 init_db()
 
 
