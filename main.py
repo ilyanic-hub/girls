@@ -1,6 +1,7 @@
 import os
 import uuid
 import sqlite3
+import sys  # Добавили для отладки критических ошибок
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Request
 from fastapi.staticfiles import StaticFiles
@@ -9,73 +10,79 @@ from fastapi.templating import Jinja2Templates
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ----------------- НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (RAILWAY VOLUME) -----------------
-# Если проект на Railway, данные будут жить в /app/data. Локально — в папке data рядом с main.py
-if os.path.exists("/app/data"):
-    DATA_DIR = "/app/data"
-else:
+# ----------------- НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (БЕЗОПАСНАЯ) -----------------
+# Папка /tmp всегда доступна для чтения и записи в любых Linux системах,
+# но мы используем её только как запасной вариант. Основной — /app/data
+DATA_DIR = "/app/data"
+
+try:
+    # Пробуем создать папку на Volume. Если прав не хватает, переключаемся на локальную папку
+    os.makedirs(DATA_DIR, exist_ok=True)
+except Exception as e:
+    print(f"--- ПРЕДУПРЕЖДЕНИЕ: Не удалось использовать /app/data ({e}). Переключаюсь на локальную папку. ---", file=sys.stderr)
     DATA_DIR = os.path.join(BASE_DIR, "data")
+    os.makedirs(DATA_DIR, exist_ok=True)
 
-os.makedirs(DATA_DIR, exist_ok=True)
-
-# Папка для фотографий на постоянном диске
+# Папка для фотографий
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 # Путь к файлу базы данных
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
+print(f"--- БАЗА ДАННЫХ ИНИЦИАЛИЗИРОВАНА ПО ПУТИ: {DATABASE_PATH} ---", file=sys.stdout)
 # ----------------------------------------------------------------------------------
 
 app = FastAPI(title="Photo Rating API")
 
-# Монтируем статику (для CSS/JS) и отдельный путь для постоянных фоток
+# Монтируем статику
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# Подключение к базе данных
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row  # Позволяет обращаться к полям по именам: row["name"]
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
         conn.close()
 
-# Инициализация таблиц при старте сервера
-# Инициализация базы данных (исправленный синтаксис)
 def init_db():
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    # Исправлено: заменено "NOT EXISTS" на "NOT NULL"
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS contestants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        photo_url TEXT,
-        votes_count INTEGER DEFAULT 0
-    )""")
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS history_winners (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        title_date TEXT NOT NULL,
-        photo_url TEXT
-    )""")
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS winner_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        winner_id INTEGER,
-        photo_url TEXT,
-        FOREIGN KEY(winner_id) REFERENCES history_winners(id) ON DELETE CASCADE
-    )""")
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS contestants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            photo_url TEXT,
+            votes_count INTEGER DEFAULT 0
+        )""")
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS history_winners (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            title_date TEXT NOT NULL,
+            photo_url TEXT
+        )""")
+        
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS winner_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            winner_id INTEGER,
+            photo_url TEXT,
+            FOREIGN KEY(winner_id) REFERENCES history_winners(id) ON DELETE CASCADE
+        )""")
+        
+        conn.commit()
+        conn.close()
+        print("--- ТАБЛИЦЫ БАЗЫ ДАННЫХ УСПЕШНО ПРОВЕРЕНЫ/СОЗДАНЫ ---", file=sys.stdout)
+    except Exception as e:
+        print(f"--- КРИТИЧЕСКАЯ ОШИБКА ИНИЦИАЛИЗАЦИИ БАЗЫ: {e} ---", file=sys.stderr)
+
 
 init_db()
 
