@@ -1,1 +1,150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 НАШИ ПОБЕДИТЕЛЬНИЦЫ</title>
+    <style>
+        :root {
+            --bg-color: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --accent: #ff4757;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header .logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .nav-link {
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: color 0.2s;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 2rem;
+            color: var(--text-main);
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 25px;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .winner-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            text-align: center;
+            padding-bottom: 20px;
+            border: 2px solid #ffd700; /* Золотая рамка для королев */
+        }
+
+        .winner-img {
+            width: 100%;
+            height: 340px;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .winner-info {
+            padding: 15px 10px 0 10px;
+        }
+
+        .winner-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .winner-date {
+            color: #b8860b;
+            font-weight: bold;
+            font-size: 0.95rem;
+            background: #fff9db;
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="/" class="logo">🔥 PHOTO RATING</a>
+        <a href="/" class="nav-link">⬅ На главную (Голосование)</a>
+    </header>
+
+    <h1>🏆 Зал славы победительниц</h1>
+
+    <main class="history-grid" id="history-gallery"></main>
+
+    <script>
+        async function loadHistory() {
+            let res = await fetch('/api/history');
+            if (!res.ok) return;
+            let list = await res.json();
+            let gallery = document.getElementById('history-gallery');
+            gallery.innerHTML = '';
+
+            if(list.length === 0) {
+                gallery.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:var(--text-muted)">Здесь пока еще нет победительниц.</p>';
+                return;
+            }
+
+            list.forEach(winner => {
+                gallery.innerHTML += `
+                    <div class="winner-card">
+                        <img src="${winner.photo_url}" class="winner-img" onerror="this.src='https://placehold.co/300x340/2c2c35/ffffff?text=Queen'">
+                        <div class="winner-info">
+                            <div class="winner-name">${winner.name}</div>
+                            <div class="winner-date">👑 Победительница: ${winner.title_date}</div>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        loadHistory();
+    </script>
+</body>
+</html>
