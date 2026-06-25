@@ -35,6 +35,11 @@ print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.
 app = FastAPI(title="Photo Rating API")
 
 # Подключение статики и загруженных фото
+# Создаем правильный путь к папке с загруженными фото внутри основной статики
+PHOTOS_DIR = os.path.join(BASE_DIR, "static", "photos")
+os.makedirs(PHOTOS_DIR, exist_ok=True)
+
+# Монтируем ОДНУ общую папку static, внутри которой теперь гарантированно лежит photos
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
