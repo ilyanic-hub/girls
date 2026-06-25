@@ -162,10 +162,21 @@ def get_contestants(db=Depends(get_db)):
 @app.get("/api/history")
 def get_history_winners(db=Depends(get_db)):
     cursor = db.cursor()
-    # Мы добавили nocache как параметр, FastAPI его проигнорирует, но браузер обновит запрос
-    cursor.execute("SELECT * FROM history_winners ORDER BY id DESC")
+    # Сортируем по ID DESC, чтобы самые новые королевы всегда были вверху списка
+    cursor.execute("SELECT id, name, title_date, photo_url FROM history_winners ORDER BY id DESC")
     rows = cursor.fetchall()
-    return [dict(row) for row in rows]
+    
+    # Очень важно: превращаем каждую строку базы данных в понятный для JS словарь
+    winners_list = []
+    for row in rows:
+        winners_list.append({
+            "id": row["id"],
+            "name": row["name"],
+            "title_date": row["title_date"],
+            "photo_url": row["photo_url"]
+        })
+        
+    return winners_list
 
 @app.get("/api/history/{winner_id}/photos")
 def get_winner_photos(winner_id: int, db=Depends(get_db)):
