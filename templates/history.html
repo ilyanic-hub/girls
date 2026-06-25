@@ -229,16 +229,20 @@
         let currentPhotoIndex = 0;
 
         async function loadHistory() {
-            let res = await fetch('/api/history');
+            // Добавляем случайный параметр, чтобы очистить кэш принудительно
+            let res = await fetch('/api/history?nocache=' + new Date().getTime());
             if (!res.ok) return;
             let list = await res.json();
             let gallery = document.getElementById('history-gallery');
             gallery.innerHTML = '';
 
             list.forEach(winner => {
+                // Добавляем к url картинки ?t=..., чтобы браузер гарантированно загрузил новое фото, если его отредактировали
+                let freshPhotoUrl = winner.photo_url + '?t=' + new Date().getTime();
+                
                 gallery.innerHTML += `
                     <div class="winner-card" onclick="openAlbum(${winner.id}, '${winner.name}')">
-                        <img src="${winner.photo_url}" class="winner-img">
+                        <img src="${freshPhotoUrl}" class="winner-img">
                         <div class="winner-info">
                             <div class="winner-name">${winner.name}</div>
                             <div class="winner-date">👑 Победительница: ${winner.title_date}</div>
