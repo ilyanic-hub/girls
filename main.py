@@ -4,7 +4,7 @@ import sqlite3
 import sys
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie  # ДОБАВЛЕНЫ Response и Cookie
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -35,13 +35,10 @@ print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.
 app = FastAPI(title="Photo Rating API")
 
 # Подключение статики и загруженных фото
-# Создаем правильный путь к папке с загруженными фото внутри основной статики
 PHOTOS_DIR = os.path.join(BASE_DIR, "static", "photos")
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
-# Монтируем ОДНУ общую папку static, внутри которой теперь гарантированно лежит photos
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
 # Pydantic-модели
 class AuthModel(BaseModel):
@@ -51,10 +48,9 @@ class AuthModel(BaseModel):
 class DepositModel(BaseModel):
     amount: float
 
-CURRENT_USER_ID = 1  # По умолчанию дефолтный админ
+# УДАЛИЛИ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ CURRENT_USER_ID, ТАК КАК ТЕПЕРЬ ВСЁ В КУКАХ
 
 def get_db():
-    # Подключаемся именно к ПРАВИЛЬНОЙ базе данных в data/database.db с обходом потоков
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
@@ -64,10 +60,9 @@ def get_db():
 
 def init_db():
     """Функция автоматического создания ВСЕХ таблиц, если их нет"""
-    conn = sqlite3.connect(DATABASE_PATH) # ИСПРАВЛЕНО: было DB_PATH
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
-    # 1. Таблица участников для голосования
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS contestants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,7 +72,6 @@ def init_db():
         )
     """)
     
-    # 2. Таблица победительниц для Архива
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS history_winners (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,7 +81,6 @@ def init_db():
         )
     """)
     
-    # 3. Таблица дополнительных фотографий для Архива
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS winner_photos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,8 +90,6 @@ def init_db():
         )
     """)
     
-    # 4. Таблица пользователей / админов
-    # ИСПРАВЛЕНО: поле role заменено на is_admin, как требует остальной твой код
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,14 +100,12 @@ def init_db():
         )
     """)
     
-    # Автоматически создаем стандартного админа, если таблицы были пустыми
     cursor.execute("INSERT OR IGNORE INTO users (id, username, password, balance, is_admin) VALUES (1, 'admin', 'admin', 500.0, 1)")
     
     conn.commit()
     conn.close()
     print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ИНИЦИАЛИЗИРОВАНА И ПРОВЕРЕНЫ ---", file=sys.stdout)
 
-# Запуск проверки таблиц
 init_db()
 
 
@@ -138,9 +127,13 @@ async def admin_page():
 # ================= АВТОРИЗАЦИЯ И ПОПОЛНЕНИЕ БАЛАНСА =================
 
 @app.get("/api/me")
-def get_me(db=Depends(get_db)):
+def get_me(user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
+    # Проверяем личную куку пользователя
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE id = ?", (CURRENT_USER_ID,))
+    cursor.execute("SELECT username, balance, is_admin FROM users WHERE id = ?", (int(user_id),))
     user = cursor.fetchone()
     if not user:
         raise HTTPException(status_code=401, detail="Не авторизован")
@@ -157,27 +150,29 @@ def api_register(data: AuthModel, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
 
 @app.post("/api/login")
-def api_login(data: AuthModel, db=Depends(get_db)):
-    global CURRENT_USER_ID
+def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ? AND password = ?", (data.username, data.password))
     user = cursor.fetchone()
     if not user:
         raise HTTPException(status_code=400, detail="Неверный логин или пароль")
-    CURRENT_USER_ID = user["id"]
+    
+    # Сохраняем сессию только в браузере залогиненного пользователя
+    response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400)
     return {"status": "success"}
 
 @app.post("/api/logout")
-def api_logout():
-    global CURRENT_USER_ID
-    CURRENT_USER_ID = None
+def api_logout(response: Response):
+    response.delete_cookie(key="user_id")
     return {"status": "success"}
 
 @app.post("/api/deposit")
-def api_deposit(data: DepositModel, db=Depends(get_db)):
-    global CURRENT_USER_ID
+def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
     cursor = db.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (data.amount, CURRENT_USER_ID))
+    cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (data.amount, int(user_id)))
     db.commit()
     return {"payment_url": "/"}
 
@@ -192,11 +187,12 @@ def get_contestants(db=Depends(get_db)):
     return [dict(row) for row in rows]
 
 @app.post("/api/vote")
-def vote_for_girl(contestant_id: int, db=Depends(get_db)):
-    global CURRENT_USER_ID
+def vote_for_girl(contestant_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Войдите в аккаунт, чтобы голосовать")
+        
     cursor = db.cursor()
-    
-    cursor.execute("SELECT balance FROM users WHERE id = ?", (CURRENT_USER_ID,))
+    cursor.execute("SELECT balance FROM users WHERE id = ?", (int(user_id),))
     user = cursor.fetchone()
     if not user or user["balance"] < 10:
         raise HTTPException(status_code=400, detail="Недостаточно средств. Пополните баланс (стоимость 10₽)!")
@@ -205,7 +201,7 @@ def vote_for_girl(contestant_id: int, db=Depends(get_db)):
     if not cursor.fetchone():
         raise HTTPException(status_code=404, detail="Участница не найдена")
     
-    cursor.execute("UPDATE users SET balance = balance - 10 WHERE id = ?", (CURRENT_USER_ID,))
+    cursor.execute("UPDATE users SET balance = balance - 10 WHERE id = ?", (int(user_id),))
     cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
     db.commit()
     return {"status": "success"}
@@ -231,8 +227,18 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
 async def admin_add_contestant(
     name: str = Form(...),
     file: UploadFile = File(...),
+    user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
+    # Защита эндпоинта от не-админов
+    if not user_id:
+        raise HTTPException(status_code=401)
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+
     try:
         file_ext = os.path.splitext(file.filename)[1]
         filename = f"{uuid.uuid4()}{file_ext}"
@@ -243,7 +249,6 @@ async def admin_add_contestant(
             f.write(content)
             
         photo_url = f"/static/photos/{filename}"
-        cursor = db.cursor()
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
         db.commit()
         return {"status": "success"}
@@ -256,10 +261,16 @@ async def admin_edit_contestant(
     name: str = Form(...),
     votes_count: int = Form(...),
     file: Optional[UploadFile] = File(None),
+    user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
+    if not user_id: raise HTTPException(status_code=401)
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
+
     try:
-        cursor = db.cursor()
         if file and file.filename:
             file_ext = os.path.splitext(file.filename)[1]
             filename = f"{uuid.uuid4()}{file_ext}"
@@ -277,11 +288,16 @@ async def admin_edit_contestant(
         db.commit()
         return {"status": "success"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка редактирования: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка editing: {str(e)}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
-def admin_delete_contestant(girl_id: int, db=Depends(get_db)):
+def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not user_id: raise HTTPException(status_code=401)
     cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
+
     cursor.execute("DELETE FROM contestants WHERE id = ?", (girl_id,))
     db.commit()
     return {"status": "success"}
@@ -295,11 +311,16 @@ async def admin_add_history_winner(
     title_date: str = Form(...),
     file: UploadFile = File(...),
     album_files: List[UploadFile] = File([]),
+    user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
+    if not user_id: raise HTTPException(status_code=401)
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
+
     try:
-        cursor = db.cursor()
-        
         main_ext = os.path.splitext(file.filename)[1]
         main_filename = f"winner_{uuid.uuid4()}{main_ext}"
         main_path = os.path.join(PHOTOS_DIR, main_filename)
@@ -335,11 +356,16 @@ async def admin_edit_history_winner(
     title_date: str = Form(...),
     file: Optional[UploadFile] = File(None),
     album_files: List[UploadFile] = File([]),
+    user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
-    try:
-        cursor = db.cursor()
+    if not user_id: raise HTTPException(status_code=401)
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
 
+    try:
         if file and file.filename:
             main_ext = os.path.splitext(file.filename)[1]
             main_filename = f"winner_{uuid.uuid4()}{main_ext}"
@@ -369,8 +395,13 @@ async def admin_edit_history_winner(
         raise HTTPException(status_code=500, detail=f"Ошибка изменения архива: {str(e)}")
 
 @app.delete("/api/admin/history/{winner_id}")
-def admin_delete_history_winner(winner_id: int, db=Depends(get_db)):
+def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not user_id: raise HTTPException(status_code=401)
     cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
+    check = cursor.fetchone()
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
+
     cursor.execute("DELETE FROM history_winners WHERE id = ?", (winner_id,))
     cursor.execute("DELETE FROM winner_photos WHERE winner_id = ?", (winner_id,))
     db.commit()
@@ -380,12 +411,11 @@ def admin_delete_history_winner(winner_id: int, db=Depends(get_db)):
 # ================= ЭНДПОИНТ-ВЫРУЧАЛОЧКА ДЛЯ АВТОРИЗАЦИИ АДМИНА =================
 
 @app.get("/force-admin")
-def force_admin(db=Depends(get_db)):
-    global CURRENT_USER_ID
+def force_admin(response: Response, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
     user = cursor.fetchone()
     if user:
-        CURRENT_USER_ID = user["id"]
-        return {"status": "Вы успешно авторизованы как ADMIN в системе!", "user_id": CURRENT_USER_ID}
-    return {"status": "Админ не найден в базе данных"}
+        response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400)
+        return {"status": "Вы успешно авторизованы как ADMIN через Cookies!"}
+    return {"status": "Админ не найден"}
