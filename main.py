@@ -201,7 +201,8 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
         "amount": float(data.amount),
         "shop_id": TRYBIT_SHOP_ID,
         "currency": "RUB",
-        "order_id": order_id
+        "order_id": order_id,
+        "description": f"Deposit for user ID {user_id}"  # Использована латиница!
     }
     
     try:
