@@ -57,48 +57,54 @@ def get_db():
         conn.close()
 
 def init_db():
-    conn = sqlite3.connect(DATABASE_PATH)
+    """Функция автоматического создания ВСЕХ таблиц, если их нет"""
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
+    # 1. Таблица участников для голосования
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        balance REAL DEFAULT 0.0,
-        is_admin INTEGER DEFAULT 0
-    )""")
+        CREATE TABLE IF NOT EXISTS contestants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            photo_url TEXT,
+            votes_count INTEGER DEFAULT 0
+        )
+    """)
     
+    # 2. Таблица победительниц для Архива
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS contestants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        photo_url TEXT,
-        votes_count INTEGER DEFAULT 0
-    )""")
+        CREATE TABLE IF NOT EXISTS history_winners (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            title_date TEXT NOT NULL,
+            photo_url TEXT
+        )
+    """)
     
+    # 3. Таблица дополнительных фотографий для Архива
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS history_winners (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        title_date TEXT NOT NULL,
-        photo_url TEXT
-    )""")
+        CREATE TABLE IF NOT EXISTS winner_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            winner_id INTEGER NOT NULL,
+            photo_url TEXT NOT NULL,
+            FOREIGN KEY (winner_id) REFERENCES history_winners(id) ON DELETE CASCADE
+        )
+    """)
     
+    # 4. Таблица пользователей / админов (для входа и регистрации)
+    # ПРИМЕЧАНИЕ: Проверь, как в твоем коде называются поля! Обычно это username и password (или password_hash)
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS winner_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        winner_id INTEGER,
-        photo_url TEXT,
-        FOREIGN KEY(winner_id) REFERENCES history_winners(id) ON DELETE CASCADE
-    )""")
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            role TEXT DEFAULT 'user'
+        )
+    """)
     
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
-        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', 'admin', 500.0, 1)")
-        
     conn.commit()
     conn.close()
+    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ (ВКЛЮЧАЯ USERS) ИНИЦИАЛИЗИРОВАНЫ ---")
     print("--- ТАБЛИЦЫ БАЗЫ ДАННЫХ УСПЕШНО ПРОВЕРЕНЫ/СОЗДАНЫ ---", file=sys.stdout)
 
 init_db()
