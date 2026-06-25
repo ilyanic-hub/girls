@@ -72,9 +72,7 @@
             transition: transform 0.2s;
         }
 
-        .winner-card:hover {
-            transform: scale(1.02);
-        }
+        .winner-card:hover { transform: scale(1.02); }
 
         .winner-img { width: 100%; height: 340px; object-fit: cover; }
 
@@ -134,36 +132,65 @@
             transition: opacity 0.2s;
         }
 
-        .album-grid img:hover {
-            opacity: 0.85;
-        }
+        .album-grid img:hover { opacity: 0.85; }
 
-        /* --- ОКНО №2: ОДНО ФОТО НА ВЕСЬ ЭКРАН (LIGHTBOX) --- */
+        /* --- ОКНО №2: ОДНО ФОТО НА ВЕСЬ ЭКРАН С ПРОЛИСТЫВАНИЕМ --- */
         .lightbox {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            z-index: 2000; /* Выше, чем обычное модальное окно */
+            z-index: 2000;
             justify-content: center;
             align-items: center;
-            cursor: zoom-out;
+            user-select: none;
         }
 
         .lightbox-img {
-            max-width: 95%;
-            max-height: 95vh;
+            max-width: 90%;
+            max-height: 90vh;
             object-fit: contain;
             border-radius: 4px;
             box-shadow: 0 0 30px rgba(0,0,0,0.6);
-            cursor: default;
+            transition: src 0.2s ease-in-out;
         }
 
-        .lightbox .close-lightbox {
+        .close-lightbox {
             position: absolute;
             top: 20px; right: 25px;
             color: #fff; font-size: 3rem; font-weight: bold;
             cursor: pointer;
+            z-index: 2100;
+        }
+
+        /* Стрелочки навигации */
+        .nav-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 4rem;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 20px;
+            transition: color 0.2s, background 0.2s;
+            border-radius: 10px;
+            z-index: 2100;
+        }
+
+        .nav-arrow:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .arrow-left { left: 20px; }
+        .arrow-right { right: 20px; }
+
+        /* Скрываем стрелочки на мобилках, там удобнее кликать по бокам экрана */
+        @media (max-width: 768px) {
+            .nav-arrow { font-size: 2.5rem; padding: 10px; }
+            .arrow-left { left: 5px; }
+            .arrow-right { right: 5px; }
         }
     </style>
 </head>
@@ -188,11 +215,19 @@
     </div>
 
     <div id="lightboxModal" class="lightbox" onclick="closeLightbox()">
-        <span class="close-lightbox">&times;</span>
+        <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
+        
+        <span class="nav-arrow arrow-left" onclick="prevPhoto(event)">&#10094;</span>
+        <span class="nav-arrow arrow-right" onclick="nextPhoto(event)">&#10095;</span>
+        
         <img id="lightboxImage" class="lightbox-img" src="" onclick="event.stopPropagation()">
     </div>
 
     <script>
+        // Глобальные переменные для хранения текущего альбома
+        let currentAlbumPhotos = [];
+        let currentPhotoIndex = 0;
+
         async function loadHistory() {
             let res = await fetch('/api/history');
             if (!res.ok) return;
@@ -215,17 +250,17 @@
         async function openAlbum(winnerId, winnerName) {
             document.getElementById('modalTitle').innerText = `📸 Фотосессия: ${winnerName}`;
             let res = await fetch(`/api/history/${winnerId}/photos`);
-            let photos = await res.json();
+            currentAlbumPhotos = await res.json(); // Сохраняем массив фоток альбома
             
             let photosDiv = document.getElementById('modalPhotos');
             photosDiv.innerHTML = '';
 
-            if (photos.length === 0) {
+            if (currentAlbumPhotos.length === 0) {
                 photosDiv.innerHTML = '<p style="color: var(--text-muted)">Для этой победительницы альбом еще не загружен.</p>';
             } else {
-                photos.forEach(url => {
-                    // Добавили событие onclick для открытия фото во весь экран
-                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox('${url}')">`;
+                currentAlbumPhotos.forEach((url, index) => {
+                    // Передаем индекс фотографии, чтобы знать с какой начинать листание
+                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox(${index})">`;
                 });
             }
             document.getElementById('albumModal').style.display = 'flex';
@@ -235,19 +270,47 @@
             document.getElementById('albumModal').style.display = 'none';
         }
 
-        // ФУНКЦИИ ДЛЯ РАБОТЫ С ФОТО НА ВЕСЬ ЭКРАН
-        function openLightbox(url) {
-            let lightbox = document.getElementById('lightboxModal');
+        // ОТКРЫТИЕ ФОТО И НАВИГАЦИЯ
+        function openLightbox(index) {
+            currentPhotoIndex = index;
+            updateLightboxImage();
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+
+        function updateLightboxImage() {
             let lightboxImg = document.getElementById('lightboxImage');
-            lightboxImg.src = url;
-            lightbox.style.display = 'flex';
+            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
+        }
+
+        function nextPhoto(event) {
+            if (event) event.stopPropagation(); // Чтобы окно не закрывалось при клике на стрелку
+            currentPhotoIndex = (currentPhotoIndex + 1) % currentAlbumPhotos.length; // Перелистывание по кругу вправо
+            updateLightboxImage();
+        }
+
+        function prevPhoto(event) {
+            if (event) event.stopPropagation();
+            currentPhotoIndex = (currentPhotoIndex - 1 + currentAlbumPhotos.length) % currentAlbumPhotos.length; // Перелистывание по кругу влево
+            updateLightboxImage();
         }
 
         function closeLightbox() {
             document.getElementById('lightboxModal').style.display = 'none';
         }
 
-        loadHistory();
+        // Управление с клавиатуры (стрелочки влево/вправо и Esc для выхода)
+        document.addEventListener('keydown', function(event) {
+            let lightbox = document.getElementById('lightboxModal');
+            if (lightbox.style.display === 'flex') {
+                if (event.key === 'ArrowRight') {
+                    nextPhoto();
+                } else if (event.key === 'ArrowLeft') {
+                    prevPhoto();
+                } else if (event.key === 'Escape') {
+                    closeLightbox();
+                }
+            }
+        });
     </script>
 </body>
 </html>
