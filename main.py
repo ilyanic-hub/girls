@@ -13,11 +13,9 @@ from starlette.staticfiles import StaticFiles
 # --- БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ПРИ СТАРТЕ ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Этот код выполнится строго 1 раз при запуске веб-сервера
     init_db()
     yield
 
-# Передаем lifespan в FastAPI
 app = FastAPI(title="Photo Voting Platform v2", lifespan=lifespan)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -27,16 +25,14 @@ if not os.path.exists(static_path):
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # НАСТРОЙКИ TRYBIT (КРИПТО-ЭКВАЙРИНГ)
-TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
-TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ_ИЗ_ЛИЧНОГО_КАБИНЕТА"
+TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID_МАГАЗИНА"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 YOUR_DOMAIN = "https://girls-production.up.railway.app"
 
-# Точный путь к базе данных
 DB_PATH = os.path.join(BASE_DIR, "voting_platform.db")
 
 def get_db():
-    # Добавлен timeout=20, чтобы избежать блокировок базы данных на сервере
     conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
@@ -48,7 +44,6 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 def init_db():
-    # Инициализация базы данных с таймаутом ожидания
     conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
     cursor = conn.cursor()
 
@@ -67,6 +62,15 @@ def init_db():
         name TEXT NOT NULL,
         photo_url TEXT NOT NULL,
         votes_count INTEGER DEFAULT 0
+    )""")
+
+    # ТАБЛИЦА ДЛЯ ПРЕДЫДУЩИХ ПОБЕДИТЕЛЬНИЦ
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS history_winners (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        photo_url TEXT NOT NULL,
+        title_date TEXT NOT NULL  -- Например: "Май 2026" или "Сезон 1"
     )""")
 
     cursor.execute("""
@@ -154,6 +158,13 @@ def get_contestants(db=Depends(get_db)):
     cursor.execute("SELECT * FROM contestants ORDER BY votes_count DESC")
     return [dict(row) for row in cursor.fetchall()]
 
+# ПОЛУЧИТЬ СПИСОК ПОБЕДИТЕЛЬНИЦ ИЗ ИСТОРИИ
+@app.get("/api/history")
+def get_history_winners(db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM history_winners ORDER BY id DESC")
+    return [dict(row) for row in cursor.fetchall()]
+
 @app.post("/api/vote")
 def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db)):
     vote_cost = 10.0
@@ -177,27 +188,22 @@ def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db))
         db.rollback()
         raise HTTPException(status_code=500, detail="Ошибка транзакции")
 
-# --- ПОПОЛНЕНИЕ БАЛАНСА ЧЕРЕЗ TRYBIT ---
 @app.post("/api/deposit")
 def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_db)):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Некорректная сумма")
 
-    # Генерируем уникальный номер заказа для системы
     order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
-
     cursor = db.cursor()
     cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')",
                    (order_id, user["id"], req.amount))
     db.commit()
 
-    # Заголовки авторизации Trybit API v2
     headers = {
         "Authorization": f"Token {TRYBIT_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    # Полезная нагрузка (в рублях, крипто-шлюз сам предложит эквивалент)
     payload = {
         "amount": float(req.amount),
         "shop_id": TRYBIT_SHOP_ID,
@@ -206,13 +212,9 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
     }
 
     try:
-        # Отправляем JSON запрос
         response = requests.post(TRYBIT_URL, json=payload, headers=headers, timeout=15)
-        print("СТАТУС ОТВЕТА TRYBIT:", response.status_code)
-        print("ЛОГ ОТВЕТА TRYBIT:", response.text)
         data = response.json()
     except Exception as err:
-        print("Ошибка запроса к Trybit API:", err)
         raise HTTPException(status_code=500, detail=f"Ошибка крипто-шлюза: {err}")
 
     if response.status_code != 200 or "result" not in data:
@@ -220,13 +222,8 @@ def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_
 
     result_data = data.get("result", {})
     payment_url = result_data.get("link") or result_data.get("url")
-    
-    if not payment_url:
-        raise HTTPException(status_code=500, detail="Шлюз не вернул ссылку на платежную страницу")
-
     return {"payment_url": payment_url}
 
-# --- ОБРАБОТЧИК УСПЕШНОЙ ОПЛАТЫ ОТ TRYBIT (WEBHOOK) ---
 @app.post("/api/payment/trybit-callback")
 async def trybit_callback(request: Request, db=Depends(get_db)):
     try:
@@ -235,9 +232,6 @@ async def trybit_callback(request: Request, db=Depends(get_db)):
         form_data = await request.form()
         data = dict(form_data)
 
-    print("ПОЛУЧЕН CALLBACK ОТ TRYBIT:", data)
-
-    # Проверяем успешный статус
     status = data.get("status")
     if status not in ["success", "paid"]:
         return "OK"
@@ -259,15 +253,13 @@ async def trybit_callback(request: Request, db=Depends(get_db)):
             cursor.execute("UPDATE payments SET status = 'success' WHERE id = ?", (order_id,))
             cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (float(amount), user_id))
             db.commit()
-            print(f"Баланс пользователя {user_id} успешно пополнен на {amount} через Trybit!")
         except Exception as e:
             db.rollback()
-            print("Ошибка базы данных при обработке callback:", e)
             raise HTTPException(status_code=500, detail="Database error")
 
     return "OK"
 
-# --- АДМИН-ПАНЕЛЬ (УПРАВЛЕНИЕ УЧАСТНИЦАМИ) ---
+# --- АДМИН-ПАНЕЛЬ ---
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
         name: str = Form(...),
@@ -278,9 +270,6 @@ async def admin_add_contestant(
     if not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
 
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
-
     photos_dir = os.path.join(BASE_DIR, "static", "photos")
     if not os.path.exists(photos_dir):
         os.makedirs(photos_dir)
@@ -289,21 +278,46 @@ async def admin_add_contestant(
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = os.path.join(photos_dir, unique_filename)
 
-    try:
-        contents = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(contents)
-    except Exception as e:
-        print(f"Ошибка сохранения файла: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка при сохранении файла")
+    contents = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(contents)
 
     photo_url = f"/static/photos/{unique_filename}"
-
     cursor = db.cursor()
     cursor.execute("INSERT INTO contestants (name, photo_url) VALUES (?, ?)", (name, photo_url))
     db.commit()
+    return {"status": "success"}
 
-    return {"status": "success", "message": "Участница успешно добавлена!"}
+# АДМИНКА: ДОБАВИТЬ ПОБЕДИТЕЛЬНИЦУ В ИСТОРИЮ
+@app.post("/api/admin/history")
+async def admin_add_history_winner(
+        name: str = Form(...),
+        title_date: str = Form(...),  # Например: "Май 2026"
+        file: UploadFile = File(...),
+        user=Depends(get_current_user),
+        db=Depends(get_db)
+):
+    if not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+
+    photos_dir = os.path.join(BASE_DIR, "static", "photos")
+    if not os.path.exists(photos_dir):
+        os.makedirs(photos_dir)
+
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"winner_{uuid.uuid4()}{file_extension}"
+    file_path = os.path.join(photos_dir, unique_filename)
+
+    contents = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(contents)
+
+    photo_url = f"/static/photos/{unique_filename}"
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO history_winners (name, photo_url, title_date) VALUES (?, ?, ?)", 
+                   (name, photo_url, title_date))
+    db.commit()
+    return {"status": "success", "message": "Победительница добавлена в архив!"}
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user=Depends(get_current_user), db=Depends(get_db)):
@@ -312,12 +326,18 @@ def admin_delete_contestant(girl_id: int, user=Depends(get_current_user), db=Dep
     cursor = db.cursor()
     cursor.execute("DELETE FROM contestants WHERE id = ?", (girl_id,))
     db.commit()
-    return {"status": "success", "message": "Участница удалена"}
+    return {"status": "success"}
 
 # --- СТРАНИЦЫ САЙТА ---
 @app.get("/", response_class=HTMLResponse)
 def page_main():
     with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f:
+        return f.read()
+
+# СТРАНИЦА ИСТОРИИ ПОБЕДИТЕЛЬНИЦ
+@app.get("/history", response_class=HTMLResponse)
+def page_history():
+    with open(os.path.join(BASE_DIR, "templates", "history.html"), "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/admin", response_class=HTMLResponse)
