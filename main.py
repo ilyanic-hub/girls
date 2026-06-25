@@ -1,278 +1,183 @@
 import os
-import hashlib
-import sqlite3
 import uuid
-import requests
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, Cookie, Response, File, UploadFile, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel
-from typing import Optional, List
-from starlette.staticfiles import StaticFiles
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
-
-app = FastAPI(title="Photo Voting Platform v2", lifespan=lifespan)
+import sqlite3
+from typing import List, Optional
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-static_path = os.path.join(BASE_DIR, "static")
-if not os.path.exists(static_path):
-    os.makedirs(static_path)
-app.mount("/static", StaticFiles(directory=static_path), name="static")
 
-# НАСТРОЙКИ TRYBIT
-TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ_ИЗ_ЛИЧНОГО_КАБИНЕТА"
-TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID_МАГАЗИНА"
-TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
-YOUR_DOMAIN = "https://girls-production.up.railway.app"
+# ----------------- НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (RAILWAY VOLUME) -----------------
+# Если проект на Railway, данные будут жить в /app/data. Локально — в папке data рядом с main.py
+if os.path.exists("/app/data"):
+    DATA_DIR = "/app/data"
+else:
+    DATA_DIR = os.path.join(BASE_DIR, "data")
 
-DB_PATH = os.path.join(BASE_DIR, "voting_platform.db")
+os.makedirs(DATA_DIR, exist_ok=True)
 
+# Папка для фотографий на постоянном диске
+PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
+os.makedirs(PHOTOS_DIR, exist_ok=True)
+
+# Путь к файлу базы данных
+DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
+# ----------------------------------------------------------------------------------
+
+app = FastAPI(title="Photo Rating API")
+
+# Монтируем статику (для CSS/JS) и отдельный путь для постоянных фоток
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
+
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+# Подключение к базе данных
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row  # Позволяет обращаться к полям по именам: row["name"]
     try:
         yield conn
     finally:
         conn.close()
 
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
-
+# Инициализация таблиц при старте сервера
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        balance REAL DEFAULT 0.0,
-        is_admin INTEGER DEFAULT 0
-    )""")
-
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        photo_url TEXT NOT NULL,
+        photo_url TEXT,
         votes_count INTEGER DEFAULT 0
     )""")
-
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history_winners (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
-        photo_url TEXT NOT NULL,
-        title_date TEXT NOT NULL
+        title_date TEXT NOT NULL,
+        photo_url TEXT
     )""")
-
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS winner_photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         winner_id INTEGER,
-        photo_url TEXT NOT NULL,
+        photo_url TEXT,
         FOREIGN KEY(winner_id) REFERENCES history_winners(id) ON DELETE CASCADE
     )""")
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS votes_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        contestant_id INTEGER,
-        amount_paid REAL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        FOREIGN KEY(contestant_id) REFERENCES contestants(id)
-    )""")
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS payments (
-        id TEXT PRIMARY KEY,
-        user_id INTEGER,
-        amount REAL,
-        status TEXT DEFAULT 'pending',
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    )""")
-
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
-        cursor.execute(
-            "INSERT INTO users (username, password_hash, balance, is_admin) VALUES (?, ?, ?, ?)",
-            ("admin", hash_password("admin123"), 0.0, 1)
-        )
+    
     conn.commit()
     conn.close()
 
-def get_current_user(session_user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user_id:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT id, username, balance, is_admin FROM users WHERE id = ?", (session_user_id,))
-    user = cursor.fetchone()
-    if not user:
-        raise HTTPException(status_code=401, detail="Пользователь не найден")
-    return dict(user)
+init_db()
 
-class UserAuth(BaseModel):
-    username: str
-    password: str
+# Имитация авторизации (замени на свою реальную проверку куки/сессий, если она есть)
+async def get_current_user():
+    return {"username": "admin", "is_admin": True}
 
-class DepositRequest(BaseModel):
-    amount: float
 
-@app.post("/api/register")
-def register(user: UserAuth, db=Depends(get_db)):
-    cursor = db.cursor()
-    try:
-        cursor.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)", (user.username, hash_password(user.password)))
-        db.commit()
-        return {"status": "success"}
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="Имя пользователя занято")
+# ================= СТРАНИЦЫ (ФРОНТЕНД) =================
 
-@app.post("/api/login")
-def login(user: UserAuth, response: Response, db=Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT id, password_hash FROM users WHERE username = ?", (user.username,))
-    res = cursor.fetchone()
-    if not res or res["password_hash"] != hash_password(user.password):
-        raise HTTPException(status_code=400, detail="Неверный логин или пароль")
-    response.set_cookie(key="session_user_id", value=str(res["id"]), httponly=True)
-    return {"status": "success"}
+@app.get("/", response_class=HTMLResponse)
+async def index_page(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/api/logout")
-def logout(response: Response):
-    response.delete_cookie(key="session_user_id")
-    return {"status": "success"}
+@app.get("/history", response_class=HTMLResponse)
+async def history_page(request: Request):
+    return templates.TemplateResponse("history.html", {"request": request})
 
-@app.get("/api/me")
-def get_me(user=Depends(get_current_user)): return user
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request})
+
+
+# ================= ПУБЛИЧНЫЙ API =================
 
 @app.get("/api/contestants")
 def get_contestants(db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM contestants ORDER BY votes_count DESC")
-    return [dict(row) for row in cursor.fetchall()]
+    cursor.execute("SELECT id, name, photo_url, votes_count FROM contestants ORDER BY votes_count DESC")
+    rows = cursor.fetchall()
+    return [dict(row) for row in rows]
+
+@app.post("/api/vote/{girl_id}")
+def vote_for_girl(girl_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT id FROM contestants WHERE id = ?", (girl_id,))
+    if not cursor.fetchone():
+        raise HTTPException(status_code=404, detail="Участница не найдена")
+    
+    cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (girl_id,))
+    db.commit()
+    return {"status": "success"}
 
 @app.get("/api/history")
 def get_history_winners(db=Depends(get_db)):
     cursor = db.cursor()
-    # Сортируем по ID DESC, чтобы самые новые королевы всегда были вверху списка
     cursor.execute("SELECT id, name, title_date, photo_url FROM history_winners ORDER BY id DESC")
     rows = cursor.fetchall()
-    
-    # Очень важно: превращаем каждую строку базы данных в понятный для JS словарь
-    winners_list = []
-    for row in rows:
-        winners_list.append({
-            "id": row["id"],
-            "name": row["name"],
-            "title_date": row["title_date"],
-            "photo_url": row["photo_url"]
-        })
-        
-    return winners_list
+    return [dict(row) for row in rows]
 
 @app.get("/api/history/{winner_id}/photos")
 def get_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT photo_url FROM winner_photos WHERE winner_id = ?", (winner_id,))
-    return [row["photo_url"] for row in cursor.fetchall()]
-
-@app.post("/api/vote")
-def vote(contestant_id: int, user=Depends(get_current_user), db=Depends(get_db)):
-    vote_cost = 10.0
-    if user["balance"] < vote_cost: raise HTTPException(status_code=400, detail="Недостаточно средств")
-    cursor = db.cursor()
-    cursor.execute("SELECT id FROM contestants WHERE id = ?", (contestant_id,))
-    if not cursor.fetchone(): raise HTTPException(status_code=404, detail="Участница не найдена")
-    try:
-        db.execute("BEGIN")
-        cursor.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (vote_cost, user["id"]))
-        cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
-        cursor.execute("INSERT INTO votes_log (user_id, contestant_id, amount_paid) VALUES (?, ?, ?)", (user["id"], contestant_id, vote_cost))
-        db.commit()
-        return {"status": "success"}
-    except Exception:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Ошибка транзакции")
-
-@app.post("/api/deposit")
-def deposit(req: DepositRequest, user=Depends(get_current_user), db=Depends(get_db)):
-    if req.amount <= 0: raise HTTPException(status_code=400, detail="Некорректная сумма")
-    order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
-    cursor = db.cursor()
-    cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')", (order_id, user["id"], req.amount))
-    db.commit()
-    headers = {"Authorization": f"Token {TRYBIT_API_KEY}", "Content-Type": "application/json"}
-    payload = {"amount": float(req.amount), "shop_id": TRYBIT_SHOP_ID, "currency": "RUB", "order_id": order_id}
-    try:
-        response = requests.post(TRYBIT_URL, json=payload, headers=headers, timeout=15)
-        data = response.json()
-    except Exception as err: raise HTTPException(status_code=500, detail=f"Ошибка: {err}")
-    result_data = data.get("result", {})
-    return {"payment_url": result_data.get("link") or result_data.get("url")}
-
-@app.post("/api/payment/trybit-callback")
-async def trybit_callback(request: Request, db=Depends(get_db)):
-    try: data = await request.json()
-    except Exception:
-        form_data = await request.form()
-        data = dict(form_data)
-    if data.get("status") not in ["success", "paid"]: return "OK"
-    order_id = data.get("order_id")
-    amount = data.get("amount")
-    cursor = db.cursor()
-    cursor.execute("SELECT user_id, status FROM payments WHERE id = ?", (order_id,))
-    payment = cursor.fetchone()
-    if payment and payment["status"] == "pending":
-        user_id = payment["user_id"]
-        try:
-            db.execute("BEGIN")
-            cursor.execute("UPDATE payments SET status = 'success' WHERE id = ?", (order_id,))
-            cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (float(amount), user_id))
-            db.commit()
-        except Exception: db.rollback()
-    return "OK"
+    cursor.execute("SELECT photo_url FROM winner_photos WHERE winner_id = ? ORDER BY id ASC", (winner_id,))
+    rows = cursor.fetchall()
+    return [row["photo_url"] for row in rows]
 
 
-# --- АДМИН-ПАНЕЛЬ (ДОБАВЛЕНИЕ И ИЗМЕНЕНИЕ) ---
+# ================= АДМИН-ПАНЕЛЬ (УПРАВЛЕНИЕ) =================
 
 @app.post("/api/admin/contestants")
-async def admin_add_contestant(name: str = Form(...), file: UploadFile = File(...), user=Depends(get_current_user), db=Depends(get_db)):
+async def admin_add_contestant(
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+    db=Depends(get_db)
+):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
-    photos_dir = os.path.join(BASE_DIR, "static", "photos")
-    if not os.path.exists(photos_dir): os.makedirs(photos_dir)
-    file_path = os.path.join(photos_dir, f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
-    with open(file_path, "wb") as f: f.write(await file.read())
+    
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"{uuid.uuid4()}{file_ext}"
+    file_path = os.path.join(PHOTOS_DIR, filename)
+    
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+        
+    photo_url = f"/static/photos/{filename}"
+    
     cursor = db.cursor()
-    cursor.execute("INSERT INTO contestants (name, photo_url) VALUES (?, ?)", (name, f"/static/photos/{os.path.basename(file_path)}"))
+    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
     db.commit()
     return {"status": "success"}
 
-# РЕДАКТИРОВАНИЕ ТЕКУЩЕЙ УЧАСТНИЦЫ
-@app.put("/api/admin/contestants/{girl_id}")
+@app.post("/api/admin/contestants/{girl_id}/edit")
 async def admin_edit_contestant(
-        girl_id: int,
-        name: str = Form(...),
-        votes_count: int = Form(...),
-        file: Optional[UploadFile] = File(None),
-        user=Depends(get_current_user),
-        db=Depends(get_db)
+    girl_id: int,
+    name: str = Form(...),
+    votes_count: int = Form(...),
+    file: Optional[UploadFile] = File(None),
+    user=Depends(get_current_user),
+    db=Depends(get_db)
 ):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
     cursor = db.cursor()
     
     if file and file.filename:
-        photos_dir = os.path.join(BASE_DIR, "static", "photos")
-        file_path = os.path.join(photos_dir, f"{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
-        with open(file_path, "wb") as f: f.write(await file.read())
-        photo_url = f"/static/photos/{os.path.basename(file_path)}"
+        file_ext = os.path.splitext(file.filename)[1]
+        filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = os.path.join(PHOTOS_DIR, filename)
+        
+        with open(file_path, "wb") as f:
+            f.write(await file.read())
+            
+        photo_url = f"/static/photos/{filename}"
         cursor.execute("UPDATE contestants SET name = ?, votes_count = ?, photo_url = ? WHERE id = ?", (name, votes_count, photo_url, girl_id))
     else:
         cursor.execute("UPDATE contestants SET name = ?, votes_count = ? WHERE id = ?", (name, votes_count, girl_id))
@@ -288,87 +193,93 @@ def admin_delete_contestant(girl_id: int, user=Depends(get_current_user), db=Dep
     db.commit()
     return {"status": "success"}
 
+
+# ================= АДМИН-ПАНЕЛЬ (ЗАЛ СЛАВЫ / АРХИВ) =================
+
 @app.post("/api/admin/history")
 async def admin_add_history_winner(
-        name: str = Form(...),
-        title_date: str = Form(...),
-        file: UploadFile = File(...),
-        album_files: List[UploadFile] = File([]),
-        user=Depends(get_current_user),
-        db=Depends(get_db)
+    name: str = Form(...),
+    title_date: str = Form(...),
+    file: UploadFile = File(...),
+    album_files: List[UploadFile] = File([]),
+    user=Depends(get_current_user),
+    db=Depends(get_db)
 ):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
-    photos_dir = os.path.join(BASE_DIR, "static", "photos")
-    if not os.path.exists(photos_dir): os.makedirs(photos_dir)
-
-    main_path = os.path.join(photos_dir, f"winner_{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
-    with open(main_path, "wb") as f: f.write(await file.read())
-    main_url = f"/static/photos/{os.path.basename(main_path)}"
-
     cursor = db.cursor()
-    cursor.execute("INSERT INTO history_winners (name, photo_url, title_date) VALUES (?, ?, ?)", (name, main_url, title_date))
+    
+    # 1. Сохраняем главное фото королевы
+    main_ext = os.path.splitext(file.filename)[1]
+    main_filename = f"winner_{uuid.uuid4()}{main_ext}"
+    main_path = os.path.join(PHOTOS_DIR, main_filename)
+    
+    with open(main_path, "wb") as f:
+        f.write(await file.read())
+        
+    main_photo_url = f"/static/photos/{main_filename}"
+    
+    cursor.execute("INSERT INTO history_winners (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, main_photo_url))
     winner_id = cursor.lastrowid
-
-    for album_file in album_files:
-        if album_file.filename:
-            alb_path = os.path.join(photos_dir, f"alb_{uuid.uuid4()}{os.path.splitext(album_file.filename)[1]}")
-            with open(alb_path, "wb") as f: f.write(await album_file.read())
-            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{os.path.basename(alb_path)}"))
-
+    
+    # 2. Сохраняем фотографии для альбома фотосессии
+    for alb_file in album_files:
+        if alb_file.filename:
+            alb_ext = os.path.splitext(alb_file.filename)[1]
+            alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
+            alb_path = os.path.join(PHOTOS_DIR, alb_filename)
+            
+            with open(alb_path, "wb") as f:
+                f.write(await alb_file.read())
+                
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
+            
     db.commit()
     return {"status": "success"}
 
-# РЕДАКТИРОВАНИЕ ПОБЕДИТЕЛЬНИЦЫ ИЗ АРХИВА
-@app.put("/api/admin/history/{winner_id}")
+@app.post("/api/admin/history/{winner_id}/edit")
 async def admin_edit_history_winner(
-        winner_id: int,
-        name: str = Form(...),
-        title_date: str = Form(...),
-        file: Optional[UploadFile] = File(None),
-        album_files: List[UploadFile] = File([]),
-        user=Depends(get_current_user),
-        db=Depends(get_db)
+    winner_id: int,
+    name: str = Form(...),
+    title_date: str = Form(...),
+    file: Optional[UploadFile] = File(None),
+    album_files: List[UploadFile] = File([]),
+    user=Depends(get_current_user),
+    db=Depends(get_db)
 ):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
     cursor = db.cursor()
-    photos_dir = os.path.join(BASE_DIR, "static", "photos")
 
     if file and file.filename:
-        main_path = os.path.join(photos_dir, f"winner_{uuid.uuid4()}{os.path.splitext(file.filename)[1]}")
-        with open(main_path, "wb") as f: f.write(await file.read())
-        cursor.execute("UPDATE history_winners SET name = ?, title_date = ?, photo_url = ? WHERE id = ?", (name, title_date, f"/static/photos/{os.path.basename(main_path)}", winner_id))
+        main_ext = os.path.splitext(file.filename)[1]
+        main_filename = f"winner_{uuid.uuid4()}{main_ext}"
+        main_path = os.path.join(PHOTOS_DIR, main_filename)
+        
+        with open(main_path, "wb") as f:
+            f.write(await file.read())
+            
+        cursor.execute("UPDATE history_winners SET name = ?, title_date = ?, photo_url = ? WHERE id = ?", (name, title_date, f"/static/photos/{main_filename}", winner_id))
     else:
         cursor.execute("UPDATE history_winners SET name = ?, title_date = ? WHERE id = ?", (name, title_date, winner_id))
 
-    # Если докинули новые фото в фотосессию, просто добавляем их к старым
-    for album_file in album_files:
-        if album_file.filename:
-            alb_path = os.path.join(photos_dir, f"alb_{uuid.uuid4()}{os.path.splitext(album_file.filename)[1]}")
-            with open(alb_path, "wb") as f: f.write(await album_file.read())
-            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{os.path.basename(alb_path)}"))
+    for alb_file in album_files:
+        if alb_file.filename:
+            alb_ext = os.path.splitext(alb_file.filename)[1]
+            alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
+            alb_path = os.path.join(PHOTOS_DIR, alb_filename)
+            
+            with open(alb_path, "wb") as f:
+                f.write(await alb_file.read())
+                
+            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
 
     db.commit()
     return {"status": "success"}
 
-# УДАЛЕНИЕ ИЗ АРХИВА ХОСТА
 @app.delete("/api/admin/history/{winner_id}")
-def admin_delete_history(winner_id: int, user=Depends(get_current_user), db=Depends(get_db)):
+def admin_delete_history_winner(winner_id: int, user=Depends(get_current_user), db=Depends(get_db)):
     if not user["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
     cursor = db.cursor()
     cursor.execute("DELETE FROM history_winners WHERE id = ?", (winner_id,))
     cursor.execute("DELETE FROM winner_photos WHERE winner_id = ?", (winner_id,))
     db.commit()
     return {"status": "success"}
-
-# --- СТРАНИЦЫ САЙТА ---
-@app.get("/", response_class=HTMLResponse)
-def page_main():
-    with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f: return f.read()
-
-@app.get("/history", response_class=HTMLResponse)
-def page_history():
-    with open(os.path.join(BASE_DIR, "templates", "history.html"), "r", encoding="utf-8") as f: return f.read()
-
-@app.get("/admin", response_class=HTMLResponse)
-def page_admin():
-    with open(os.path.join(BASE_DIR, "templates", "admin.html"), "r", encoding="utf-8") as f: return f.read()
