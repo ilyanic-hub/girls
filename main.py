@@ -12,19 +12,29 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА =================
-DATA_DIR = "/app/data"
-try:
-    os.makedirs(DATA_DIR, exist_ok=True)
-except Exception as e:
-    print(f"--- ПРЕДУПРЕЖДЕНИЕ: Переключение на локальную папку data ({e}) ---", file=sys.stderr)
+# Проверяем, запущены ли мы в Railway и доступна ли папка /app/data
+if os.path.exists("/app") and os.access("/app", os.W_OK):
+    DATA_DIR = "/app/data"
+else:
+    # Если прав нет, создаем папку data прямо в корне твоего проекта GitHub
     DATA_DIR = os.path.join(BASE_DIR, "data")
-    os.makedirs(DATA_DIR, exist_ok=True)
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
-os.makedirs(PHOTOS_DIR, exist_ok=True)
+
+# Создаем папки с гарантированным игнорированием ошибок прав доступа
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(PHOTOS_DIR, exist_ok=True)
+except Exception as e:
+    # Жесткий откат на локальные папки в случае тотальной блокировки
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+    PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 print(f"--- БАЗА ДАННЫХ ИНИЦИАЛИЗИРОВАНА ПО ПУТИ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.stdout)
 # ===================================================================
 
 app = FastAPI(title="Photo Rating API")
