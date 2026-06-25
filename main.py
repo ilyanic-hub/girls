@@ -8,6 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Res
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.responses import RedirectResponse  # Убедись, что RedirectResponse импортирован
+import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -177,15 +178,58 @@ def api_logout(response: Response):  # ОБЯЗАТЕЛЬНО передаем r
     
     return redirect_response
 
+import requests  # Проверь, чтобы этот импорт был вверху файла
+
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
-    cursor = db.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (data.amount, int(user_id)))
-    db.commit()
-    return {"payment_url": "/"}
+    # --- НАСТРОЙКИ TRYBIT ---
+    MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  # Возьми из личного кабинета TryBit
+    SECRET_KEY = "7Z8Q5qj8f3PDS5iz"   # Твой приватный ключ для подписи
+    
+    order_id = f"order_{uuid.uuid4().hex[:8]}"
+    amount = data.amount
+
+    # Формируем параметры платежа согласно документации TryBit
+    # (Обычно это merchant_id, amount, currency, order_id и описание)
+    payload = {
+        "merchant_id": MERCHANT_ID,
+        "amount": amount,
+        "currency": "RUB",
+        "order_id": order_id,
+        "description": f"Пополнение баланса пользователя ID {user_id}",
+        "success_url": "https://girls-production.up.railway.app/",
+        "fail_url": "https://girls-production.up.railway.app/"
+    }
+    
+    # Если для TryBit требуется передавать подпись (хеш), то она генерируется здесь.
+    # Пример стандартной подписи (проверь по их докам точный порядок полей, если выдаст ошибку):
+    # import hashlib
+    # sign_str = f"{MERCHANT_ID}:{amount}:{order_id}:{SECRET_KEY}"
+    # payload["sign"] = hashlib.sha256(sign_str.encode('utf-8')).hexdigest()
+
+    try:
+        # Отправляем запрос на создание счета в TryBit
+        # API эндпоинт TryBit обычно выглядит так (замени на актуальный из их доков, если он другой)
+        api_res = requests.post("https://api.trybit.pro/v1/invoice/create", json=payload, timeout=10)
+        api_data = api_res.json()
+        
+        # Проверяем ответ от TryBit
+        if api_res.status_code == 200 and "payment_url" in api_data:
+            # Возвращаем реальную ссылку на оплату, куда фронтенд перенаправит пользователя
+            return {"payment_url": api_data["payment_url"]}
+        elif api_res.status_code == 200 and "data" in api_data and "payment_url" in api_data["data"]:
+            # Вариант, если ссылка лежит внутри объекта data
+            return {"payment_url": api_data["data"]["payment_url"]}
+        else:
+            error_msg = api_data.get("message", "Ошибка платежной системы TryBit")
+            raise HTTPException(status_code=400, detail=error_msg)
+            
+    except Exception as e:
+        print(f"Ошибка вызова API TryBit: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось связаться с TryBit")
 
 
 # ================= ПУБЛИЧНЫЙ API ДЛЯ ГАЛЕРЕИ И ГОЛОСОВАНИЯ =================
