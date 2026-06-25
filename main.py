@@ -35,8 +35,8 @@ app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), na
 
 # НАСТРОЙКИ TRYBIT (РАБОЧАЯ СТРУКТУРА ИЗ ТВОЕГО КОДА V2)
 # !!! ВСТАВЬ СВОИ ЗНАЧЕНИЯ СЮДА !!!
-TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
-TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ_ИЗ_ЛИЧНОГО_КАБИНЕТА"
+TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID_МАГАЗИНА"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 
 # Pydantic-модели
@@ -114,7 +114,7 @@ def init_db():
     conn.close()
     print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ПРОВЕРЕНЫ ---", file=sys.stdout)
 
-
+init_db()
 
 
 # ================= СТРАНИЦЫ (ФРОНТЕНД) =================
