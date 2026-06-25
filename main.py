@@ -173,8 +173,8 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
         
     # --- ИНТЕГРАЦИЯ С ТВОИМ TRYBIT МЕРЧАНТОМ ---
     # Замени значения ниже на свои реальные ключи из личного кабинета TryBit
-    TRYBIT_MERCHANT_ID = "ТВОЙ_MERCHANT_ID"  
-    TRYBIT_SECRET_KEY = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ"
+    TRYBIT_MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  
+    TRYBIT_SECRET_KEY = "7Z8Q5qj8f3PDS5iz"
     
     order_id = f"order_{uuid.uuid4().hex[:8]}"
     
