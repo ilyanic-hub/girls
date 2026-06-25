@@ -49,7 +49,7 @@ class DepositModel(BaseModel):
 CURRENT_USER_ID = 1  # По умолчанию дефолтный админ
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_PATH)
+    conn = sqlite3.connect("database.db", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
