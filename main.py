@@ -2,16 +2,16 @@ import os
 import uuid
 import sqlite3
 import sys
-import requests  # Для запросов к TryBit
+import requests
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (ЖЕСТКИЙ ДИСК) =================
+# ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (ЖЕСТКИЙ ДИСК VOLUME) =================
 if os.path.exists("/app") and os.access("/app", os.W_OK):
     DATA_DIR = "/app/data"
 else:
@@ -19,7 +19,6 @@ else:
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-# Создаем папки строго на постоянном диске
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
@@ -34,6 +33,12 @@ app = FastAPI(title="Photo Rating API")
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
+# НАСТРОЙКИ TRYBIT (РАБОЧАЯ СТРУКТУРА ИЗ ТВОЕГО КОДА V2)
+# !!! ВСТАВЬ СВОИ ЗНАЧЕНИЯ СЮДА !!!
+TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
+TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
+
 # Pydantic-модели
 class AuthModel(BaseModel):
     username: str
@@ -43,7 +48,7 @@ class DepositModel(BaseModel):
     amount: float
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DATABASE_PATH, timeout=20, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -51,8 +56,8 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Функция автоматического создания ВСЕХ таблиц, если их нет"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    """Функция автоматического создания ВСЕХ таблиц, включая payments"""
+    conn = sqlite3.connect(DATABASE_PATH, timeout=20)
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -92,26 +97,37 @@ def init_db():
         )
     """)
     
+    # Таблица логов платежей (из твоего рабочего кода)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payments (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER,
+            amount REAL,
+            status TEXT DEFAULT 'pending',
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
+    
     cursor.execute("INSERT OR IGNORE INTO users (id, username, password, balance, is_admin) VALUES (1, 'admin', 'admin', 500.0, 1)")
     
     conn.commit()
     conn.close()
-    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ИНИЦИАЛИЗИРОВАНЫ И ПРОВЕРЕНЫ ---", file=sys.stdout)
+    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ПРОВЕРЕНЫ ---", file=sys.stdout)
 
 init_db()
 
 
-# ================= СТРАНИЦЫ (ФРОНТЕНД ЧЕРЕЗ FILE_RESPONSE) =================
+# ================= СТРАНИЦЫ (ФРОНТЕНД) =================
 
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 async def index_page():
     return FileResponse(os.path.join(BASE_DIR, "templates", "index.html"))
 
-@app.get("/history", response_class=FileResponse)
+@app.get("/history")
 async def history_page():
     return FileResponse(os.path.join(BASE_DIR, "templates", "history.html"))
 
-@app.get("/admin", response_class=FileResponse)
+@app.get("/admin")
 async def admin_page():
     return FileResponse(os.path.join(BASE_DIR, "templates", "admin.html"))
 
@@ -124,7 +140,7 @@ def get_me(user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
         return {"username": "Гость", "balance": 0.0, "is_admin": 0}
         
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE id = ?", (int(user_id),))
+    cursor.execute("SELECT id, username, balance, is_admin FROM users WHERE id = ?", (int(user_id),))
     user = cursor.fetchone()
     
     if not user:
@@ -158,46 +174,96 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
 def api_logout(response: Response):
     redirect_response = RedirectResponse(url="/", status_code=303)
     redirect_response.delete_cookie(key="user_id", path="/")
-    redirect_response.set_cookie(key="user_id", value="", max_age=0, expires=0, path="/")
     return redirect_response
 
+
+# --- ТО САМОЕ РАБОЧЕЕ ПОПОЛНЕНИЕ ЧЕРЕЗ TRYBIT V2 ---
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Некорректная сумма")
         
-    # --- НАСТРОЙКИ TRYBIT ---
-    # !!! ОБЯЗАТЕЛЬНО ВСТАВЬ СВОИ КЛЮЧИ СЮДА !!!
-    TRYBIT_MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  
-    TRYBIT_SECRET_KEY = "7Z8Q5qj8f3PDS5iz"
+    order_id = f"ORDER_{uuid.uuid4().hex[:10].upper()}"
     
-    order_id = f"order_{uuid.uuid4().hex[:8]}"
+    cursor = db.cursor()
+    cursor.execute("INSERT INTO payments (id, user_id, amount, status) VALUES (?, ?, ?, 'pending')",
+                   (order_id, int(user_id), data.amount))
+    db.commit()
+    
+    headers = {
+        "Authorization": f"Token {TRYBIT_API_KEY}",
+        "Content-Type": "application/json"
+    }
     
     payload = {
-        "merchant_id": TRYBIT_MERCHANT_ID,
-        "secret": TRYBIT_SECRET_KEY,
-        "amount": data.amount,
-        "order_id": order_id,
-        "description": f"Пополнение баланса пользователя ID {user_id}"
+        "amount": float(data.amount),
+        "shop_id": TRYBIT_SHOP_ID,
+        "currency": "RUB",
+        "order_id": order_id
     }
     
     try:
-        # Отправляем как форму (data=), как требовал рабочий TryBit
-        api_res = requests.post("https://api.trybit.pro/v1/invoice/create", data=payload, timeout=12)
-        api_data = api_res.json()
-        
-        # Проверяем структуру ответа кассы
-        if api_res.status_code == 200 and "response" in api_data and "url" in api_data["response"]:
-            return {"payment_url": api_data["response"]["url"]}
-        elif api_res.status_code == 200 and "url" in api_data:
-            return {"payment_url": api_data["url"]}
-        else:
-            error_msg = api_data.get("message", "Ошибка платежной системы")
-            raise HTTPException(status_code=400, detail=error_msg)
-            
-    except Exception as e:
-        print(f"КРИТИЧЕСКАЯ ОШИБКА TRYBIT: {e}", file=sys.stdout)
-        raise HTTPException(status_code=500, detail="Не удалось соединиться с платежной системой")
+        response = requests.post(TRYBIT_URL, json=payload, headers=headers, timeout=15)
+        print("СТАТУС ОТВЕТА TRYBIT:", response.status_code, file=sys.stdout)
+        print("ЛОГ ОТВЕТА TRYBIT:", response.text, file=sys.stdout)
+        res_data = response.json()
+    except Exception as err:
+        print(f"Ошибка запроса к Trybit API: {err}", file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка крипто-шлюза: {err}")
+
+    if response.status_code != 200 or "result" not in res_data:
+        raise HTTPException(status_code=400, detail=f"Крипто-шлюз вернул ошибку: {response.text}")
+
+    result_data = res_data.get("result", {})
+    payment_url = result_data.get("link") or result_data.get("url")
+    
+    if not payment_url:
+        raise HTTPException(status_code=500, detail="Шлюз не вернул ссылку на платежную страницу")
+
+    return {"payment_url": payment_url}
+
+
+# --- ОБРАБОТЧИК УСПЕШНОЙ ОПЛАТЫ (WEBHOOK) ДЛЯ НАЧИСЛЕНИЯ БАЛАНСА ---
+@app.post("/api/payment/trybit-callback")
+async def trybit_callback(request: Request, db=Depends(get_db)):
+    try:
+        data = await request.json()
+    except Exception:
+        form_data = await request.form()
+        data = dict(form_data)
+
+    print("ПОЛУЧЕН CALLBACK ОТ TRYBIT:", data, file=sys.stdout)
+
+    status = data.get("status")
+    if status not in ["success", "paid"]:
+        return "OK"
+
+    order_id = data.get("order_id")
+    amount = data.get("amount")
+
+    if not order_id:
+        raise HTTPException(status_code=400, detail="Missing order_id")
+
+    cursor = db.cursor()
+    cursor.execute("SELECT user_id, status FROM payments WHERE id = ?", (order_id,))
+    payment = cursor.fetchone()
+
+    if payment and payment["status"] == "pending":
+        user_id = payment["user_id"]
+        try:
+            db.execute("BEGIN")
+            cursor.execute("UPDATE payments SET status = 'success' WHERE id = ?", (order_id,))
+            cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (float(amount), user_id))
+            db.commit()
+            print(f"Баланс пользователя {user_id} успешно пополнен на {amount} через Trybit!", file=sys.stdout)
+        except Exception as e:
+            db.rollback()
+            print(f"Ошибка базы данных при обработке callback: {e}", file=sys.stdout)
+            raise HTTPException(status_code=500, detail="Database error")
+
+    return "OK"
 
 
 # ================= ПУБЛИЧНЫЙ API ДЛЯ ГАЛЕРЕИ И ГОЛОСОВАНИЯ =================
@@ -206,8 +272,7 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
 def get_contestants(db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id, name, photo_url, votes_count FROM contestants ORDER BY votes_count DESC")
-    rows = cursor.fetchall()
-    return [dict(row) for row in rows]
+    return [dict(row) for row in cursor.fetchall()]
 
 @app.post("/api/vote")
 def vote_for_girl(contestant_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -233,15 +298,13 @@ def vote_for_girl(contestant_id: int, user_id: Optional[str] = Cookie(None), db=
 def get_history_winners(db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id, name, title_date, photo_url FROM history_winners ORDER BY id DESC")
-    rows = cursor.fetchall()
-    return [dict(row) for row in rows]
+    return [dict(row) for row in cursor.fetchall()]
 
 @app.get("/api/history/{winner_id}/photos")
 def get_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT photo_url FROM winner_photos WHERE winner_id = ? ORDER BY id ASC", (winner_id,))
-    rows = cursor.fetchall()
-    return [row["photo_url"] for row in rows]
+    return [row["photo_url"] for row in cursor.fetchall()]
 
 
 # ================= АДМИН-ПАНЕЛЬ (УПРАВЛЕНИЕ УЧАСТНИЦАМИ) =================
@@ -253,13 +316,11 @@ async def admin_add_contestant(
     user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
-    if not user_id:
-        raise HTTPException(status_code=401)
+    if not user_id: raise HTTPException(status_code=401)
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
     check = cursor.fetchone()
-    if not check or not check["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Доступ запрещен")
 
     try:
         file_ext = os.path.splitext(file.filename)[1]
@@ -276,41 +337,6 @@ async def admin_add_contestant(
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка добавления: {str(e)}")
-
-@app.put("/api/admin/contestants/{girl_id}")
-async def admin_edit_contestant(
-    girl_id: int,
-    name: str = Form(...),
-    votes_count: int = Form(...),
-    file: Optional[UploadFile] = File(None),
-    user_id: Optional[str] = Cookie(None),
-    db=Depends(get_db)
-):
-    if not user_id: raise HTTPException(status_code=401)
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
-    check = cursor.fetchone()
-    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
-
-    try:
-        if file and file.filename:
-            file_ext = os.path.splitext(file.filename)[1]
-            filename = f"{uuid.uuid4()}{file_ext}"
-            file_path = os.path.join(PHOTOS_DIR, filename)
-            
-            content = await file.read()
-            with open(file_path, "wb") as f:
-                f.write(content)
-                
-            photo_url = f"/static/photos/{filename}"
-            cursor.execute("UPDATE contestants SET name = ?, votes_count = ?, photo_url = ? WHERE id = ?", (name, votes_count, photo_url, girl_id))
-        else:
-            cursor.execute("UPDATE contestants SET name = ?, votes_count = ? WHERE id = ?", (name, votes_count, girl_id))
-            
-        db.commit()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка editing: {str(e)}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -371,51 +397,6 @@ async def admin_add_history_winner(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка архива: {str(e)}")
 
-@app.put("/api/admin/history/{winner_id}")
-async def admin_edit_history_winner(
-    winner_id: int,
-    name: str = Form(...),
-    title_date: str = Form(...),
-    file: Optional[UploadFile] = File(None),
-    album_files: List[UploadFile] = File([]),
-    user_id: Optional[str] = Cookie(None),
-    db=Depends(get_db)
-):
-    if not user_id: raise HTTPException(status_code=401)
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
-    check = cursor.fetchone()
-    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
-
-    try:
-        if file and file.filename:
-            main_ext = os.path.splitext(file.filename)[1]
-            main_filename = f"winner_{uuid.uuid4()}{main_ext}"
-            main_path = os.path.join(PHOTOS_DIR, main_filename)
-            
-            main_content = await file.read()
-            with open(main_path, "wb") as f:
-                f.write(main_content)
-            cursor.execute("UPDATE history_winners SET name = ?, title_date = ?, photo_url = ? WHERE id = ?", (name, title_date, f"/static/photos/{main_filename}", winner_id))
-        else:
-            cursor.execute("UPDATE history_winners SET name = ?, title_date = ? WHERE id = ?", (name, title_date, winner_id))
-
-        for alb_file in album_files:
-            if alb_file.filename:
-                alb_ext = os.path.splitext(alb_file.filename)[1]
-                alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
-                alb_path = os.path.join(PHOTOS_DIR, alb_filename)
-                
-                alb_content = await alb_file.read()
-                with open(alb_path, "wb") as f:
-                    f.write(alb_content)
-                cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
-
-        db.commit()
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка изменения архива: {str(e)}")
-
 @app.delete("/api/admin/history/{winner_id}")
 def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not user_id: raise HTTPException(status_code=401)
@@ -430,7 +411,7 @@ def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(
     return {"status": "success"}
 
 
-# ================= ЭНДПОИНТ-ВЫРУЧАЛОЧКА ДЛЯ АВТОРИЗАЦИИ АДМИНА =================
+# ================= ЭНДПОИНТ ДЛЯ АВТОРИЗАЦИИ АДМИНА =================
 
 @app.get("/force-admin")
 def force_admin(response: Response, db=Depends(get_db)):
