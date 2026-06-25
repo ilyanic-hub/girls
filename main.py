@@ -56,7 +56,16 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Функция автоматического создания ВСЕХ таблиц, включая payments"""
+    """Безопасная инициализация базы. 
+    Если файл базы уже есть на диске и он не пустой, мы НИЧЕГО не пересоздаем."""
+    
+    # Проверяем, существует ли файл и больше ли его размер, чем 0 байт
+    if os.path.exists(DATABASE_PATH) and os.path.getsize(DATABASE_PATH) > 0:
+        print(f"--- БАЗА ДАННЫХ НАЙДЕНА НА ДИСКЕ ({os.path.getsize(DATABASE_PATH)} байт). ПРОПУСКАЕМ ИНИЦИАЛИЗАЦИЮ ---", file=sys.stdout)
+        return
+
+    print("--- БАЗА ДАННЫХ ПУСТАЯ ИЛИ ОТСУТСТВУЕТ. СОЗДАЕМ ТАБЛИЦЫ С НУЛЯ ---", file=sys.stdout)
+    
     conn = sqlite3.connect(DATABASE_PATH, timeout=20)
     cursor = conn.cursor()
     
@@ -97,7 +106,6 @@ def init_db():
         )
     """)
     
-    # Таблица логов платежей (из твоего рабочего кода)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id TEXT PRIMARY KEY,
@@ -112,9 +120,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ПРОВЕРЕНЫ ---", file=sys.stdout)
-
-init_db()
+    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ПРОВЕРЕНЫ И ИНИЦИАЛИЗИРОВАНЫ ---", file=sys.stdout)
 
 
 # ================= СТРАНИЦЫ (ФРОНТЕНД) =================
