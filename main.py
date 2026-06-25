@@ -2,7 +2,7 @@ import os
 import uuid
 import sqlite3
 import sys
-import requests  # ДОБАВЛЕН ДЛЯ ЗАПРОСОВ К TRYBIT
+import requests  # Для запросов к TryBit
 from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie
@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА =================
+# ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (ЖЕСТКИЙ ДИСК) =================
 if os.path.exists("/app") and os.access("/app", os.W_OK):
     DATA_DIR = "/app/data"
 else:
@@ -19,23 +19,18 @@ else:
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-try:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(PHOTOS_DIR, exist_ok=True)
-except Exception:
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-    PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(PHOTOS_DIR, exist_ok=True)
+# Создаем папки строго на постоянном диске
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 print(f"--- БАЗА ДАННЫХ ИНИЦИАЛИЗИРОВАНА ПО ПУТИ: {DATABASE_PATH} ---", file=sys.stdout)
 print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.stdout)
-# ===================================================================
+# ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
 
-# ПОДКЛЮЧАЕМ СТАТИКУ С ПРАВИЛЬНОГО ПОСТОЯННОГО ДИСКА
+# ПОДКЛЮЧАЕМ СТАТИКУ С ПОСТОЯННОГО ДИСКА VOLUME
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
@@ -101,7 +96,7 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ИНИЦИАЛИЗИРОВАНА И ПРОВЕРЕНЫ ---", file=sys.stdout)
+    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ИНИЦИАЛИЗИРОВАНЫ И ПРОВЕРЕНЫ ---", file=sys.stdout)
 
 init_db()
 
@@ -172,32 +167,27 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
         raise HTTPException(status_code=401, detail="Не авторизован")
         
     # --- НАСТРОЙКИ TRYBIT ---
-    MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  # Твой ID мерчанта
-    SECRET_KEY = "7Z8Q5qj8f3PDS5iz"   # Твой приватный ключ
+    # !!! ОБЯЗАТЕЛЬНО ВСТАВЬ СВОИ КЛЮЧИ СЮДА !!!
+    TRYBIT_MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  
+    TRYBIT_SECRET_KEY = "7Z8Q5qj8f3PDS5iz"
     
     order_id = f"order_{uuid.uuid4().hex[:8]}"
-    amount = data.amount
-
-    # Тот самый рабочий эндпоинт и простой формат параметров, который мы подобрали
-    url = "https://api.trybit.pro/v1/invoice/create"
     
-    # TryBit принимает параметры авторизации и платежа вот в таком виде
     payload = {
-        "merchant_id": MERCHANT_ID,
-        "secret": SECRET_KEY,
-        "amount": amount,
+        "merchant_id": TRYBIT_MERCHANT_ID,
+        "secret": TRYBIT_SECRET_KEY,
+        "amount": data.amount,
         "order_id": order_id,
         "description": f"Пополнение баланса пользователя ID {user_id}"
     }
-
+    
     try:
-        # Отправляем как обычную форму (data= вместо json=), чтобы TryBit её принял
-        api_res = requests.post(url, data=payload, timeout=10)
+        # Отправляем как форму (data=), как требовал рабочий TryBit
+        api_res = requests.post("https://api.trybit.pro/v1/invoice/create", data=payload, timeout=12)
         api_data = api_res.json()
         
-        # Проверяем успешный ответ
+        # Проверяем структуру ответа кассы
         if api_res.status_code == 200 and "response" in api_data and "url" in api_data["response"]:
-            # Возвращаем рабочую ссылку на оплату во фронтенд
             return {"payment_url": api_data["response"]["url"]}
         elif api_res.status_code == 200 and "url" in api_data:
             return {"payment_url": api_data["url"]}
@@ -206,8 +196,8 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
             raise HTTPException(status_code=400, detail=error_msg)
             
     except Exception as e:
-        print(f"Ошибка вызова API TryBit: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось связаться с TryBit")
+        print(f"КРИТИЧЕСКАЯ ОШИБКА TRYBIT: {e}", file=sys.stdout)
+        raise HTTPException(status_code=500, detail="Не удалось соединиться с платежной системой")
 
 
 # ================= ПУБЛИЧНЫЙ API ДЛЯ ГАЛЕРЕИ И ГОЛОСОВАНИЯ =================
