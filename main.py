@@ -166,7 +166,8 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
 
 @app.post("/api/logout")
 def api_logout(response: Response):
-    response.delete_cookie(key="user_id")
+    """Эндпоинт для выхода: полностью удаляет куку из браузера пользователя"""
+    response.delete_cookie(key="user_id", path="/")  # path="/" гарантирует удаление куки на всем сайте
     return {"status": "success"}
 
 @app.post("/api/deposit")
