@@ -72,7 +72,6 @@
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
         }
 
-        /* ОГРАНИЧЕНИЕ ДЛЯ ФОТО: Идеальный размер */
         .contestant-img {
             width: 100%;
             height: 340px;
@@ -183,16 +182,16 @@
 
     <div id="main-page" style="display: none;">
         <header>
-    <a href="/" class="logo">🔥 PHOTO RATING</a>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
-        
-        <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-        <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> ₽</div>
-        <button class="btn btn-sec" onclick="depositMoney()">+ Пополнить</button>
-        <button class="btn btn-sec" onclick="logout()">Выйти</button>
-    </div>
-</header>
+            <a href="/" class="logo">🔥 PHOTO RATING</a>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
+                
+                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> ₽</div>
+                <button class="btn btn-sec" onclick="depositMoney()">+ Пополнить</button>
+                <button class="btn btn-sec" onclick="logout()">Выйти</button>
+            </div>
+        </header>
         
         <main class="contestants-grid" id="gallery"></main>
     </div>
@@ -210,11 +209,25 @@
             let res = await fetch('/api/me');
             if (res.ok) {
                 let user = await res.json();
+                
+                // ИСПРАВЛЕНИЕ: Если бэкенд отдал "Гостя", значит сессии нет — принудительно открываем окно логина
+                if (!user.username || user.username === "Гость") {
+                    document.getElementById('main-page').style.style.display = 'none';
+                    document.getElementById('auth-page').style.display = 'flex';
+                    return;
+                }
+
+                // Если всё хорошо и это реальный пользователь:
                 document.getElementById('auth-page').style.display = 'none';
                 document.getElementById('main-page').style.display = 'block';
                 document.getElementById('user-name').innerText = user.username;
                 document.getElementById('user-balance').innerText = user.balance;
-                if(user.is_admin) document.getElementById('admin-link').style.display = 'inline';
+                
+                if(user.is_admin === 1) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                } else {
+                    document.getElementById('admin-link').style.display = 'none';
+                }
                 loadContestants();
             } else {
                 document.getElementById('main-page').style.display = 'none';
@@ -234,14 +247,22 @@
             });
             let data = await res.json();
             if (res.ok) {
-                if (!isLoginMode) { alert("Регистрация успешна! Теперь войдите."); toggleAuthMode(); }
-                else { checkAuth(); }
-            } else { alert("Ошибка: " + data.detail); }
+                if (!isLoginMode) { 
+                    alert("Регистрация успешна! Теперь войдите."); 
+                    toggleAuthMode(); 
+                } else { 
+                    // После успешного входа полностью обновляем страницу, чтобы перестроить DOM сессии
+                    window.location.reload(); 
+                }
+            } else { 
+                alert("Ошибка: " + data.detail); 
+            }
         }
 
         async function logout() {
+            // ИСПРАВЛЕНИЕ: Делаем запрос на выход и сразу перезагружаем страницу на уровне браузера
             await fetch('/api/logout', {method: 'POST'});
-            checkAuth();
+            window.location.href = '/';
         }
 
         async function loadContestants() {
@@ -251,7 +272,6 @@
             g.innerHTML = '';
             
             list.forEach(girl => {
-                // Переписано под новые CSS-классы, чтобы фотографии ограничивались в размерах
                 g.innerHTML += `
                     <div class="contestant-card">
                         <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
