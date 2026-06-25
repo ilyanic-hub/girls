@@ -87,7 +87,7 @@
             background: #fff9db; display: inline-block; padding: 4px 12px; border-radius: 15px;
         }
 
-        /* --- СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА АЛЬБОМА --- */
+        /* --- ОКНО №1: АЛЬБОМ ФОТОСЕССИИ --- */
         .modal {
             display: none;
             position: fixed;
@@ -116,6 +116,7 @@
             top: 15px; right: 20px;
             font-size: 2rem; font-weight: bold; color: #333;
             cursor: pointer;
+            z-index: 10;
         }
 
         .album-grid {
@@ -129,6 +130,40 @@
             width: 100%; height: 260px;
             object-fit: cover; border-radius: 10px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .album-grid img:hover {
+            opacity: 0.85;
+        }
+
+        /* --- ОКНО №2: ОДНО ФОТО НА ВЕСЬ ЭКРАН (LIGHTBOX) --- */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000; /* Выше, чем обычное модальное окно */
+            justify-content: center;
+            align-items: center;
+            cursor: zoom-out;
+        }
+
+        .lightbox-img {
+            max-width: 95%;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.6);
+            cursor: default;
+        }
+
+        .lightbox .close-lightbox {
+            position: absolute;
+            top: 20px; right: 25px;
+            color: #fff; font-size: 3rem; font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -150,6 +185,11 @@
             <h2 id="modalTitle" style="margin-top: 0;">Фотосессия</h2>
             <div class="album-grid" id="modalPhotos"></div>
         </div>
+    </div>
+
+    <div id="lightboxModal" class="lightbox" onclick="closeLightbox()">
+        <span class="close-lightbox">&times;</span>
+        <img id="lightboxImage" class="lightbox-img" src="" onclick="event.stopPropagation()">
     </div>
 
     <script>
@@ -184,7 +224,8 @@
                 photosDiv.innerHTML = '<p style="color: var(--text-muted)">Для этой победительницы альбом еще не загружен.</p>';
             } else {
                 photos.forEach(url => {
-                    photosDiv.innerHTML += `<img src="${url}" alt="Фото">`;
+                    // Добавили событие onclick для открытия фото во весь экран
+                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox('${url}')">`;
                 });
             }
             document.getElementById('albumModal').style.display = 'flex';
@@ -192,6 +233,18 @@
 
         function closeAlbum(event) {
             document.getElementById('albumModal').style.display = 'none';
+        }
+
+        // ФУНКЦИИ ДЛЯ РАБОТЫ С ФОТО НА ВЕСЬ ЭКРАН
+        function openLightbox(url) {
+            let lightbox = document.getElementById('lightboxModal');
+            let lightboxImg = document.getElementById('lightboxImage');
+            lightboxImg.src = url;
+            lightbox.style.display = 'flex';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxModal').style.display = 'none';
         }
 
         loadHistory();
