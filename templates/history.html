@@ -45,20 +45,11 @@
             color: var(--text-main);
             text-decoration: none;
             font-weight: bold;
-            font-size: 1rem;
-            transition: color 0.2s;
         }
 
-        .nav-link:hover {
-            color: var(--accent);
-        }
+        .nav-link:hover { color: var(--accent); }
 
-        h1 {
-            text-align: center;
-            margin-top: 40px;
-            font-size: 2rem;
-            color: var(--text-main);
-        }
+        h1 { text-align: center; margin-top: 40px; font-size: 2rem; }
 
         .history-grid {
             display: grid;
@@ -76,35 +67,68 @@
             overflow: hidden;
             text-align: center;
             padding-bottom: 20px;
-            border: 2px solid #ffd700; /* Золотая рамка для королев */
+            border: 2px solid #ffd700;
+            cursor: pointer;
+            transition: transform 0.2s;
         }
 
-        .winner-img {
-            width: 100%;
-            height: 340px;
-            object-fit: cover;
-            object-position: center;
+        .winner-card:hover {
+            transform: scale(1.02);
         }
 
-        .winner-info {
-            padding: 15px 10px 0 10px;
-        }
+        .winner-img { width: 100%; height: 340px; object-fit: cover; }
 
-        .winner-name {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
+        .winner-info { padding: 15px 10px 0 10px; }
+
+        .winner-name { font-size: 1.25rem; font-weight: 700; margin-bottom: 5px; }
 
         .winner-date {
-            color: #b8860b;
-            font-weight: bold;
-            font-size: 0.95rem;
-            background: #fff9db;
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 15px;
-            margin-top: 5px;
+            color: #b8860b; font-weight: bold; font-size: 0.95rem;
+            background: #fff9db; display: inline-block; padding: 4px 12px; border-radius: 15px;
+        }
+
+        /* --- СТИЛИ ДЛЯ МОДАЛЬНОГО ОКНА АЛЬБОМА --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .modal-content {
+            background: #fff;
+            border-radius: 20px;
+            max-width: 900px;
+            width: 100%;
+            padding: 30px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 2rem; font-weight: bold; color: #333;
+            cursor: pointer;
+        }
+
+        .album-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .album-grid img {
+            width: 100%; height: 260px;
+            object-fit: cover; border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -112,12 +136,21 @@
 
     <header>
         <a href="/" class="logo">🔥 PHOTO RATING</a>
-        <a href="/" class="nav-link">⬅ На главную (Голосование)</a>
+        <a href="/" class="nav-link">⬅ На главную</a>
     </header>
 
     <h1>🏆 Зал славы победительниц</h1>
+    <p style="text-align: center; color: var(--text-muted); margin-top: -15px;">Нажмите на карточку, чтобы открыть фотосессию</p>
 
     <main class="history-grid" id="history-gallery"></main>
+
+    <div id="albumModal" class="modal" onclick="closeAlbum(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="document.getElementById('albumModal').style.display='none'">&times;</span>
+            <h2 id="modalTitle" style="margin-top: 0;">Фотосессия</h2>
+            <div class="album-grid" id="modalPhotos"></div>
+        </div>
+    </div>
 
     <script>
         async function loadHistory() {
@@ -127,21 +160,38 @@
             let gallery = document.getElementById('history-gallery');
             gallery.innerHTML = '';
 
-            if(list.length === 0) {
-                gallery.innerHTML = '<p style="grid-column: 1/-1; text-align:center; color:var(--text-muted)">Здесь пока еще нет победительниц.</p>';
-                return;
-            }
-
             list.forEach(winner => {
                 gallery.innerHTML += `
-                    <div class="winner-card">
-                        <img src="${winner.photo_url}" class="winner-img" onerror="this.src='https://placehold.co/300x340/2c2c35/ffffff?text=Queen'">
+                    <div class="winner-card" onclick="openAlbum(${winner.id}, '${winner.name}')">
+                        <img src="${winner.photo_url}" class="winner-img">
                         <div class="winner-info">
                             <div class="winner-name">${winner.name}</div>
                             <div class="winner-date">👑 Победительница: ${winner.title_date}</div>
                         </div>
                     </div>`;
             });
+        }
+
+        async function openAlbum(winnerId, winnerName) {
+            document.getElementById('modalTitle').innerText = `📸 Фотосессия: ${winnerName}`;
+            let res = await fetch(`/api/history/${winnerId}/photos`);
+            let photos = await res.json();
+            
+            let photosDiv = document.getElementById('modalPhotos');
+            photosDiv.innerHTML = '';
+
+            if (photos.length === 0) {
+                photosDiv.innerHTML = '<p style="color: var(--text-muted)">Для этой победительницы альбом еще не загружен.</p>';
+            } else {
+                photos.forEach(url => {
+                    photosDiv.innerHTML += `<img src="${url}" alt="Фото">`;
+                });
+            }
+            document.getElementById('albumModal').style.display = 'flex';
+        }
+
+        function closeAlbum(event) {
+            document.getElementById('albumModal').style.display = 'none';
         }
 
         loadHistory();
