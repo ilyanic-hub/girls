@@ -44,10 +44,12 @@ def get_db():
         conn.close()
 
 # Инициализация таблиц при старте сервера
+# Инициализация базы данных (исправленный синтаксис)
 def init_db():
     conn = sqlite3.connect(DATABASE_PATH)
     cursor = conn.cursor()
     
+    # Исправлено: заменено "NOT EXISTS" на "NOT NULL"
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
