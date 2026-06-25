@@ -5,77 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔥 PHOTO RATING</title>
     <style>
-    /* Настройка сетки для карточек — фото будут автоматически вставать в ряд */
-    .contestants-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 20px;
-        padding: 20px;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
+        :root {
+            --bg-color: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --accent: #ff4757;
+            --accent-hover: #e84118;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
 
-    /* Сама карточка участницы */
-    .contestant-card {
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        overflow: hidden;
-        text-align: center;
-        padding-bottom: 15px;
-        transition: transform 0.2s;
-    }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
 
-    .contestant-card:hover {
-        transform: translateY(-5px);
-    }
+        /* --- ШАПКА САЙТА --- */
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-    /* ФОТОГРАФИЯ: теперь она аккуратная и не на весь экран */
-    .contestant-img {
-        width: 100%;
-        height: 320px;          /* Фиксированная высота для всех фото */
-        object-fit: cover;     /* Фото красиво обрезается под размер, не сжимаясь */
-        object-position: center;
-    }
+        header .logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
 
-    .contestant-name {
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin: 10px 0 5px 0;
-        color: #333;
-    }
+        /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
+        .contestants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 25px;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-    .contestant-votes {
-        color: #666;
-        margin-bottom: 10px;
-    }
+        /* --- КАРТОЧКА УЧАСТНИЦЫ --- */
+        .contestant-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            text-align: center;
+            padding-bottom: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
 
-    /* Красивая кнопка голосования */
-    .vote-btn {
-        background: #ff4757;
-        color: white;
-        border: none;
-        padding: 8px 18px;
-        border-radius: 20px;
-        cursor: pointer;
-        font-weight: bold;
-        transition: background 0.2s;
-    }
+        .contestant-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
 
-    .vote-btn:hover {
-        background: #e84118;
-    }
-</style>
+        /* ОГРАНИЧЕНИЕ ДЛЯ ФОТО: Идеальный размер */
+        .contestant-img {
+            width: 100%;
+            height: 340px;
+            object-fit: cover;
+            object-position: center;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .contestant-info {
+            padding: 15px 10px 0 10px;
+        }
+
+        .contestant-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            color: var(--text-main);
+        }
+
+        .contestant-votes {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 15px;
+        }
+
+        /* --- УНИВЕРСАЛЬНЫЕ КНОПКИ --- */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-sec {
+            background: #edf2f7;
+            color: var(--text-main);
+        }
+
+        .btn-sec:hover {
+            background: #e2e8f0;
+        }
+
+        /* --- ОКНО АВТОРИЗАЦИИ --- */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .auth-box {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .auth-box h2 {
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .auth-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            background: #f7fafc;
+        }
+
+        .auth-box input:focus {
+            border-color: var(--accent);
+            background: #fff;
+        }
+    </style>
 </head>
 <body>
 
-    <div id="auth-page" style="display: none;">
+    <div id="auth-page" class="auth-container" style="display: none;">
         <div class="auth-box">
             <h2 id="auth-title">Вход в аккаунт</h2>
             <input type="text" id="username" placeholder="Логин">
             <input type="password" id="password" placeholder="Пароль">
-            <button class="btn" style="width: 96%;" onclick="submitAuth()">Продолжить</button>
-            <p style="color: var(--sec); cursor: pointer; margin-top: 15px;" onclick="toggleAuthMode()" id="auth-toggle-text">Нет аккаунта? Зарегистрироваться</p>
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="submitAuth()">Продолжить</button>
+            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" onclick="toggleAuthMode()" id="auth-toggle-text">Нет аккаунта? Зарегистрироваться</p>
         </div>
     </div>
 
@@ -83,13 +185,14 @@
         <header>
             <a href="/" class="logo">🔥 PHOTO RATING</a>
             <div style="display: flex; align-items: center; gap: 15px;">
-                <span id="admin-link" style="display:none;"><a href="/admin" style="color: #00ffcc;">В админку ➡️</a></span>
-                <div>Привет, <b id="user-name">Гость</b>! Баланс: <span id="user-balance" style="color: var(--accent); font-weight:bold;">0</span> ₽</div>
+                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> ₽</div>
                 <button class="btn btn-sec" onclick="depositMoney()">+ Пополнить</button>
                 <button class="btn btn-sec" onclick="logout()">Выйти</button>
             </div>
         </header>
-        <main class="gallery" id="gallery"></main>
+        
+        <main class="contestants-grid" id="gallery"></main>
     </div>
 
     <script>
@@ -113,7 +216,7 @@
                 loadContestants();
             } else {
                 document.getElementById('main-page').style.display = 'none';
-                document.getElementById('auth-page').style.display = 'block';
+                document.getElementById('auth-page').style.display = 'flex';
             }
         }
 
@@ -144,13 +247,15 @@
             let list = await res.json();
             let g = document.getElementById('gallery');
             g.innerHTML = '';
+            
             list.forEach(girl => {
+                // Переписано под новые CSS-классы, чтобы фотографии ограничивались в размерах
                 g.innerHTML += `
-                    <div class="card">
-                        <img src="${girl.photo_url}" class="card-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
-                        <div class="card-content">
-                            <h3>${girl.name}</h3>
-                            <p style="color: var(--sec)">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></p>
+                    <div class="contestant-card">
+                        <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
+                        <div class="contestant-info">
+                            <div class="contestant-name">${girl.name}</div>
+                            <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
                             <button class="btn" onclick="vote(${girl.id})">Проголосовать (10₽)</button>
                         </div>
                     </div>`;
@@ -158,7 +263,6 @@
         }
 
         async function vote(id) {
-            // Передаем параметр contestant_id через query-строку, как прописано в бэкенде
             let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
             if (res.ok) { 
                 checkAuth(); 
@@ -173,19 +277,15 @@
             if(!amt || isNaN(amt) || amt <= 0) return;
             
             try {
-                // Отправляем POST-запрос с JSON в теле запроса
                 let res = await fetch('/api/deposit', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount: parseFloat(amt) })
                 });
                 
                 let data = await res.json();
                 
                 if (res.ok && data.payment_url) {
-                    // Перенаправляем пользователя на платежную форму BetaTransfer
                     window.location.href = data.payment_url;
                 } else {
                     alert("Ошибка создания платежа: " + (data.detail || "Неизвестная ошибка"));
