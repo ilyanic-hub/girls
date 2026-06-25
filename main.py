@@ -2,13 +2,12 @@ import os
 import uuid
 import sqlite3
 import sys
+import requests  # ДОБАВЛЕН ДЛЯ ЗАПРОСОВ К TRYBIT
 from typing import List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie  # ДОБАВЛЕНЫ Response и Cookie
+from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.responses import RedirectResponse  # Убедись, что RedirectResponse импортирован
-import requests
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,10 +35,8 @@ print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.
 
 app = FastAPI(title="Photo Rating API")
 
-# Подключение статики и загруженных фото
-PHOTOS_DIR = os.path.join(BASE_DIR, "static", "photos")
-os.makedirs(PHOTOS_DIR, exist_ok=True)
-
+# ПОДКЛЮЧАЕМ СТАТИКУ С ПРАВИЛЬНОГО ПОСТОЯННОГО ДИСКА
+app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 # Pydantic-модели
@@ -49,8 +46,6 @@ class AuthModel(BaseModel):
 
 class DepositModel(BaseModel):
     amount: float
-
-# УДАЛИЛИ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ CURRENT_USER_ID, ТАК КАК ТЕПЕРЬ ВСЁ В КУКАХ
 
 def get_db():
     conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
@@ -130,7 +125,6 @@ async def admin_page():
 
 @app.get("/api/me")
 def get_me(user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
-    # Если куки нет, отдаем фейковый гостевой профиль, где админка КАТЕГОРИЧЕСКИ выключена
     if not user_id:
         return {"username": "Гость", "balance": 0.0, "is_admin": 0}
         
@@ -138,7 +132,6 @@ def get_me(user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
     cursor.execute("SELECT username, balance, is_admin FROM users WHERE id = ?", (int(user_id),))
     user = cursor.fetchone()
     
-    # Если кука есть, но пользователя почему-то нет в базе
     if not user:
         return {"username": "Гость", "balance": 0.0, "is_admin": 0}
         
@@ -162,41 +155,33 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Неверный логин или пароль")
     
-    # Сохраняем сессию только в браузере залогиненного пользователя
     response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400)
     return {"status": "success"}
 
 @app.post("/api/logout")
-@app.get("/api/logout")  # Поддерживаем оба метода, если фронтенд делает GET редирект
-def api_logout(response: Response):  # ОБЯЗАТЕЛЬНО передаем response сюда
-    # Создаем редирект на главную страницу
+@app.get("/api/logout")
+def api_logout(response: Response):
     redirect_response = RedirectResponse(url="/", status_code=303)
-    
-    # Принудительно затираем куку во всех возможных вариациях путей в ответе редиректа
     redirect_response.delete_cookie(key="user_id", path="/")
     redirect_response.set_cookie(key="user_id", value="", max_age=0, expires=0, path="/")
-    
     return redirect_response
-
-import requests  # Проверь, чтобы этот импорт был вверху файла
 
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not user_id:
         raise HTTPException(status_code=401, detail="Не авторизован")
         
-    # --- НАСТРОЙКИ TRYBIT ---
-    MERCHANT_ID = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"  # Возьми из личного кабинета TryBit
-    SECRET_KEY = "7Z8Q5qj8f3PDS5iz"   # Твой приватный ключ для подписи
+    # --- ИНТЕГРАЦИЯ С ТВОИМ TRYBIT МЕРЧАНТОМ ---
+    # Замени значения ниже на свои реальные ключи из личного кабинета TryBit
+    TRYBIT_MERCHANT_ID = "ТВОЙ_MERCHANT_ID"  
+    TRYBIT_SECRET_KEY = "ТВОЙ_СЕКРЕТНЫЙ_КЛЮЧ"
     
     order_id = f"order_{uuid.uuid4().hex[:8]}"
-    amount = data.amount
-
-    # Формируем параметры платежа согласно документации TryBit
-    # (Обычно это merchant_id, amount, currency, order_id и описание)
+    
+    # Сборка параметров платежа по документации TryBit
     payload = {
-        "merchant_id": MERCHANT_ID,
-        "amount": amount,
+        "merchant_id": TRYBIT_MERCHANT_ID,
+        "amount": data.amount,
         "currency": "RUB",
         "order_id": order_id,
         "description": f"Пополнение баланса пользователя ID {user_id}",
@@ -204,32 +189,22 @@ def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=De
         "fail_url": "https://girls-production.up.railway.app/"
     }
     
-    # Если для TryBit требуется передавать подпись (хеш), то она генерируется здесь.
-    # Пример стандартной подписи (проверь по их докам точный порядок полей, если выдаст ошибку):
-    # import hashlib
-    # sign_str = f"{MERCHANT_ID}:{amount}:{order_id}:{SECRET_KEY}"
-    # payload["sign"] = hashlib.sha256(sign_str.encode('utf-8')).hexdigest()
-
     try:
-        # Отправляем запрос на создание счета в TryBit
-        # API эндпоинт TryBit обычно выглядит так (замени на актуальный из их доков, если он другой)
+        # Отправляем запрос создания инвойса к TryBit API
         api_res = requests.post("https://api.trybit.pro/v1/invoice/create", json=payload, timeout=10)
         api_data = api_res.json()
         
-        # Проверяем ответ от TryBit
+        # Парсим ответ кассы и ищем ссылку на форму оплатыカード
         if api_res.status_code == 200 and "payment_url" in api_data:
-            # Возвращаем реальную ссылку на оплату, куда фронтенд перенаправит пользователя
             return {"payment_url": api_data["payment_url"]}
         elif api_res.status_code == 200 and "data" in api_data and "payment_url" in api_data["data"]:
-            # Вариант, если ссылка лежит внутри объекта data
             return {"payment_url": api_data["data"]["payment_url"]}
         else:
-            error_msg = api_data.get("message", "Ошибка платежной системы TryBit")
-            raise HTTPException(status_code=400, detail=error_msg)
+            raise HTTPException(status_code=400, detail=api_data.get("message", "Ошибка инициализации платежа в TryBit"))
             
     except Exception as e:
         print(f"Ошибка вызова API TryBit: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось связаться с TryBit")
+        raise HTTPException(status_code=500, detail="Не удалось соединиться с платежной системой")
 
 
 # ================= ПУБЛИЧНЫЙ API ДЛЯ ГАЛЕРЕИ И ГОЛОСОВАНИЯ =================
@@ -285,7 +260,6 @@ async def admin_add_contestant(
     user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
-    # Защита эндпоинта от не-админов
     if not user_id:
         raise HTTPException(status_code=401)
     cursor = db.cursor()
