@@ -166,16 +166,16 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
     return {"status": "success"}
 
 @app.post("/api/logout")
-@app.get("/api/logout")  # Сделаем поддержку и GET, и POST запросов
-def api_logout():
-    # Создаем жесткий редирект на главную страницу
-    response = RedirectResponse(url="/", status_code=303)
+@app.get("/api/logout")  # Поддерживаем оба метода, если фронтенд делает GET редирект
+def api_logout(response: Response):  # ОБЯЗАТЕЛЬНО передаем response сюда
+    # Создаем редирект на главную страницу
+    redirect_response = RedirectResponse(url="/", status_code=303)
     
-    # Стираем куку во всех возможных вариациях путей
-    response.delete_cookie(key="user_id", path="/")
-    response.set_cookie(key="user_id", value="", max_age=0, expires=0, path="/")
+    # Принудительно затираем куку во всех возможных вариациях путей в ответе редиректа
+    redirect_response.delete_cookie(key="user_id", path="/")
+    redirect_response.set_cookie(key="user_id", value="", max_age=0, expires=0, path="/")
     
-    return response
+    return redirect_response
 
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
