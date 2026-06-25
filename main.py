@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie  # ДОБАВЛЕНЫ Response и Cookie
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import RedirectResponse  # Убедись, что RedirectResponse импортирован
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -165,17 +166,16 @@ def api_login(data: AuthModel, response: Response, db=Depends(get_db)):
     return {"status": "success"}
 
 @app.post("/api/logout")
-def api_logout(response: Response):
-    # Принудительно устанавливаем куку в пустое значение с истекшим сроком действия
-    response.set_cookie(
-        key="user_id", 
-        value="", 
-        path="/", 
-        expires=0, 
-        max_age=0, 
-        httponly=True
-    )
-    return {"status": "success"}
+@app.get("/api/logout")  # Сделаем поддержку и GET, и POST запросов
+def api_logout():
+    # Создаем жесткий редирект на главную страницу
+    response = RedirectResponse(url="/", status_code=303)
+    
+    # Стираем куку во всех возможных вариациях путей
+    response.delete_cookie(key="user_id", path="/")
+    response.set_cookie(key="user_id", value="", max_age=0, expires=0, path="/")
+    
+    return response
 
 @app.post("/api/deposit")
 def api_deposit(data: DepositModel, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
