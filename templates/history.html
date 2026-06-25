@@ -85,7 +85,6 @@
             background: #fff9db; display: inline-block; padding: 4px 12px; border-radius: 15px;
         }
 
-        /* --- ОКНО №1: АЛЬБОМ ФОТОСЕССИИ --- */
         .modal {
             display: none;
             position: fixed;
@@ -132,9 +131,6 @@
             transition: opacity 0.2s;
         }
 
-        .album-grid img:hover { opacity: 0.85; }
-
-        /* --- ОКНО №2: ОДНО ФОТО НА ВЕСЬ ЭКРАН С ПРОЛИСТЫВАНИЕМ --- */
         .lightbox {
             display: none;
             position: fixed;
@@ -151,8 +147,6 @@
             max-height: 90vh;
             object-fit: contain;
             border-radius: 4px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.6);
-            transition: src 0.2s ease-in-out;
         }
 
         .close-lightbox {
@@ -163,7 +157,6 @@
             z-index: 2100;
         }
 
-        /* Стрелочки навигации */
         .nav-arrow {
             position: absolute;
             top: 50%;
@@ -173,25 +166,11 @@
             font-weight: bold;
             cursor: pointer;
             padding: 20px;
-            transition: color 0.2s, background 0.2s;
-            border-radius: 10px;
             z-index: 2100;
-        }
-
-        .nav-arrow:hover {
-            color: #fff;
-            background: rgba(255, 255, 255, 0.1);
         }
 
         .arrow-left { left: 20px; }
         .arrow-right { right: 20px; }
-
-        /* Скрываем стрелочки на мобилках, там удобнее кликать по бокам экрана */
-        @media (max-width: 768px) {
-            .nav-arrow { font-size: 2.5rem; padding: 10px; }
-            .arrow-left { left: 5px; }
-            .arrow-right { right: 5px; }
-        }
     </style>
 </head>
 <body>
@@ -202,7 +181,7 @@
     </header>
 
     <h1>🏆 Зал славы победительниц</h1>
-    <p style="text-align: center; color: var(--text-muted); margin-top: -15px;">Нажмите на карточку, чтобы открыть фотосессию</p>
+    <p id="status-msg" style="text-align: center; color: var(--text-muted); margin-top: -15px;">Нажмите на карточку, чтобы открыть фотосессию</p>
 
     <main class="history-grid" id="history-gallery"></main>
 
@@ -216,65 +195,69 @@
 
     <div id="lightboxModal" class="lightbox" onclick="closeLightbox()">
         <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
-        
         <span class="nav-arrow arrow-left" onclick="prevPhoto(event)">&#10094;</span>
         <span class="nav-arrow arrow-right" onclick="nextPhoto(event)">&#10095;</span>
-        
         <img id="lightboxImage" class="lightbox-img" src="" onclick="event.stopPropagation()">
     </div>
 
     <script>
-        // Глобальные переменные для хранения текущего альбома
         let currentAlbumPhotos = [];
         let currentPhotoIndex = 0;
 
         async function loadHistory() {
-            // Добавляем случайный параметр, чтобы очистить кэш принудительно
-            let res = await fetch('/api/history?nocache=' + new Date().getTime());
-            if (!res.ok) return;
-            let list = await res.json();
-            let gallery = document.getElementById('history-gallery');
-            gallery.innerHTML = '';
-
-            list.forEach(winner => {
-                // Добавляем к url картинки ?t=..., чтобы браузер гарантированно загрузил новое фото, если его отредактировали
-                let freshPhotoUrl = winner.photo_url + '?t=' + new Date().getTime();
+            try {
+                console.log("Начинаю загрузку архива...");
+                let res = await fetch('/api/history?nocache=' + new Date().getTime());
+                if (!res.ok) throw new Error("Ошибка сервера: " + res.status);
                 
-                gallery.innerHTML += `
-                    <div class="winner-card" onclick="openAlbum(${winner.id}, '${winner.name}')">
-                        <img src="${freshPhotoUrl}" class="winner-img">
-                        <div class="winner-info">
-                            <div class="winner-name">${winner.name}</div>
-                            <div class="winner-date">👑 Победительница: ${winner.title_date}</div>
-                        </div>
-                    </div>`;
-            });
+                let list = await res.json();
+                console.log("Получены данные из API:", list);
+
+                let gallery = document.getElementById('history-gallery');
+                gallery.innerHTML = '';
+
+                if (!list || list.length === 0) {
+                    document.getElementById('status-msg').innerText = "В архиве пока пусто.";
+                    return;
+                }
+
+                list.forEach(winner => {
+                    let freshPhotoUrl = winner.photo_url + '?t=' + new Date().getTime();
+                    gallery.innerHTML += `
+                        <div class="winner-card" onclick="openAlbum(${winner.id}, '${winner.name}')">
+                            <img src="${freshPhotoUrl}" class="winner-img" onerror="this.src='https://placehold.co/300x340?text=No+Photo'">
+                            <div class="winner-info">
+                                <div class="winner-name">${winner.name}</div>
+                                <div class="winner-date">👑 Победительница: ${winner.title_date}</div>
+                            </div>
+                        </div>`;
+                });
+            } catch (err) {
+                console.error("Критическая ошибка JS:", err);
+                alert("Ошибка при загрузке архива. Проверь консоль (F12)");
+            }
         }
 
         async function openAlbum(winnerId, winnerName) {
             document.getElementById('modalTitle').innerText = `📸 Фотосессия: ${winnerName}`;
-            let res = await fetch(`/api/history/${winnerId}/photos`);
-            currentAlbumPhotos = await res.json(); // Сохраняем массив фоток альбома
+            let res = await fetch(`/api/history/${winnerId}/photos?t=` + new Date().getTime());
+            currentAlbumPhotos = await res.json();
             
             let photosDiv = document.getElementById('modalPhotos');
             photosDiv.innerHTML = '';
 
             if (currentAlbumPhotos.length === 0) {
-                photosDiv.innerHTML = '<p style="color: var(--text-muted)">Для этой победительницы альбом еще не загружен.</p>';
+                photosDiv.innerHTML = '<p style="color: var(--text-muted)">Альбом пуст.</p>';
             } else {
                 currentAlbumPhotos.forEach((url, index) => {
-                    // Передаем индекс фотографии, чтобы знать с какой начинать листание
-                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox(${index})">`;
+                    photosDiv.innerHTML += `<img src="${url}?t=${new Date().getTime()}" alt="Фото" onclick="openLightbox(${index})">`;
                 });
             }
             document.getElementById('albumModal').style.display = 'flex';
         }
 
-        function closeAlbum(event) {
-            document.getElementById('albumModal').style.display = 'none';
-        }
+        function closeAlbum(event) { document.getElementById('albumModal').style.display = 'none'; }
 
-        // ОТКРЫТИЕ ФОТО И НАВИГАЦИЯ
         function openLightbox(index) {
             currentPhotoIndex = index;
             updateLightboxImage();
@@ -283,38 +266,33 @@
 
         function updateLightboxImage() {
             let lightboxImg = document.getElementById('lightboxImage');
-            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
+            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex] + '?t=' + new Date().getTime();
         }
 
         function nextPhoto(event) {
-            if (event) event.stopPropagation(); // Чтобы окно не закрывалось при клике на стрелку
-            currentPhotoIndex = (currentPhotoIndex + 1) % currentAlbumPhotos.length; // Перелистывание по кругу вправо
+            if (event) event.stopPropagation();
+            currentPhotoIndex = (currentPhotoIndex + 1) % currentAlbumPhotos.length;
             updateLightboxImage();
         }
 
         function prevPhoto(event) {
             if (event) event.stopPropagation();
-            currentPhotoIndex = (currentPhotoIndex - 1 + currentAlbumPhotos.length) % currentAlbumPhotos.length; // Перелистывание по кругу влево
+            currentPhotoIndex = (currentPhotoIndex - 1 + currentAlbumPhotos.length) % currentAlbumPhotos.length;
             updateLightboxImage();
         }
 
-        function closeLightbox() {
-            document.getElementById('lightboxModal').style.display = 'none';
-        }
+        function closeLightbox() { document.getElementById('lightboxModal').style.display = 'none'; }
 
-        // Управление с клавиатуры (стрелочки влево/вправо и Esc для выхода)
-        document.addEventListener('keydown', function(event) {
-            let lightbox = document.getElementById('lightboxModal');
-            if (lightbox.style.display === 'flex') {
-                if (event.key === 'ArrowRight') {
-                    nextPhoto();
-                } else if (event.key === 'ArrowLeft') {
-                    prevPhoto();
-                } else if (event.key === 'Escape') {
-                    closeLightbox();
-                }
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('lightboxModal').style.display === 'flex') {
+                if (e.key === 'ArrowRight') nextPhoto();
+                if (e.key === 'ArrowLeft') prevPhoto();
+                if (e.key === 'Escape') closeLightbox();
             }
         });
+
+        // Запуск
+        loadHistory();
     </script>
 </body>
 </html>
