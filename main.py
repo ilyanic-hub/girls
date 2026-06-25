@@ -128,15 +128,18 @@ async def admin_page():
 
 @app.get("/api/me")
 def get_me(user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
-    # Проверяем личную куку пользователя
+    # Если куки нет, отдаем фейковый гостевой профиль, где админка КАТЕГОРИЧЕСКИ выключена
     if not user_id:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    
+        return {"username": "Гость", "balance": 0.0, "is_admin": 0}
+        
     cursor = db.cursor()
     cursor.execute("SELECT username, balance, is_admin FROM users WHERE id = ?", (int(user_id),))
     user = cursor.fetchone()
+    
+    # Если кука есть, но пользователя почему-то нет в базе
     if not user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
+        return {"username": "Гость", "balance": 0.0, "is_admin": 0}
+        
     return dict(user)
 
 @app.post("/api/register")
