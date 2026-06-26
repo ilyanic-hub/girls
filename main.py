@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Извлекаем путь к Volume из переменных окружения Railway. 
 # Если переменной нет (например, локально), используем старый вариант.
 VOLUME_PATH = os.getenv("DATABASE_URL", "data")
-
+ 
 # Теперь данные живут строго на постоянном диске, который Railway не трогает
 DATA_DIR = VOLUME_PATH
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
