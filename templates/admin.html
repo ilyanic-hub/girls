@@ -111,6 +111,23 @@
     </div>
 
     <script>
+        // Проверка авторизации админа перед стартом
+        async function checkAdminAndLoad() {
+            try {
+                let res = await fetch('/api/me');
+                let user = await res.json();
+                if (!user || user.is_admin !== 1) {
+                    alert("Доступ запрещен! Вы не авторизованы как администратор.");
+                    window.location.href = "/";
+                    return;
+                }
+                // Если админ подтвержден — спокойно грузим списки
+                loadAllData();
+            } catch (err) {
+                console.error("Ошибка авторизации:", err);
+            }
+        }
+
         // ЗАГРУЗКА ДАННЫХ В СПИСКИ
         async function loadAllData() {
             try {
@@ -187,14 +204,19 @@
             formData.append("name", document.getElementById("girlName").value);
             formData.append("file", fileInput.files[0]);
 
-            let res = await fetch("/api/admin/contestants", { method: "POST", body: formData });
-            if (res.ok) {
-                alert("Участница добавлена успешно!");
-                document.getElementById("girlForm").reset();
-                loadAllData();
-            } else {
-                let err = await res.json();
-                alert("Ошибка добавления: " + (err.detail || "Неизвестный сбой"));
+            try {
+                let res = await fetch("/api/admin/contestants", { method: "POST", body: formData });
+                if (res.ok) {
+                    alert("Участница добавлена успешно!");
+                    document.getElementById("girlForm").reset();
+                    loadAllData();
+                } else {
+                    let err = await res.json();
+                    alert("Ошибка добавления: " + (err.detail || "Неизвестный сбой"));
+                }
+            } catch (error) {
+                console.error("Ошибка сети:", error);
+                alert("Не удалось связаться с сервером.");
             }
         }
 
@@ -217,14 +239,19 @@
                 formData.append("album_files", albumInput.files[i]);
             }
 
-            let res = await fetch("/api/admin/history", { method: "POST", body: formData });
-            if (res.ok) {
-                alert("Королева успешно добавлена в архив!");
-                document.getElementById("historyForm").reset();
-                loadAllData();
-            } else {
-                let err = await res.json();
-                alert("Ошибка архива: " + (err.detail || "Неизвестный сбой"));
+            try {
+                let res = await fetch("/api/admin/history", { method: "POST", body: formData });
+                if (res.ok) {
+                    alert("Королева успешно добавлена в архив!");
+                    document.getElementById("historyForm").reset();
+                    loadAllData();
+                } else {
+                    let err = await res.json();
+                    alert("Ошибка архива: " + (err.detail || "Неизвестный сбой"));
+                }
+            } catch (error) {
+                console.error("Ошибка сети:", error);
+                alert("Не удалось связаться с сервером.");
             }
         }
 
@@ -277,8 +304,8 @@
             if(res.ok) loadAllData();
         }
 
-        // Первый запуск загрузки данных
-        loadAllData();
+        // Запуск безопасной проверки при открытии страницы
+        checkAdminAndLoad();
     </script>
 </body>
 </html>
