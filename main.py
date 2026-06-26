@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
- 
+  
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (ЧЕРЕЗ ПЕРЕМЕННЫЕ) =================
