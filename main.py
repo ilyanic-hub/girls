@@ -8,35 +8,26 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
-  
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (ЧЕРЕЗ ПЕРЕМЕННЫЕ) =================
-# Пытаемся взять путь, который мы указали в панели Railway
-DATABASE_PATH = os.getenv("DATABASE_URL")
-
-if DATABASE_PATH:
-    # Если путь из Railway, берем его папку для сохранения фотографий
-    DATA_DIR = os.path.dirname(DATABASE_PATH)
-else:
-    # Локальная папка для тестов на компьютере
-    DATA_DIR = os.path.join(BASE_DIR, "data")
-    DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
-
+# ================= ТЕСТОВАЯ НАСТРОЙКА БАЗЫ =================
+# Сохраняем строго в папку проекта, чтобы проверить, затрёт ли её Railway
+DATA_DIR = os.path.join(BASE_DIR, "data")
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-# Создаем папки, если их еще нет
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
-print(f"--- ЖЕСТКИЙ ДИСК ПОДКЛЮЧЕН. СТРАТЕГИЧЕСКИЙ ПУТЬ БАЗЫ: {DATABASE_PATH} ---", file=sys.stdout)
-print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.stdout)
+DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
+print(f"--- ТЕСТОВЫЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
 
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
 # НАСТРОЙКИ TRYBIT
 TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
 TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID"
@@ -62,13 +53,12 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Безопасная инициализация. Если файл базы существует, код ничего не трогает."""
+    """Если файл базы данных уже создан, мы просто выходим из функции."""
     if os.path.exists(DATABASE_PATH) and os.path.getsize(DATABASE_PATH) > 0:
-        print(f"--- БАЗА ДАННЫХ КОРРЕКТНО СЧИТАНА С ДИСКА ({os.path.getsize(DATABASE_PATH)} байт). СОЗДАНИЕ ПРОПУЩЕНО ---", file=sys.stdout)
+        print("--- БАЗА НАЙДЕНА, ИНИЦИАЛИЗАЦИЯ ОТМЕНЕНА ---", file=sys.stdout)
         return
 
-    print("--- БАЗА ДАННЫХ ПУСТАЯ ИЛИ ОТСУТСТВУЕТ. ИНИЦИАЛИЗАЦИЯ ТАБЛИЦ ---", file=sys.stdout)
-    
+    print("--- СОЗДАЕМ ТАБЛИЦЫ С НУЛЯ ---", file=sys.stdout)
     conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     cursor = conn.cursor()
     
@@ -120,13 +110,11 @@ def init_db():
     """)
     
     cursor.execute("INSERT OR IGNORE INTO users (id, username, password, balance, is_admin) VALUES (1, 'admin', 'admin', 500.0, 1)")
-    
     conn.commit()
     conn.close()
-    print("--- ТАБЛИЦЫ УСПЕШНО СОЗДАНЫ ---", file=sys.stdout)
+    print("--- ТАБЛИЦЫ УСПЕШНО ИНИЦИАЛИЗИРОВАНЫ ---", file=sys.stdout)
 
 init_db()
-
 
 
 
