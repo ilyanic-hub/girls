@@ -11,22 +11,28 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= ТЕСТОВАЯ НАСТРОЙКА БАЗЫ =================
-# Сохраняем строго в папку проекта, чтобы проверить, затрёт ли её Railway
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# ================= НАДЕЖНАЯ НАСТРОЙКА БАЗЫ (ПРОДУКТ) =================
+# Извлекаем путь к Volume из переменных окружения Railway. 
+# Если переменной нет (например, локально), используем старый вариант.
+VOLUME_PATH = os.getenv("DATABASE_URL", "data")
+
+# Теперь данные живут строго на постоянном диске, который Railway не трогает
+DATA_DIR = VOLUME_PATH
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
-print(f"--- ТЕСТОВЫЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- РАБОЧИЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
 
+# Раздача фото из постоянного тома будет работать корректно
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+
 
 # НАСТРОЙКИ TRYBIT
 TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
