@@ -11,16 +11,17 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= СВЕРХНАДЕЖНОЕ МЕСТО ДЛЯ БАЗЫ И ФОТО =================
-# Используем системную папку /tmp, которая всегда доступна для записи
-DATA_DIR = "/tmp/girls_data"
+# ================= НАСТОЯЩИЙ ЖЕСТКИЙ ДИСК RAILWAY =================
+# Переключаем базу на твой примонтированный диск girls-volume
+DATA_DIR = "/data"
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
-print(f"--- АЛЬТЕРНАТИВНЫЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- ФИНАЛЬНЫЙ СТАБИЛЬНЫЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+# =======================================================================
 # =======================================================================
 
 app = FastAPI(title="Photo Rating API")
