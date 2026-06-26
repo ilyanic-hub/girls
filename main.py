@@ -56,7 +56,17 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Чистая и быстрая инициализация без WAL-блокировок."""
+    """Умная инициализация базы. 
+    Если файл уже есть на диске Railway, мы полностью пропускаем создание, 
+    чтобы исключить перезапись данных при деплоях."""
+    
+    # Проверяем, существует ли файл базы и не пустой ли он
+    if os.path.exists(DATABASE_PATH) and os.path.getsize(DATABASE_PATH) > 0:
+        print(f"--- БАЗА ДАННЫХ ОБНАРУЖЕНА НА ДИСКЕ ({os.path.getsize(DATABASE_PATH)} байт). ИНИЦИАЛИЗИРОВАТЬ НЕ ТРЕБУЕТСЯ ---", file=sys.stdout)
+        return
+
+    print("--- БАЗА ДАННЫХ НЕ НАЙДЕНА. СОЗДАЕМ ТАБЛИЦЫ С НУЛЯ ---", file=sys.stdout)
+    
     conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     cursor = conn.cursor()
     
@@ -111,10 +121,10 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- БАЗА ДАННЫХ ПОЛНОСТЬЮ РАЗБЛОКИРОВАНА И ГОТОВА ---", file=sys.stdout)
+    print("--- БАЗА ДАННЫХ УСПЕШНО СОЗДАНА И ГОТОВА К РАБОТЕ ---", file=sys.stdout)
 
+# Вызываем инициализацию
 init_db()
-
 
 
 
