@@ -8,11 +8,10 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
- 
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (НОВЫЙ ПУТЬ) =================
-# Если мы на сервере Railway, используем чистый корень /data, привязанный к Volume
+# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА =================
 if os.path.exists("/data"):
     DATA_DIR = "/data"
 else:
@@ -20,25 +19,23 @@ else:
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-# Создаем папки, если их еще нет
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 print(f"--- БАЗА ДАННЫХ ИНИЦИАЛИЗИРОВАНА ПО ПУТИ: {DATABASE_PATH} ---", file=sys.stdout)
-print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.stdout)
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
 
-# ПОДКЛЮЧАЕМ СТАТИКУ С ПОСТОЯННОГО ДИСКА
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-# НАСТРОЙКИ TRYBIT (ОБЯЗАТЕЛЬНО ЛАТИНИЦА В ДЕПОЗИТЕ)
-TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
-TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+# НАСТРОЙКИ TRYBIT
+TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
+TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
+
 # Pydantic-модели
 class AuthModel(BaseModel):
     username: str
@@ -48,7 +45,10 @@ class DepositModel(BaseModel):
     amount: float
 
 def get_db():
-    conn = sqlite3.connect(DATABASE_PATH, timeout=20, check_same_thread=False)
+    # Изолируем транзакции с помощью isolation_level=None и большого таймаута
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=DELETE;")  # Возвращаем стандартный стабильный режим
+    conn.execute("PRAGMA busy_timeout=30000;")   # Ждать освобождения базы до 30 секунд
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -56,15 +56,9 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Надежная инициализация базы данных с включением режима WAL."""
-    print(f"--- ПРОВЕРКА И ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
-    
-    conn = sqlite3.connect(DATABASE_PATH, timeout=20)
+    """Чистая и быстрая инициализация без WAL-блокировок."""
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     cursor = conn.cursor()
-    
-    # Включаем WAL-режим (Write-Ahead Logging). 
-    # Это запретит базе зануляться при перезапусках контейнера Railway!
-    cursor.execute("PRAGMA journal_mode=WAL;")
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS contestants (
@@ -117,8 +111,10 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- БАЗА ДАННЫХ УСПЕШНО НАСТРОЕНА В РЕЖИМЕ WAL И ГОТОВА ---", file=sys.stdout)
- init_db()
+    print("--- БАЗА ДАННЫХ ПОЛНОСТЬЮ РАЗБЛОКИРОВАНА И ГОТОВА ---", file=sys.stdout)
+
+init_db()
+
 
 
 
