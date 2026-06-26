@@ -15,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Railway автоматически передает эту переменную, если к сервису подключен Postgres
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Папка для фотографий на случай, если диск Railway примонтирован (локальный бэкап)
+# Папка для фотографий
 if os.path.exists("/data"):
     DATA_DIR = "/data"
 else:
@@ -112,10 +112,11 @@ def init_db():
         )
     """)
     
-    # Создаем админа, если его еще нет в базе
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
+    # ЖЕСТКАЯ И НАДЕЖНАЯ ПРОВЕРКА АДМИНА
+    cursor.execute("SELECT COUNT(*) FROM users WHERE username = 'admin'")
+    if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', 'admin', 500.0, 1)")
+        print("--- СГЕНЕРИРОВАН НОВЫЙ АККАУНТ АДМИНИСТРАТОРА (admin/admin) ---", file=sys.stdout)
     
     conn.commit()
     cursor.close()
@@ -267,7 +268,6 @@ async def trybit_callback(request: Request, db=Depends(get_db)):
     if payment and payment["status"] == 'pending':
         user_id = payment["user_id"]
         try:
-            # Обновляем платеж и баланс юзера внутри транзакции
             cursor.execute("UPDATE payments SET status = 'success' WHERE id = %s", (order_id,))
             cursor.execute("UPDATE users SET balance = balance + %s WHERE id = %s", (float(amount), user_id))
             db.commit()
@@ -417,7 +417,6 @@ async def admin_add_history_winner(
             f.write(main_content)
         main_photo_url = f"/static/photos/{main_filename}"
         
-        # Вставляем запись и получаем сгенерированный ID победительницы
         cursor.execute("INSERT INTO history_winners (name, title_date, photo_url) VALUES (%s, %s, %s) RETURNING id", 
                        (name, title_date, main_photo_url))
         winner_id = cursor.fetchone()["id"]
@@ -465,14 +464,22 @@ def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(
     return {"status": "success"}
 
 
-# ================= ЭНДПОИНТ ДЛЯ АВТОРИЗАЦИИ АДМИНА ЧЕРЕЗ КУКИ =================
+# ================= ЖЕЛЕЗОБЕТОННЫЙ ВХОД ДЛЯ АДМИНА =================
 @app.get("/force-admin")
 def force_admin(response: Response, db=Depends(get_db)):
     cursor = db.cursor(cursor_factory=RealDictCursor)
+    
+    # Сначала проверяем, есть ли админ, и если вдруг пропал — создаем принудительно
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
     user = cursor.fetchone()
+    
+    if not user:
+        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', 'admin', 500.0, 1) RETURNING id")
+        user = cursor.fetchone()
+        db.commit()
+        
     cursor.close()
-    if user:
-        response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400)
-        return {"status": "Вы успешно авторизованы как ADMIN через Cookies!"}
-    return {"status": "Админ не найден"}
+    
+    # Выставляем куку авторизации на полную мощность
+    response.set_cookie(key="user_id", value=str(user["id"]), httponly=True, max_age=86400, path="/")
+    return {"status": "Вы успешно авторизованы как ADMIN в вечной базе Postgres!"}
