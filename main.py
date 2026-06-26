@@ -118,6 +118,7 @@ def init_db():
     conn.commit()
     conn.close()
     print("--- БАЗА ДАННЫХ УСПЕШНО НАСТРОЕНА В РЕЖИМЕ WAL И ГОТОВА ---", file=sys.stdout)
+ init_db()
 
 
 
