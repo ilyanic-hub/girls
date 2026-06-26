@@ -56,9 +56,15 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Функция автоматического создания ВСЕХ таблиц, включая payments"""
+    """Надежная инициализация базы данных с включением режима WAL."""
+    print(f"--- ПРОВЕРКА И ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+    
     conn = sqlite3.connect(DATABASE_PATH, timeout=20)
     cursor = conn.cursor()
+    
+    # Включаем WAL-режим (Write-Ahead Logging). 
+    # Это запретит базе зануляться при перезапусках контейнера Railway!
+    cursor.execute("PRAGMA journal_mode=WAL;")
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS contestants (
@@ -97,7 +103,6 @@ def init_db():
         )
     """)
     
-    # Таблица логов платежей (из твоего рабочего кода)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id TEXT PRIMARY KEY,
@@ -112,9 +117,9 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- ВСЕ ТАБЛИЦЫ БАЗЫ ДАННЫХ ПРОВЕРЕНЫ ---", file=sys.stdout)
+    print("--- БАЗА ДАННЫХ УСПЕШНО НАСТРОЕНА В РЕЖИМЕ WAL И ГОТОВА ---", file=sys.stdout)
 
-init_db()
+
 
 
 # ================= СТРАНИЦЫ (ФРОНТЕНД) =================
