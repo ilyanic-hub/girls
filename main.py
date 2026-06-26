@@ -11,20 +11,28 @@ from fastapi.responses import FileResponse, RedirectResponse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАДЕЖНАЯ НАСТРОЙКА БАЗЫ (ПРОДУКТ) =================
-# Извлекаем путь к Volume из переменных окружения Railway. 
-# Если переменной нет (например, локально), используем старый вариант.
-VOLUME_PATH = os.getenv("DATABASE_URL", "data")
- 
-# Теперь данные живут строго на постоянном диске, который Railway не трогает
-DATA_DIR = VOLUME_PATH
+import os
+import sys
+
+# Определяем, запущены ли мы в Railway
+IS_RAILWAY = os.getenv("RAILWAY_ENVIRONMENT_ID") is not None
+
+if IS_RAILWAY:
+    # В Railway используем абсолютный путь к примонтированному анонимному/именованному тому
+    DATA_DIR = "/data"
+else:
+    # Локально на ПК сохраняем в папку проекта для удобства разработки
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
+# Создаем папки на постоянном диске, если их еще нет
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 print(f"--- РАБОЧИЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
