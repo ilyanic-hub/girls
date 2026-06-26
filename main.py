@@ -8,22 +8,26 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
-  
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА =================
+# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (УНИВЕРСАЛЬНАЯ) =================
+# Код сам проверит, куда именно Railway подключил диск, и выберет рабочий путь
 if os.path.exists("/data"):
     DATA_DIR = "/data"
+elif os.path.exists("/app/data"):
+    DATA_DIR = "/app/data"
 else:
     DATA_DIR = os.path.join(BASE_DIR, "data")
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
+# Создаем папки на диске
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
-print(f"--- БАЗА ДАННЫХ ИНИЦИАЛИЗИРОВАНА ПО ПУТИ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- АВТО-ВЫБОР ПУТИ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
@@ -62,7 +66,7 @@ def init_db():
     
     # Проверяем, существует ли файл базы и не пустой ли он
     if os.path.exists(DATABASE_PATH) and os.path.getsize(DATABASE_PATH) > 0:
-        print(f"--- БАЗА ДАННЫХ ОБНАРУЖЕНА НА ДИСКЕ ({os.path.getsize(DATABASE_PATH)} байт). ИНИЦИАЛИЗИРОВАТЬ НЕ ТРЕБУЕТСЯ ---", file=sys.stdout)
+        print(f"--- БАЗА ДАННЫХ ОБНАРУЖЕНА НА ДИСКЕ ({os.path.getsize(DATABASE_PATH)} байт). ИНИЦИАЛИЗАЦИЯ ПРОПУЩЕНА ---", file=sys.stdout)
         return
 
     print("--- БАЗА ДАННЫХ НЕ НАЙДЕНА. СОЗДАЕМ ТАБЛИЦЫ С НУЛЯ ---", file=sys.stdout)
