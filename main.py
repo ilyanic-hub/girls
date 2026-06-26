@@ -8,17 +8,19 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
- 
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ПОСТОЯННОГО ХРАНИЛИЩА (ЖЕСТКИЙ ДИСК VOLUME) =================
-if os.path.exists("/app") and os.access("/app", os.W_OK):
-    DATA_DIR = "/app/data"
+# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (НОВЫЙ ПУТЬ) =================
+# Если мы на сервере Railway, используем чистый корень /data, привязанный к Volume
+if os.path.exists("/data"):
+    DATA_DIR = "/data"
 else:
     DATA_DIR = os.path.join(BASE_DIR, "data")
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
+# Создаем папки, если их еще нет
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
@@ -29,16 +31,14 @@ print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.
 
 app = FastAPI(title="Photo Rating API")
 
-# ПОДКЛЮЧАЕМ СТАТИКУ С ПОСТОЯННОГО ДИСКА VOLUME
+# ПОДКЛЮЧАЕМ СТАТИКУ С ПОСТОЯННОГО ДИСКА
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
-# НАСТРОЙКИ TRYBIT (РАБОЧАЯ СТРУКТУРА ИЗ ТВОЕГО КОДА V2)
-# !!! ВСТАВЬ СВОИ ЗНАЧЕНИЯ СЮДА !!!
-TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ_ИЗ_ЛИЧНОГО_КАБИНЕТА"
-TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID_МАГАЗИНА"
+# НАСТРОЙКИ TRYBIT (ОБЯЗАТЕЛЬНО ЛАТИНИЦА В ДЕПОЗИТЕ)
+TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
+TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
-
 # Pydantic-модели
 class AuthModel(BaseModel):
     username: str
