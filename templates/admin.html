@@ -111,17 +111,19 @@
     </div>
 
     <script>
+        // Автоматически определяем текущий адрес сервера
+        const BASE_URL = window.location.origin;
+
         // Проверка авторизации админа перед стартом
         async function checkAdminAndLoad() {
             try {
-                let res = await fetch('/api/me');
+                let res = await fetch(`${BASE_URL}/api/me`);
                 let user = await res.json();
                 if (!user || user.is_admin !== 1) {
                     alert("Доступ запрещен! Вы не авторизованы как администратор.");
                     window.location.href = "/";
                     return;
                 }
-                // Если админ подтвержден — спокойно грузим списки
                 loadAllData();
             } catch (err) {
                 console.error("Ошибка авторизации:", err);
@@ -131,7 +133,7 @@
         // ЗАГРУЗКА ДАННЫХ В СПИСКИ
         async function loadAllData() {
             try {
-                let resG = await fetch('/api/contestants');
+                let resG = await fetch(`${BASE_URL}/api/contestants`);
                 if (resG.ok) {
                     let girls = await resG.json();
                     let div = document.getElementById('girlsList');
@@ -149,7 +151,7 @@
                     });
                 }
 
-                let resH = await fetch('/api/history');
+                let resH = await fetch(`${BASE_URL}/api/history`);
                 if (resH.ok) {
                     let history = await resH.json();
                     let div = document.getElementById('historyList');
@@ -205,7 +207,7 @@
             formData.append("file", fileInput.files[0]);
 
             try {
-                let res = await fetch("/api/admin/contestants", { method: "POST", body: formData });
+                let res = await fetch(`${BASE_URL}/api/admin/contestants`, { method: "POST", body: formData });
                 if (res.ok) {
                     alert("Участница добавлена успешно!");
                     document.getElementById("girlForm").reset();
@@ -215,8 +217,8 @@
                     alert("Ошибка добавления: " + (err.detail || "Неизвестный сбой"));
                 }
             } catch (error) {
-                console.error("Ошибка сети:", error);
-                alert("Не удалось связаться с сервером.");
+                console.error("Ошибка сети при добавлении:", error);
+                alert("Сетевая ошибка бэкенда Railway. Попробуйте еще раз.");
             }
         }
 
@@ -240,7 +242,7 @@
             }
 
             try {
-                let res = await fetch("/api/admin/history", { method: "POST", body: formData });
+                let res = await fetch(`${BASE_URL}/api/admin/history`, { method: "POST", body: formData });
                 if (res.ok) {
                     alert("Королева успешно добавлена в архив!");
                     document.getElementById("historyForm").reset();
@@ -250,8 +252,8 @@
                     alert("Ошибка архива: " + (err.detail || "Неизвестный сбой"));
                 }
             } catch (error) {
-                console.error("Ошибка сети:", error);
-                alert("Не удалось связаться с сервером.");
+                console.error("Ошибка сети в архиве:", error);
+                alert("Ошибка соединения с базой архива.");
             }
         }
 
@@ -266,9 +268,11 @@
             let fileInput = document.getElementById('editGirlFile');
             if(fileInput.files.length > 0) formData.append("file", fileInput.files[0]);
 
-            let res = await fetch(`/api/admin/contestants/${id}`, { method: 'PUT', body: formData });
-            if (res.ok) { closeModals(); loadAllData(); document.getElementById('editGirlFile').value=''; }
-            else { alert("Ошибка сохранения изменений"); }
+            try {
+                let res = await fetch(`${BASE_URL}/api/admin/contestants/${id}`, { method: 'POST', body: formData });
+                if (res.ok) { closeModals(); loadAllData(); document.getElementById('editGirlFile').value=''; }
+                else { alert("Ошибка сохранения изменений"); }
+            } catch(e) { console.error(e); }
         }
 
         async function submitEditHist(e) {
@@ -286,21 +290,23 @@
                 formData.append("album_files", albInput.files[i]);
             }
 
-            let res = await fetch(`/api/admin/history/${id}`, { method: 'PUT', body: formData });
-            if (res.ok) { closeModals(); loadAllData(); document.getElementById('editHistFile').value=''; document.getElementById('editHistAlbum').value=''; }
-            else { alert("Ошибка сохранения архива"); }
+            try {
+                let res = await fetch(`${BASE_URL}/api/admin/history/${id}`, { method: 'POST', body: formData });
+                if (res.ok) { closeModals(); loadAllData(); document.getElementById('editHistFile').value=''; document.getElementById('editHistAlbum').value=''; }
+                else { alert("Ошибка сохранения архива"); }
+            } catch(e) { console.error(e); }
         }
 
         // УДАЛЕНИЕ
         async function deleteGirl(id) {
             if(!confirm("Удалить эту участницу из голосования?")) return;
-            let res = await fetch(`/api/admin/contestants/${id}`, { method: 'DELETE' });
+            let res = await fetch(`${BASE_URL}/api/admin/contestants/${id}`, { method: 'DELETE' });
             if(res.ok) loadAllData();
         }
 
         async function deleteHist(id) {
             if(!confirm("Удалить эту королеву и её фотосессию из архива?")) return;
-            let res = await fetch(`/api/admin/history/${id}`, { method: 'DELETE' });
+            let res = await fetch(`${BASE_URL}/api/admin/history/${id}`, { method: 'DELETE' });
             if(res.ok) loadAllData();
         }
 
