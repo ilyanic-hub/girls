@@ -8,33 +8,35 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
- 
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (УНИВЕРСАЛЬНАЯ) =================
-# Код сам проверит, куда именно Railway подключил диск, и выберет рабочий путь
-if os.path.exists("/data"):
-    DATA_DIR = "/data"
-elif os.path.exists("/app/data"):
-    DATA_DIR = "/app/data"
+# ================= НАСТРОЙКА ЖЕСТКОГО ДИСКА (ЧЕРЕЗ ПЕРЕМЕННЫЕ) =================
+# Пытаемся взять путь, который мы указали в панели Railway
+DATABASE_PATH = os.getenv("DATABASE_URL")
+
+if DATABASE_PATH:
+    # Если путь из Railway, берем его папку для сохранения фотографий
+    DATA_DIR = os.path.dirname(DATABASE_PATH)
 else:
+    # Локальная папка для тестов на компьютере
     DATA_DIR = os.path.join(BASE_DIR, "data")
+    DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-# Создаем папки на диске
+# Создаем папки, если их еще нет
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 
-DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
-print(f"--- АВТО-ВЫБОР ПУТИ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- ЖЕСТКИЙ ДИСК ПОДКЛЮЧЕН. СТРАТЕГИЧЕСКИЙ ПУТЬ БАЗЫ: {DATABASE_PATH} ---", file=sys.stdout)
+print(f"--- ПАПКА ДЛЯ ФОТОГРАФИЙ: {PHOTOS_DIR} ---", file=sys.stdout)
 # ==================================================================================
 
 app = FastAPI(title="Photo Rating API")
 
 app.mount("/static/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-
 # НАСТРОЙКИ TRYBIT
 TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
 TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID"
@@ -60,16 +62,12 @@ def get_db():
         conn.close()
 
 def init_db():
-    """Умная инициализация базы. 
-    Если файл уже есть на диске Railway, мы полностью пропускаем создание, 
-    чтобы исключить перезапись данных при деплоях."""
-    
-    # Проверяем, существует ли файл базы и не пустой ли он
+    """Безопасная инициализация. Если файл базы существует, код ничего не трогает."""
     if os.path.exists(DATABASE_PATH) and os.path.getsize(DATABASE_PATH) > 0:
-        print(f"--- БАЗА ДАННЫХ ОБНАРУЖЕНА НА ДИСКЕ ({os.path.getsize(DATABASE_PATH)} байт). ИНИЦИАЛИЗАЦИЯ ПРОПУЩЕНА ---", file=sys.stdout)
+        print(f"--- БАЗА ДАННЫХ КОРРЕКТНО СЧИТАНА С ДИСКА ({os.path.getsize(DATABASE_PATH)} байт). СОЗДАНИЕ ПРОПУЩЕНО ---", file=sys.stdout)
         return
 
-    print("--- БАЗА ДАННЫХ НЕ НАЙДЕНА. СОЗДАЕМ ТАБЛИЦЫ С НУЛЯ ---", file=sys.stdout)
+    print("--- БАЗА ДАННЫХ ПУСТАЯ ИЛИ ОТСУТСТВУЕТ. ИНИЦИАЛИЗАЦИЯ ТАБЛИЦ ---", file=sys.stdout)
     
     conn = sqlite3.connect(DATABASE_PATH, timeout=30)
     cursor = conn.cursor()
@@ -125,9 +123,8 @@ def init_db():
     
     conn.commit()
     conn.close()
-    print("--- БАЗА ДАННЫХ УСПЕШНО СОЗДАНА И ГОТОВА К РАБОТЕ ---", file=sys.stdout)
+    print("--- ТАБЛИЦЫ УСПЕШНО СОЗДАНЫ ---", file=sys.stdout)
 
-# Вызываем инициализацию
 init_db()
 
 
