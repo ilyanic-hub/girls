@@ -39,6 +39,7 @@ def init_db():
     db = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = db.cursor()
     
+    # Таблица участниц
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,6 +48,7 @@ def init_db():
         votes_count INTEGER DEFAULT 0
     )
     """)
+    # Таблица архива/истории
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +56,14 @@ def init_db():
         title_date TEXT NOT NULL,
         photo_url TEXT NOT NULL,
         album_urls TEXT
+    )
+    """)
+    # ДОБАВЛЕНО: Таблица пользователей для регистрации и логина
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
     )
     """)
     db.commit()
@@ -76,26 +86,76 @@ class HistoryJSONModel(BaseModel):
     content_type: str
     album_files: Optional[List[dict]] = []
 
-# ДОБАВЛЕНО: Роут для открытия ГЛАВНОЙ СТРАНИЦЫ сайта (адрес /)
+# Модель для авторизации
+class AuthModel(BaseModel):
+    username: str
+    password: str
+
+# РОУТЫ ДЛЯ ОТОБРАЖЕНИЯ СТРАНИЦ (HTML)
+
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
-    path_to_html = "templates/index.html"  # <-- Убедись, что файл называетсяindex.html
+    path_to_html = "templates/index.html"
     if not os.path.exists(path_to_html):
-        raise HTTPException(status_code=404, detail="Файл templates/index.html не найден на сервере!")
-        
+        raise HTTPException(status_code=404, detail="Файл templates/index.html не найден!")
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# РОУТ ДЛЯ ОТКРЫТИЯ СТРАНИЦЫ АДМИНКИ
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
 async def get_admin_page():
     path_to_html = "templates/admin.html"
     if not os.path.exists(path_to_html):
-        raise HTTPException(status_code=404, detail="Файл templates/admin.html не найден на сервере!")
-        
+        raise HTTPException(status_code=404, detail="Файл templates/admin.html не найден!")
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
+# ДОБАВЛЕНО: Роут для страницы ЛОГИНА
+@app.get("/login", response_class=HTMLResponse)
+@app.get("/login/", response_class=HTMLResponse)
+async def get_login_page():
+    path_to_html = "templates/login.html"  # <-- Проверь имя файла в templates
+    if not os.path.exists(path_to_html):
+        raise HTTPException(status_code=404, detail="Файл templates/login.html не найден!")
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+# ДОБАВЛЕНО: Роут для страницы РЕГИСТРАЦИИ
+@app.get("/register", response_class=HTMLResponse)
+@app.get("/register/", response_class=HTMLResponse)
+async def get_register_page():
+    path_to_html = "templates/register.html"  # <-- Проверь имя файла в templates
+    if not os.path.exists(path_to_html):
+        raise HTTPException(status_code=404, detail="Файл templates/register.html не найден!")
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+# API ЭНДПОИНТЫ ДЛЯ АВТОРИЗАЦИИ (БЭКЕНД)
+
+@app.post("/api/auth/register")
+async def api_register(data: AuthModel, db=Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (data.username, data.password))
+        db.commit()
+        return {"status": "success", "message": "Пользователь успешно зарегистрирован"}
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="Пользователь с таким логином уже существует")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/auth/login")
+async def api_login(data: AuthModel, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (data.username, data.password))
+    user = cursor.fetchone()
+    if not user:
+        raise HTTPException(status_code=400, detail="Неверный логин или пароль")
+    return {"status": "success", "message": "Успешный вход"}
+
+
+# ЭНДПОИНТЫ ДЛЯ УЧАСТНИЦ И ИСТОРИИ
 
 @app.get("/force-admin")
 async def force_admin():
@@ -113,13 +173,11 @@ async def get_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history")
     return [dict(row) for row in cursor.fetchall()]
 
-# ЭНДПОИНТЫ ДЛЯ ДАННЫХ
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
     try:
         inline_photo_url = f"data:{data.content_type};base64,{data.file_base64}"
-        
         cursor = db.cursor()
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, inline_photo_url))
         db.commit()
@@ -132,12 +190,10 @@ async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
 async def admin_add_history(data: HistoryJSONModel, db=Depends(get_db)):
     try:
         inline_main_url = f"data:{data.content_type};base64,{data.file_base64}"
-
         album_urls = []
         if data.album_files:
             for f_data in data.album_files:
                 album_urls.append(f"data:{f_data['content_type']};base64,{f_data['file_base64']}")
-
         album_str = ",".join(album_urls) if album_urls else ""
         
         cursor = db.cursor()
