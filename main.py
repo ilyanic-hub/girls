@@ -49,8 +49,8 @@ TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 # ==================== ИНТЕГРАЦИЯ GOOGLE DRIVE ==========================
 # =======================================================================
 
-GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDENTIALS")
-GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID")
+GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDENTIALS", "{}") # Если переменной нет, будет пустой JSON, а не None
+GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
 def get_drive_service():
     """Функция безопасной авторизации в Google Drive"""
