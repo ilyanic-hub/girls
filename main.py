@@ -94,11 +94,17 @@ def init_db():
         is_admin INTEGER DEFAULT 0
     )
     """)
+    # НОВАЯ ТАБЛИЦА ДЛЯ ЗАЛА СЛАВЫ
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        title_date TEXT NOT NULL,
+        photo_url TEXT NOT NULL
+    )
+    """)
     
-    # Хэшируем пароль "admin"
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
-    
-    # ОБНОВЛЕНО: Если админ уже есть, мы принудительно обновляем ему пароль на правильный хэш
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
     if cursor.fetchone():
         cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
@@ -310,6 +316,63 @@ async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None),
         raise HTTPException(status_code=403, detail="Доступ запрещен")
         
     cursor.execute("DELETE FROM contestants WHERE id = ?", (id,))
+    db.commit()
+    upload_db_to_dropbox()
+    return {"status": "success"}
+
+# ================= РОУТЫ ДЛЯ РАБОТЫ С ЗАЛОМ СЛАВЫ (ИСТОРИЕЙ) =================
+
+# 1. Получить список всех королев для страницы Зала славы
+@app.get("/api/history")
+async def get_api_history(db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM history ORDER BY id DESC")
+    return [dict(row) for row in cursor.fetchall()]
+
+# 2. Добавить новую королеву в историю (с проверкой на админа)
+@app.post("/api/admin/history")
+@app.post("/api/admin/history/")
+async def admin_add_history(data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
+        
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        name = data.name
+        title_date = data.title_date
+        raw_photo = data.file_base64
+        
+        if not raw_photo or len(raw_photo.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Файл картинки пустой")
+            
+        inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
+        
+        cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, inline_photo_url))
+        db.commit()
+        
+        # Сохраняем обновленную базу в Dropbox
+        upload_db_to_dropbox()
+        return {"status": "success", "message": "Королева успешно добавлена в историю!"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+# 3. Удалить запись из истории
+@app.delete("/api/admin/history/{id}")
+async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success"}
