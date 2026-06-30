@@ -13,7 +13,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
-
+import traceback
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= НАСТОЯЩИЙ ЖЕСТКИЙ ДИСК RAILWAY =================
@@ -331,26 +331,44 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
     
 # ================= АДМИН-МЕТОДЫ С ИНТЕГРАЦИЕЙ GOOGLE DRIVE =================
 
+import traceback
+
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
     name: str = Form(...), file: UploadFile = File(...), user_id: Optional[str] = Cookie(None), db=Depends(get_db)
 ):
-    if not user_id: raise HTTPException(status_code=401, detail="Не авторизован")
+    print(">>> ЗАПРОС ДОЛЕТЕЛ ДО БЭКЕНДА! Начинаем обработку...", file=sys.stdout)
+    
+    if not user_id: 
+        print(">>> Ошибка: user_id не найден в Cookie", file=sys.stdout)
+        raise HTTPException(status_code=401, detail="Не авторизован")
+        
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
     check = cursor.fetchone()
-    if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Нет прав")
+    
+    if not check or not check["is_admin"]: 
+        print(f">>> Ошибка: пользователь {user_id} не админ", file=sys.stdout)
+        raise HTTPException(status_code=403, detail="Нет прав")
 
     try:
+        print(">>> Пробуем подключиться к Google Drive...", file=sys.stdout)
         drive_service = get_drive_service()
+        
+        print(f">>> Файл получен: {file.filename}, тип: {file.content_type}. Загружаем...", file=sys.stdout)
         photo_url = await upload_to_google_drive(file, drive_service)
         
+        print(f">>> Файл успешно загружен! Ссылка: {photo_url}", file=sys.stdout)
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
         db.commit()
+        
+        print(">>> Данные успешно сохранены в SQLite!", file=sys.stdout)
         return {"status": "success"}
-    except Exception as err:
-        print(f"!!! ОШИБКА ДОБАВЛЕНИЯ УЧАСТНИЦЫ: {err} !!!", file=sys.stdout)
-        raise HTTPException(status_code=500, detail=f"Ошибка Google Drive: {err}")
+        
+    except BaseException as err:
+        print("!!! КРИТИЧЕСКИЙ СБОЙ ВНУТРИ МЕТОДА !!!", file=sys.stdout)
+        traceback.print_exc(file=sys.stdout)  # Выведет полную трассировку ошибки со строками кода
+        raise HTTPException(status_code=500, detail=f"Глобальная ошибка сервера: {str(err)}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
