@@ -14,7 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2 import service_account  # Возвращаем надежный импорт
+from google.oauth2 import service_account
+import google.auth.jwt  # Импортируем для тонкой настройки времени подписи
 
 app = FastAPI()
 
@@ -70,18 +71,23 @@ init_db()
 
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
-# ЧИСТАЯ ФУНКЦИЯ АВТОРИЗАЦИИ ЧЕРЕЗ СЕРВИСНЫЙ АККАУНТ
+# ФУНКЦИЯ АВТОРИЗАЦИИ С ЗАЩИТОЙ ОТ СДВИГА ЧАСОВ СЕРВЕРА
 def get_drive_service():
     if not os.path.exists("google_keys.json"):
         print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
         raise HTTPException(status_code=500, detail="На сервере отсутствует файл google_keys.json")
         
     try:
-        # Авторизуемся напрямую через новый, чистый файл ключей
+        # ХИТРОСТЬ: Разрешаем часам сервера отставать или спешить на 5 минут (300 секунд)
+        # Это полностью предотвратит ошибку Invalid JWT Signature из-за рассинхронизации хостинга
         creds = service_account.Credentials.from_service_account_file(
             "google_keys.json", 
             scopes=["https://www.googleapis.com/auth/drive"]
         )
+        
+        # Инжектируем допуск по времени в подпись
+        creds._clock_skew_in_seconds = 300 
+        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
