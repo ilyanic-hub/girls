@@ -196,33 +196,32 @@
         }
 
         // ДЕЙСТВИЯ: ДОБАВЛЕНИЕ УЧАСТНИЦЫ
-        async function addContestant(e) {
-            e.preventDefault();
-            let fileInput = document.getElementById("girlFile");
-            if (!fileInput.files.length) {
-                alert("Выберите файл фотографии!");
-                return;
-            }
+        async function addContestant(event) {
+    event.preventDefault(); // Отменяем стандартную перезагрузку страницы
+    
+    const form = event.target;
+    const formData = new FormData(form); // Автоматически упаковывает и текст, и файл
 
-            let formData = new FormData();
-            formData.append("name", document.getElementById("girlName").value);
-            formData.append("file", fileInput.files[0]);
+    try {
+        const response = await fetch('/api/admin/contestants', {
+            method: 'POST',
+            body: formData // ВАЖНО: Тут НЕ должно быть Headers ('Content-Type'), браузер поставит его сам!
+        });
 
-            try {
-                let res = await fetch("/api/admin/contestants", { method: "POST", body: formData });
-                if (res.ok) {
-                    alert("Участница добавлена успешно!");
-                    document.getElementById("girlForm").reset();
-                    loadAllData();
-                } else {
-                    let err = await res.json();
-                    alert("Сервер отклонил запрос: " + (err.detail || "Неизвестная ошибка"));
-                }
-            } catch (error) {
-                console.error("Критическая ошибка:", error);
-                alert("Внутренний сбой скрипта браузера: " + error.message);
-            }
+        const result = await response.json(); // Вот тут строка 222, которая у тебя падала!
+        
+        if (response.ok && result.status === 'success') {
+            alert('Участница успешно добавлена!');
+            form.reset();
+            location.reload(); // Перезагружаем страницу, чтобы увидеть её в списке
+        } else {
+            alert('Ошибка сервера: ' + (result.detail || 'Неизвестная ошибка'));
         }
+    } catch (error) {
+        console.error('Критическая ошибка:', error);
+        alert('Внутренний сбой скрипта браузера: ' + error.message);
+    }
+}
 
         // ДЕЙСТВИЯ: ДОБАВЛЕНИЕ В АРХИВ
         async function addHistoryWinner(e) {
