@@ -81,10 +81,21 @@ GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
 def get_drive_service():
     try:
-        # Читаем ключи напрямую из файла проекта
-        creds = service_account.Credentials.from_service_account_file(
-            "google_keys.json", 
-            scopes=["https://www.googleapis.com/auth/drive"]
+        import json
+        creds_clean = GOOGLE_CREDS_JSON.strip()
+        if creds_clean.startswith("'") or creds_clean.startswith('"'):
+            creds_clean = creds_clean[1:-1]
+            
+        creds_dict = json.loads(creds_clean)
+        
+        if "private_key" in creds_dict:
+            # Вычищаем любые проблемы с переносами строк
+            key = creds_dict["private_key"]
+            key = key.replace("\\\\n", "\n").replace("\\n", "\n")
+            creds_dict["private_key"] = key
+            
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
         )
         return build("drive", "v3", credentials=creds)
     except Exception as e:
