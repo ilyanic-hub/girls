@@ -1,21 +1,13 @@
 import os
 import sys
-import io
 import uuid
-import base64
-import traceback
 import sqlite3
-import json
 from typing import Optional, List
-from fastapi import FastAPI, Depends, HTTPException, Cookie
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2 import service_account
-import google.auth.jwt  # Импортируем для тонкой настройки времени подписи
 
 app = FastAPI()
 
@@ -41,12 +33,14 @@ def get_db():
     finally:
         db.close()
 
-# Инициализация базы данных
+# Инициализация базы данных (Добавляем поддержку хранения картинок прямо в БД)
 def init_db():
     if not os.path.exists("/data"):
         os.makedirs("/data")
     db = sqlite3.connect(DB_PATH)
     cursor = db.cursor()
+    
+    # Создаем таблицы (photo_url теперь будет содержать сам base64 код картинки)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -68,31 +62,6 @@ def init_db():
     db.close()
 
 init_db()
-
-GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
-
-# ФУНКЦИЯ АВТОРИЗАЦИИ С ЗАЩИТОЙ ОТ СДВИГА ЧАСОВ СЕРВЕРА
-def get_drive_service():
-    if not os.path.exists("google_keys.json"):
-        print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="На сервере отсутствует файл google_keys.json")
-        
-    try:
-        # ХИТРОСТЬ: Разрешаем часам сервера отставать или спешить на 5 минут (300 секунд)
-        # Это полностью предотвратит ошибку Invalid JWT Signature из-за рассинхронизации хостинга
-        creds = service_account.Credentials.from_service_account_file(
-            "google_keys.json", 
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        
-        # Инжектируем допуск по времени в подпись
-        creds._clock_skew_in_seconds = 300 
-        
-        return build("drive", "v3", credentials=creds)
-    except Exception as e:
-        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
 
 # PYDANTIC МОДЕЛИ
 class ContestantJSONModel(BaseModel):
@@ -120,7 +89,6 @@ async def get_admin_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# ЭНДПОИНТЫ ДЛЯ ТЕСТОВ
 @app.get("/force-admin")
 async def force_admin():
     return {"status": "Успешный вход под ADMIN через локальный SQLite!"}
@@ -137,92 +105,44 @@ async def get_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history")
     return [dict(row) for row in cursor.fetchall()]
 
-# ЭНДПОИНТЫ ДЛЯ ДАННЫХ
+# ЭНДПОИНТЫ ДЛЯ ДАННЫХ — ТЕПЕРЬ РАБОТАЮТ АВТОНОМНО И БЕЗУПРЕЧНО
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
-    print(">>> [БЭКЕНД] Начинаем загрузку участницы...", file=sys.stdout)
     try:
-        file_bytes = base64.b64decode(data.file_base64)
-        file_stream = io.BytesIO(file_bytes)
-        
-        drive_service = get_drive_service()
-        
-        file_metadata = {
-            "name": f"{uuid.uuid4()}_{data.filename}",
-            "parents": [GOOGLE_FOLDER_ID] if GOOGLE_FOLDER_ID else []
-        }
-        
-        media = MediaIoBaseUpload(file_stream, mimetype=data.content_type, resumable=True)
-        uploaded_file = drive_service.files().create(
-            body=file_metadata, media_body=media, fields="id"
-        ).execute()
-        
-        file_id = uploaded_file.get("id")
-        
-        drive_service.permissions().create(
-            fileId=file_id,
-            body={"type": "anyone", "role": "reader"}
-        ).execute()
-        
-        photo_url = f"https://lh3.googleusercontent.com/u/0/d/{file_id}"
+        # Вместо отправки в Google, мы формируем готовую Data-URL строку, 
+        # которую любой браузер сразу отобразит как картинку!
+        inline_photo_url = f"data:{data.content_type};base64,{data.file_base64}"
         
         cursor = db.cursor()
-        cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, photo_url))
+        cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, inline_photo_url))
         db.commit()
-        
-        print(">>> [БЭКЕНД] Участница успешно сохранена!", file=sys.stdout)
         return {"status": "success"}
-        
     except Exception as err:
-        print("!!! [БЭКЕНД] СБОЙ ВНУТРИ АДМИНКИ !!!", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(err)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка локального сохранения: {str(err)}")
 
 @app.post("/api/admin/history")
 @app.post("/api/admin/history/")
 async def admin_add_history(data: HistoryJSONModel, db=Depends(get_db)):
     try:
-        drive_service = get_drive_service()
-        
-        main_bytes = base64.b64decode(data.file_base64)
-        main_stream = io.BytesIO(main_bytes)
-        main_metadata = {
-            "name": f"winner_{uuid.uuid4()}_{data.filename}",
-            "parents": [GOOGLE_FOLDER_ID] if GOOGLE_FOLDER_ID else []
-        }
-        main_media = MediaIoBaseUpload(main_stream, mimetype=data.content_type, resumable=True)
-        main_file = drive_service.files().create(body=main_metadata, media_body=main_media, fields="id").execute()
-        main_id = main_file.get("id")
-        drive_service.permissions().create(fileId=main_id, body={"type": "anyone", "role": "reader"}).execute()
-        main_url = f"https://lh3.googleusercontent.com/u/0/d/{main_id}"
+        inline_main_url = f"data:{data.content_type};base64,{data.file_base64}"
 
         album_urls = []
         if data.album_files:
             for f_data in data.album_files:
-                f_bytes = base64.b64decode(f_data["file_base64"])
-                f_stream = io.BytesIO(f_bytes)
-                f_metadata = {
-                    "name": f"album_{uuid.uuid4()}_{f_data['filename']}",
-                    "parents": [GOOGLE_FOLDER_ID] if GOOGLE_FOLDER_ID else []
-                }
-                f_media = MediaIoBaseUpload(f_stream, mimetype=f_data["content_type"], resumable=True)
-                f_file = drive_service.files().create(body=f_metadata, media_body=f_media, fields="id").execute()
-                f_id = f_file.get("id")
-                drive_service.permissions().create(fileId=f_id, body={"type": "anyone", "role": "reader"}).execute()
-                album_urls.append(f"https://lh3.googleusercontent.com/u/0/d/{f_id}")
+                album_urls.append(f"data:{f_data['content_type']};base64,{f_data['file_base64']}")
 
         album_str = ",".join(album_urls) if album_urls else ""
         
         cursor = db.cursor()
         cursor.execute(
             "INSERT INTO history (name, title_date, photo_url, album_urls) VALUES (?, ?, ?, ?)",
-            (data.name, data.title_date, main_url, album_str)
+            (data.name, data.title_date, inline_main_url, album_str)
         )
         db.commit()
         return {"status": "success"}
     except Exception as err:
-        raise HTTPException(status_code=500, detail=f"Ошибка архивации: {str(err)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка локальной архивации: {str(err)}")
 
 @app.delete("/api/admin/contestants/{id}")
 async def delete_contestant(id: int, db=Depends(get_db)):
