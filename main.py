@@ -45,19 +45,60 @@ TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
 TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 
-# Загружаем настройки Google из переменных Railway
+# =======================================================================
+# ==================== ИНТЕГРАЦИЯ GOOGLE DRIVE ==========================
+# =======================================================================
+
 GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDENTIALS")
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID")
 
 def get_drive_service():
-    """Функция авторизации в Google Drive"""
-    creds_dict = json.loads(GOOGLE_CREDS_JSON)
-    creds = service_account.Credentials.from_service_account_info(
-        creds_dict, 
-        scopes=["https://www.googleapis.com/auth/drive.file"]
-    )
-    return build("drive", "v3", credentials=creds)
+    """Функция безопасной авторизации в Google Drive"""
+    try:
+        # Очищаем строку от возможных артефактов переноса строк в Railway
+        clean_creds = GOOGLE_CREDS_JSON.strip()
+        creds_dict = json.loads(clean_creds)
+        
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, 
+            scopes=["https://www.googleapis.com/auth/drive.file"]
+        )
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        print(f"!!! ОШИБКА АВТОРИЗАЦИИ GOOGLE: {e} !!!", file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google API: {e}")
+
+async def upload_to_google_drive(file: UploadFile, drive_service) -> str:
+    """Вспомогательная функция для загрузки любого файла в облако"""
+    content = await file.read()
+    file_stream = io.BytesIO(content)
     
+    file_metadata = {
+        "name": f"{uuid.uuid4()}_{file.filename}",
+        "parents": [GOOGLE_FOLDER_ID]
+    }
+    
+    media = MediaIoBaseUpload(file_stream, mimetype=file.content_type, resumable=True)
+    
+    # Отправляем файл
+    uploaded_file = drive_service.files().create(
+        body=file_metadata, media_body=media, fields="id"
+    ).execute()
+    
+    file_id = uploaded_file.get("id")
+    
+    # Делаем файл доступным всему интернету по ссылке
+    drive_service.permissions().create(
+        fileId=file_id,
+        body={"type": "anyone", "role": "reader"}
+    ).execute()
+    
+    # Возвращаем прямую ссылку на картинку для сайта
+    return f"https://lh3.googleusercontent.com/u/0/d/{file_id}"
+
+# =======================================================================
+# =======================================================================
+
 class AuthModel(BaseModel):
     username: str
     password: str
@@ -288,6 +329,8 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
     rows = cursor.fetchall()
     return [row["photo_url"] for row in rows]
     
+# ================= АДМИН-МЕТОДЫ С ИНТЕГРАЦИЕЙ GOOGLE DRIVE =================
+
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
     name: str = Form(...), file: UploadFile = File(...), user_id: Optional[str] = Cookie(None), db=Depends(get_db)
@@ -299,43 +342,14 @@ async def admin_add_contestant(
     if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Нет прав")
 
     try:
-        # Читаем файл в память
-        content = await file.read()
-        file_stream = io.BytesIO(content)
-        
-        # Подключаемся к Google Диску
         drive_service = get_drive_service()
+        photo_url = await upload_to_google_drive(file, drive_service)
         
-        file_metadata = {
-            "name": f"{uuid.uuid4()}_{file.filename}",
-            "parents": [GOOGLE_FOLDER_ID]  # Загружаем строго в нашу папку
-        }
-        
-        media = MediaIoBaseUpload(file_stream, mimetype=file.content_type, resumable=True)
-        
-        # Отправляем файл в облако
-        uploaded_file = drive_service.files().create(
-            body=file_metadata, media_body=media, fields="id, webContentLink"
-        ).execute()
-        
-        file_id = uploaded_file.get("id")
-        
-        # Делаем файл доступным для просмотра всем в интернете
-        drive_service.permissions().create(
-            fileId=file_id,
-            body={"type": "anyone", "role": "reader"}
-        ).execute()
-        
-        # Формируем прямую ссылку для отображения картинки на сайте
-        photo_url = f"https://lh3.googleusercontent.com/d/{file_id}"
-        
-        # Сохраняем в базу данных SQLite
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
         db.commit()
         return {"status": "success"}
-        
     except Exception as err:
-        print(f"!!! ОШИБКА GOOGLE DRIVE: {err} !!!", file=sys.stdout)
+        print(f"!!! ОШИБКА ДОБАВЛЕНИЯ УЧАСТНИЦЫ: {err} !!!", file=sys.stdout)
         raise HTTPException(status_code=500, detail=f"Ошибка Google Drive: {err}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
@@ -361,31 +375,26 @@ async def admin_add_history_winner(
     check = cursor.fetchone()
     if not check or not check["is_admin"]: raise HTTPException(status_code=403)
 
-    main_ext = os.path.splitext(file.filename)[1]
-    main_filename = f"winner_{uuid.uuid4()}{main_ext}"
-    main_path = os.path.join(PHOTOS_DIR, main_filename)
-    
-    main_content = await file.read()
-    with open(main_path, "wb") as f:
-        f.write(main_content)
-    main_photo_url = f"/static/photos/{main_filename}"
-    
-    cursor.execute("INSERT INTO history_winners (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, main_photo_url))
-    winner_id = cursor.lastrowid
-    
-    for alb_file in album_files:
-        if alb_file.filename:
-            alb_ext = os.path.splitext(alb_file.filename)[1]
-            alb_filename = f"alb_{uuid.uuid4()}{alb_ext}"
-            alb_path = os.path.join(PHOTOS_DIR, alb_filename)
-            
-            alb_content = await alb_file.read()
-            with open(alb_path, "wb") as f:
-                f.write(alb_content)
-            cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, f"/static/photos/{alb_filename}"))
-            
-    db.commit()
-    return {"status": "success"}
+    try:
+        drive_service = get_drive_service()
+        
+        # Загружаем главное фото королевы на Google Диск
+        main_photo_url = await upload_to_google_drive(file, drive_service)
+        
+        cursor.execute("INSERT INTO history_winners (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, main_photo_url))
+        winner_id = cursor.lastrowid
+        
+        # Загружаем фото из альбома на Google Диск
+        for alb_file in album_files:
+            if alb_file.filename:
+                alb_photo_url = await upload_to_google_drive(alb_file, drive_service)
+                cursor.execute("INSERT INTO winner_photos (winner_id, photo_url) VALUES (?, ?)", (winner_id, alb_photo_url))
+                
+        db.commit()
+        return {"status": "success"}
+    except Exception as err:
+        print(f"!!! ОШИБКА ДОБАВЛЕНИЯ В АРХИВ: {err} !!!", file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка Google Drive при архивации: {err}")
 
 @app.delete("/api/admin/history/{winner_id}")
 def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -393,7 +402,7 @@ def admin_delete_history_winner(winner_id: int, user_id: Optional[str] = Cookie(
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
     check = cursor.fetchone()
-    if not check or not check[0]: raise HTTPException(status_code=403)
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
 
     cursor.execute("DELETE FROM winner_photos WHERE winner_id = ?", (winner_id,))
     cursor.execute("DELETE FROM history_winners WHERE id = ?", (winner_id,))
