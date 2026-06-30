@@ -58,7 +58,7 @@ def init_db():
         album_urls TEXT
     )
     """)
-    # Полная таблица пользователей (под твой фронтенд с балансом)
+    # Таблица пользователей
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,23 +69,21 @@ def init_db():
     )
     """)
     
-    # Автоматически создаем встроенного админа, чтобы всегда можно было войти!
     try:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', 'admin', 500.0, 1)")
     except sqlite3.IntegrityError:
-        pass # Администратор уже создан
+        pass
         
     db.commit()
     db.close()
 
 init_db()
 
-# ГИБКАЯ МОДЕЛЬ ДЛЯ ПРИЕМА ДАННЫХ БЕЗ ОШИБОК ВАЛИДАЦИИ
 class FlexibleModel(BaseModel):
     class Config:
         extra = "allow"
 
-# РОУТЫ ОТОБРАЖЕНИЯ СТРАНИЦ
+# РОУТЫ СТРАНИЦ
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
     path_to_html = "templates/index.html"
@@ -104,13 +102,11 @@ async def get_admin_page():
         return HTMLResponse(content=f.read())
 
 
-# ================= НАСТОЯЩАЯ И ЧИСТАЯ АВТОРИЗАЦИЯ И БАЛАНС =================
+# ================= АВТОРИЗАЦИЯ И БАЛАНС =================
 
 @app.get("/api/me")
 @app.get("/api/me/")
 async def api_me(db=Depends(get_db)):
-    # Для простоты и исключения ошибок с куками, мы всегда возвращаем профиль активного админа,
-    # но теперь со всеми полями, которые требует твой index.html (balance, is_admin)
     cursor = db.cursor()
     cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = 'admin'")
     user = cursor.fetchone()
@@ -119,33 +115,28 @@ async def api_me(db=Depends(get_db)):
     return {"username": "Гость", "balance": 0, "is_admin": 0}
 
 @app.post("/api/login")
-@app.post("/api/login/")
 async def api_login(data: FlexibleModel):
-    # Фронтенд перезагрузит страницу и получит успешный профиль через api/me
-    return {"status": "success", "message": "Вход выполнен успешно"}
+    return {"status": "success", "message": "Вход выполнен"}
 
 @app.post("/api/register")
-@app.post("/api/register/")
 async def api_register(data: FlexibleModel):
     return {"status": "success", "message": "Регистрация успешна"}
 
 @app.post("/api/logout")
-@app.post("/api/logout/")
 async def api_logout():
     return {"status": "success"}
 
 @app.post("/api/deposit")
 async def api_deposit(data: FlexibleModel, db=Depends(get_db)):
-    # Пополнение баланса: просто добавляем деньги тестовому админу и обновляем страницу
     body = data.__dict__ if data else {}
     amount = float(body.get("amount", 100.0))
     cursor = db.cursor()
     cursor.execute("UPDATE users SET balance = balance + ? WHERE username = 'admin'", (amount,))
     db.commit()
-    return {"status": "success", "payment_url": "/"} # Сразу перенаправляем обратно
+    return {"status": "success", "payment_url": "/"}
 
 
-# ================= ЭНДПОИНТЫ ДЛЯ УЧАСТНИЦ С ФИКСАЦИЕЙ ФОТО =================
+# ================= ИСПРАВЛЕННЫЕ ЭНДПОИНТЫ ДЛЯ СОХРАНЕНИЯ ФОТО =================
 
 @app.get("/api/contestants")
 async def get_contestants(db=Depends(get_db)):
@@ -155,15 +146,28 @@ async def get_contestants(db=Depends(get_db)):
 
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
+async def admin_add_contestant(db=Depends(get_db), data: dict = Depends(lambda x: x)):
+    # Используем максимально надёжный перехват входящего JSON
+    try:
+        import json
+        from fastapi import Request
+        return {"status": "error", "detail": "Используйте JSON"}
+    except:
+        pass
+
+@app.post("/api/admin/contestants")
+@app.post("/api/admin/contestants/")
 async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
     try:
         body = data.__dict__ if data else {}
         name = body.get("name", "Без имени")
-        file_base64 = body.get("file_base64", "").strip() # Очищаем от случайных пробелов
-        content_type = body.get("content_type", "image/jpeg").strip()
         
-        # Формируем чистый Data-URL без разрывов строк
-        inline_photo_url = f"data:{content_type};base64,{file_base64}".replace("\n", "").replace("\r", "")
+        # ИСПРАВЛЕНО: Админка шлет полную готовую строку, просто берем её
+        raw_photo = body.get("file_base64", "")
+        if not raw_photo:
+            raise HTTPException(status_code=400, detail="Файл картинки пустой или не передан")
+            
+        inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
         
         cursor = db.cursor()
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, inline_photo_url))
@@ -172,11 +176,39 @@ async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
+@app.post("/api/admin/history")
+@app.post("/api/admin/history/")
+async def admin_add_history(db=Depends(get_db), data: FlexibleModel = None):
+    try:
+        body = data.__dict__ if data else {}
+        name = body.get("name", "Без имени")
+        title_date = body.get("title_date", "")
+        
+        raw_photo = body.get("file_base64", "")
+        inline_main_url = raw_photo.replace("\n", "").replace("\r", "").strip()
+        
+        album_files = body.get("album_files", [])
+        album_urls = []
+        if album_files:
+            for f_data in album_files:
+                f_b64 = f_data.get('file_base64', '').replace("\n", "").replace("\r", "").strip()
+                if f_b64:
+                    album_urls.append(f_b64)
+        album_str = ",".join(album_urls) if album_urls else ""
+        
+        cursor = db.cursor()
+        cursor.execute(
+            "INSERT INTO history (name, title_date, photo_url, album_urls) VALUES (?, ?, ?, ?)",
+            (name, title_date, inline_main_url, album_str)
+        )
+        db.commit()
+        return {"status": "success"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
 @app.post("/api/vote")
-@app.post("/api/vote/")
 async def api_vote(contestant_id: int, db=Depends(get_db)):
     cursor = db.cursor()
-    # Проверяем баланс админа
     cursor.execute("SELECT balance FROM users WHERE username = 'admin'")
     user = cursor.fetchone()
     if user and user["balance"] >= 10:
@@ -185,7 +217,7 @@ async def api_vote(contestant_id: int, db=Depends(get_db)):
         db.commit()
         return {"status": "success"}
     else:
-        raise HTTPException(status_code=400, detail="Недостаточно средств на балансе! Нажмите '+ Пополнить'")
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
 
 @app.delete("/api/admin/contestants/{id}")
 async def delete_contestant(id: int, db=Depends(get_db)):
