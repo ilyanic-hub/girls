@@ -5,6 +5,7 @@ import uuid
 import base64
 import traceback
 import sqlite3
+import json
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Cookie
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
+from google.oauth2 import service_account  # Возвращаем надежный импорт
 
 app = FastAPI()
 
@@ -66,18 +68,25 @@ def init_db():
 
 init_db()
 
-# ==================== НАСТРОЙКА GOOGLE DRIVE ЧЕРЕЗ API-КЛЮЧ ====================
-# Вставь сюда между кавычками свой скопированный API-ключ из консоли Google Cloud
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyC0T0wky5WCNUn5wa9Hre6IPajWpPQrYsQ")
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
+# ЧИСТАЯ ФУНКЦИЯ АВТОРИЗАЦИИ ЧЕРЕЗ СЕРВИСНЫЙ АККАУНТ
 def get_drive_service():
+    if not os.path.exists("google_keys.json"):
+        print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
+        raise HTTPException(status_code=500, detail="На сервере отсутствует файл google_keys.json")
+        
     try:
-        # Авторизация по простому текстовому ключу, здесь нечему ломаться
-        return build("drive", "v3", developerKey=GOOGLE_API_KEY)
+        # Авторизуемся напрямую через новый, чистый файл ключей
+        creds = service_account.Credentials.from_service_account_file(
+            "google_keys.json", 
+            scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка создания клиента Drive: {str(e)}")
+        traceback.print_exc(file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
 
 # PYDANTIC МОДЕЛИ
 class ContestantJSONModel(BaseModel):
@@ -126,7 +135,7 @@ async def get_history(db=Depends(get_db)):
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
-    print(">>> [БЭКЕНД] Начинаем загрузку участницы через API-ключ...", file=sys.stdout)
+    print(">>> [БЭКЕНД] Начинаем загрузку участницы...", file=sys.stdout)
     try:
         file_bytes = base64.b64decode(data.file_base64)
         file_stream = io.BytesIO(file_bytes)
@@ -145,7 +154,6 @@ async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
         
         file_id = uploaded_file.get("id")
         
-        # Делаем файл доступным для всех
         drive_service.permissions().create(
             fileId=file_id,
             body={"type": "anyone", "role": "reader"}
