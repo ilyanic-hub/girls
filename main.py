@@ -58,7 +58,7 @@ def init_db():
         album_urls TEXT
     )
     """)
-    # ДОБАВЛЕНО: Таблица пользователей для регистрации и логина
+    # Таблица пользователей
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,12 +86,11 @@ class HistoryJSONModel(BaseModel):
     content_type: str
     album_files: Optional[List[dict]] = []
 
-# Модель для авторизации
 class AuthModel(BaseModel):
     username: str
     password: str
 
-# РОУТЫ ДЛЯ ОТОБРАЖЕНИЯ СТРАНИЦ (HTML)
+# РОУТЫ ДЛЯ ОТОБРАЖЕНИЯ СТРАНИЦ
 
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
@@ -110,30 +109,12 @@ async def get_admin_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# ДОБАВЛЕНО: Роут для страницы ЛОГИНА
-@app.get("/login", response_class=HTMLResponse)
-@app.get("/login/", response_class=HTMLResponse)
-async def get_login_page():
-    path_to_html = "templates/login.html"  # <-- Проверь имя файла в templates
-    if not os.path.exists(path_to_html):
-        raise HTTPException(status_code=404, detail="Файл templates/login.html не найден!")
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-# ДОБАВЛЕНО: Роут для страницы РЕГИСТРАЦИИ
-@app.get("/register", response_class=HTMLResponse)
-@app.get("/register/", response_class=HTMLResponse)
-async def get_register_page():
-    path_to_html = "templates/register.html"  # <-- Проверь имя файла в templates
-    if not os.path.exists(path_to_html):
-        raise HTTPException(status_code=404, detail="Файл templates/register.html не найден!")
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
 
 # API ЭНДПОИНТЫ ДЛЯ АВТОРИЗАЦИИ (БЭКЕНД)
+# Проверь, совпадают ли эти адреса с тем, куда твоя форма отправляет данные (fetch или axios)
 
 @app.post("/api/auth/register")
+@app.post("/api/auth/register/")
 async def api_register(data: AuthModel, db=Depends(get_db)):
     try:
         cursor = db.cursor()
@@ -146,6 +127,7 @@ async def api_register(data: AuthModel, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/auth/login")
+@app.post("/api/auth/login/")
 async def api_login(data: AuthModel, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users WHERE username = ? AND password = ?", (data.username, data.password))
@@ -193,7 +175,7 @@ async def admin_add_history(data: HistoryJSONModel, db=Depends(get_db)):
         album_urls = []
         if data.album_files:
             for f_data in data.album_files:
-                album_urls.append(f"data:{f_data['content_type']};base64,{f_data['file_base64']}")
+                album_urls.append(f"data:{f_data['content_type']};base64 School,{f_data['file_base64']}")
         album_str = ",".join(album_urls) if album_urls else ""
         
         cursor = db.cursor()
