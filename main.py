@@ -8,8 +8,6 @@ import sqlite3
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -17,7 +15,7 @@ from google.oauth2 import service_account
 
 app = FastAPI()
 
-# Разрешаем CORS на всякий случай
+# Настройка CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -25,10 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Подключение статических файлов и шаблонов (убедись, что папки существуют)
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
 
 DB_PATH = "/data/database.db"
 
@@ -40,19 +34,12 @@ def get_db():
     finally:
         db.close()
 
-# Инициализация базы данных при старте
+# Инициализация базы данных
 def init_db():
     if not os.path.exists("/data"):
         os.makedirs("/data")
     db = sqlite3.connect(DB_PATH)
     cursor = db.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
-        username TEXT,
-        is_admin INTEGER DEFAULT 0
-    )
-    """)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,41 +62,28 @@ def init_db():
 
 init_db()
 
-# Конфигурация Google Drive
-GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDENTIALS", "{}")
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
+# НАДЕЖНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ К ГУГЛ ДИСКУ
 def get_drive_service():
+    # Проверяем, существует ли локальный файл с ключами
+    if not os.path.exists("google_keys.json"):
+        print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
+        raise HTTPException(status_code=500, detail="На сервере отсутствует файл google_keys.json")
+        
     try:
-        import json
-        from google.auth import transport
-        
-        creds_clean = GOOGLE_CREDS_JSON.strip()
-        if creds_clean.startswith("'") or creds_clean.startswith('"'):
-            creds_clean = creds_clean[1:-1]
-            
-        creds_dict = json.loads(creds_clean)
-        
-        if "private_key" in creds_dict:
-            key = creds_dict["private_key"]
-            # Заменяем двойные слэши, которые мог добавить Railway
-            key = key.replace("\\\\n", "\n").replace("\\n", "\n")
-            creds_dict["private_key"] = key
-            
-        creds = service_account.Credentials.from_service_account_info(
-            creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
+        creds = service_account.Credentials.from_service_account_file(
+            "google_keys.json", 
+            scopes=["https://www.googleapis.com/auth/drive"]
         )
-        
-        # ХИТРЫЙ ТРЮК: Заставляем Google игнорировать мелкие рассинхронизации часов сервера (до 10 секунд)
-        request = transport.requests.Request()
-        creds.refresh(request)
-        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        return None # Если упало тут, вернем None, чтобы обработать дальше
+        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE ИЗ ФАЙЛА: {e} !!!", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
 
-# --- PYDANTIC МОДЕЛИ ДЛЯ ДАННЫХ (ВМЕСТО ФОРМ) ---
+# PYDANTIC МОДЕЛИ
 class ContestantJSONModel(BaseModel):
     name: str
     file_base64: str
@@ -122,9 +96,9 @@ class HistoryJSONModel(BaseModel):
     file_base64: str
     filename: str
     content_type: str
-    album_files: Optional[List[dict]] = [] # Список дополнительных файлов [{base64, filename, content_type}]
+    album_files: Optional[List[dict]] = []
 
-# --- ЭНДПОИНТЫ ДЛЯ ТЕСТОВ И СТРАНИЦ ---
+# ЭНДПОИНТЫ
 @app.get("/force-admin")
 async def force_admin():
     return {"status": "Успешный вход под ADMIN через локальный SQLite!"}
@@ -141,25 +115,11 @@ async def get_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history")
     return [dict(row) for row in cursor.fetchall()]
 
-# --- ХЕНДЛЕРЫ ДОБАВЛЕНИЯ ЧЕРЕЗ JSON (BASE64) ---
-
-# Для участниц (ловит и со слэшем, и без)
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
-async def admin_add_contestant(
-    data: ContestantJSONModel,
-    user_id: Optional[str] = Cookie(None),
-    db=Depends(get_db)
-):
-    # ... тут весь остальной код функции без изменений ...
-    print(">>> [БЭКЕНД] Получен запрос на добавление участницы через Base64", file=sys.stdout)
-    
-    # Временная заглушка авторизации, если куки ещё не настроены, чтобы код работал
-    # Если проверка нужна строгая, раскомментируй код ниже:
-    # if not user_id: raise HTTPException(status_code=401, detail="Не авторизован")
-
+async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
+    print(">>> [БЭКЕНД] Начинаем загрузку участницы...", file=sys.stdout)
     try:
-        # Декодируем текстовую строку в байты файла
         file_bytes = base64.b64decode(data.file_base64)
         file_stream = io.BytesIO(file_bytes)
         
@@ -177,42 +137,32 @@ async def admin_add_contestant(
         
         file_id = uploaded_file.get("id")
         
-        # Делаем файл публичным по ссылке
         drive_service.permissions().create(
             fileId=file_id,
             body={"type": "anyone", "role": "reader"}
         ).execute()
         
-        # Прямая ссылка для отображения в браузере
         photo_url = f"https://lh3.googleusercontent.com/u/0/d/{file_id}"
         
         cursor = db.cursor()
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, photo_url))
         db.commit()
         
-        print(">>> [БЭКЕНД] Участница успешно сохранена!", file=sys.stdout)
+        print(">>> [БЭКЕНД] Участница успешно сохранена в базу и на Диск!", file=sys.stdout)
         return {"status": "success"}
         
     except Exception as err:
-        print("!!! [БЭКЕНД] КРИТИЧЕСКИЙ СБОЙ ДОБАВЛЕНИЯ УЧАСТНИЦЫ !!!", file=sys.stderr)
+        print("!!! [БЭКЕНД] СБОЙ ВНУТРИ АДМИНКИ !!!", file=sys.stderr)
+        import traceback
         traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(err)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(err)}")
 
-
-# Для архива королев (ловит и со слэшем, и без)
 @app.post("/api/admin/history")
 @app.post("/api/admin/history/")
-async def admin_add_history(
-    data: HistoryJSONModel,
-    user_id: Optional[str] = Cookie(None),
-    db=Depends(get_db)
-):
-    # ... тут весь остальной код функции без изменений ...
-    print(">>> [БЭКЕНД] Получен запрос на добавление в Архив Королев", file=sys.stdout)
+async def admin_add_history(data: HistoryJSONModel, db=Depends(get_db)):
     try:
         drive_service = get_drive_service()
         
-        # Загружаем главное фото
         main_bytes = base64.b64decode(data.file_base64)
         main_stream = io.BytesIO(main_bytes)
         main_metadata = {
@@ -225,7 +175,6 @@ async def admin_add_history(
         drive_service.permissions().create(fileId=main_id, body={"type": "anyone", "role": "reader"}).execute()
         main_url = f"https://lh3.googleusercontent.com/u/0/d/{main_id}"
 
-        # Загружаем файлы альбома (если они есть)
         album_urls = []
         if data.album_files:
             for f_data in data.album_files:
@@ -251,9 +200,7 @@ async def admin_add_history(
         db.commit()
         return {"status": "success"}
     except Exception as err:
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка создания записи архива: {str(err)}")
-
+        raise HTTPException(status_code=500, detail=f"Ошибка архивации: {str(err)}")
 
 @app.delete("/api/admin/contestants/{id}")
 async def delete_contestant(id: int, db=Depends(get_db)):
@@ -262,15 +209,9 @@ async def delete_contestant(id: int, db=Depends(get_db)):
     db.commit()
     return {"status": "success"}
 
-
 @app.delete("/api/admin/history/{id}")
 async def delete_history(id: int, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     return {"status": "success"}
-
-@app.get("/admin", response_class=HTMLResponse)
-async def get_admin_page():
-    with open("templates/admin.html", "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
