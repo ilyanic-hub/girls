@@ -12,15 +12,21 @@ from fastapi.responses import FileResponse, RedirectResponse
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= НАСТОЯЩИЙ ЖЕСТКИЙ ДИСК RAILWAY =================
-# Переключаем базу на твой примонтированный диск girls-volume
 DATA_DIR = "/data"
 PHOTOS_DIR = os.path.join(DATA_DIR, "photos")
 
-os.makedirs(DATA_DIR, exist_ok=True)
-os.makedirs(PHOTOS_DIR, exist_ok=True)
+# Создаем папки с максимальными правами доступа для Linux
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.chmod(DATA_DIR, 0o777)
+    os.makedirs(PHOTOS_DIR, exist_ok=True)
+    os.chmod(PHOTOS_DIR, 0o777)
+except Exception as e:
+    print(f"!!! ОШИБКА СОЗДАНИЯ ПАПОК НА ДИСКЕ: {e} !!!", file=sys.stdout)
 
 DATABASE_PATH = os.path.join(DATA_DIR, "database.db")
 print(f"--- ФИНАЛЬНЫЙ СТАБИЛЬНЫЙ ПУТЬ БАЗЫ ДАННЫХ: {DATABASE_PATH} ---", file=sys.stdout)
+# =======================================================================
 # =======================================================================
 # =======================================================================
 # =======================================================================
@@ -268,24 +274,34 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
 async def admin_add_contestant(
     name: str = Form(...), file: UploadFile = File(...), user_id: Optional[str] = Cookie(None), db=Depends(get_db)
 ):
-    if not user_id: raise HTTPException(status_code=401)
+    if not user_id: raise HTTPException(status_code=401, detail="Не авторизован")
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
     check = cursor.fetchone()
-    if not check or not check["is_admin"]: raise HTTPException(status_code=403)
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Нет прав администратора")
 
-    file_ext = os.path.splitext(file.filename)[1]
-    filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = os.path.join(PHOTOS_DIR, filename)
-    
-    content = await file.read()
-    with open(file_path, "wb") as f:
-        f.write(content)
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="Файл не выбран или пустой")
+
+    try:
+        file_ext = os.path.splitext(file.filename)[1]
+        filename = f"{uuid.uuid4()}{file_ext}"
+        file_path = os.path.join(PHOTOS_DIR, filename)
         
-    photo_url = f"/static/photos/{filename}"
-    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
-    db.commit()
-    return {"status": "success"}
+        content = await file.read()
+        
+        # Записываем файл на диск
+        with open(file_path, "wb") as f:
+            f.write(content)
+            
+        photo_url = f"/static/photos/{filename}"
+        cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
+        db.commit()
+        return {"status": "success"}
+        
+    except Exception as err:
+        print(f"!!! КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПИСИ ФАЙЛА: {err} !!!", file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера при сохранении фото: {err}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
