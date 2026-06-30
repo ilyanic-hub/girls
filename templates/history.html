@@ -222,7 +222,9 @@
                 }
 
                 list.forEach(winner => {
-                    let freshPhotoUrl = winner.photo_url + '?t=' + new Date().getTime();
+                    // УБРАЛИ ХВОСТИК ?t=... , чтобы не ломать Base64-код картинки!
+                    let freshPhotoUrl = winner.photo_url; 
+                    
                     gallery.innerHTML += `
                         <div class="winner-card" onclick="openAlbum(${winner.id}, '${winner.name}')">
                             <img src="${freshPhotoUrl}" class="winner-img" onerror="this.src='https://placehold.co/300x340?text=No+Photo'">
