@@ -14,6 +14,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 import io
 import traceback
+from fastapi import Form, File, UploadFile
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= НАСТОЯЩИЙ ЖЕСТКИЙ ДИСК RAILWAY =================
@@ -333,14 +334,20 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
 
 import traceback
 
+from fastapi import Form, File, UploadFile
+
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
-    name: str = Form(...), file: UploadFile = File(...), user_id: Optional[str] = Cookie(None), db=Depends(get_db)
+    user_id: Optional[str] = Cookie(None),
+    name: str = Form(None), # Меняем ... на None для гибкости парсера
+    file: UploadFile = File(None), # Меняем ... на None
+    db=Depends(get_db)
 ):
-    print(">>> ЗАПРОС ДОЛЕТЕЛ ДО БЭКЕНДА! Начинаем обработку...", file=sys.stdout)
+    print(">>> [БЭКЕНД] Запрос успешно принят веб-сервером!", file=sys.stdout)
+    print(f">>> [БЭКЕНД] Получены сырые данные: name='{name}', file='{file}'", file=sys.stdout)
     
+    # 1. Проверка авторизации
     if not user_id: 
-        print(">>> Ошибка: user_id не найден в Cookie", file=sys.stdout)
         raise HTTPException(status_code=401, detail="Не авторизован")
         
     cursor = db.cursor()
@@ -348,27 +355,32 @@ async def admin_add_contestant(
     check = cursor.fetchone()
     
     if not check or not check["is_admin"]: 
-        print(f">>> Ошибка: пользователь {user_id} не админ", file=sys.stdout)
-        raise HTTPException(status_code=403, detail="Нет прав")
+        raise HTTPException(status_code=403, detail="Нет прав администратора")
+
+    # 2. Ручная проверка полей (защита от пустой формы)
+    if not name or not file or not file.filename:
+        print(">>> [БЭКЕНД] Ошибка: Фронтенд прислал пустые поля!", file=sys.stdout)
+        raise HTTPException(status_code=400, detail="Поля 'name' или 'file' не могут быть пустыми")
 
     try:
-        print(">>> Пробуем подключиться к Google Drive...", file=sys.stdout)
+        print(">>> [БЭКЕНД] Подключаемся к Google Drive...", file=sys.stdout)
         drive_service = get_drive_service()
         
-        print(f">>> Файл получен: {file.filename}, тип: {file.content_type}. Загружаем...", file=sys.stdout)
+        print(f">>> [БЭКЕНД] Отправляем файл '{file.filename}' в облако...", file=sys.stdout)
         photo_url = await upload_to_google_drive(file, drive_service)
         
-        print(f">>> Файл успешно загружен! Ссылка: {photo_url}", file=sys.stdout)
+        print(f">>> [БЭКЕНД] Файл на Диске! Ссылка: {photo_url}. Пишем в базу...", file=sys.stdout)
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
         db.commit()
         
-        print(">>> Данные успешно сохранены в SQLite!", file=sys.stdout)
+        print(">>> [БЭКЕНД] Всё готово! Отправляем успех фронтенду.", file=sys.stdout)
         return {"status": "success"}
         
     except BaseException as err:
-        print("!!! КРИТИЧЕСКИЙ СБОЙ ВНУТРИ МЕТОДА !!!", file=sys.stdout)
-        traceback.print_exc(file=sys.stdout)  # Выведет полную трассировку ошибки со строками кода
-        raise HTTPException(status_code=500, detail=f"Глобальная ошибка сервера: {str(err)}")
+        print("!!! [БЭКЕНД] КРИТИЧЕСКИЙ СБОЙ ВНУТРИ ОБРАБОТКИ !!!", file=sys.stdout)
+        import traceback
+        traceback.print_exc(file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка Google Drive или БД: {str(err)}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
