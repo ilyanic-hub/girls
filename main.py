@@ -25,7 +25,6 @@ if os.path.exists("templates"):
 
 DB_PATH = "/data/database.db"
 
-# ИСПРАВЛЕНО: Добавлен параметр check_same_thread=False
 def get_db():
     db = sqlite3.connect(DB_PATH, check_same_thread=False)
     db.row_factory = sqlite3.Row
@@ -34,7 +33,6 @@ def get_db():
     finally:
         db.close()
 
-# ИСПРАВЛЕНО: Тут тоже добавлен параметр check_same_thread=False
 def init_db():
     if not os.path.exists("/data"):
         os.makedirs("/data")
@@ -77,6 +75,16 @@ class HistoryJSONModel(BaseModel):
     filename: str
     content_type: str
     album_files: Optional[List[dict]] = []
+
+# ДОБАВЛЕНО: Роут для открытия ГЛАВНОЙ СТРАНИЦЫ сайта (адрес /)
+@app.get("/", response_class=HTMLResponse)
+async def get_main_page():
+    path_to_html = "templates/index.html"  # <-- Убедись, что файл называетсяindex.html
+    if not os.path.exists(path_to_html):
+        raise HTTPException(status_code=404, detail="Файл templates/index.html не найден на сервере!")
+        
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 # РОУТ ДЛЯ ОТКРЫТИЯ СТРАНИЦЫ АДМИНКИ
 @app.get("/admin", response_class=HTMLResponse)
