@@ -8,6 +8,11 @@ from pydantic import BaseModel
 from fastapi import FastAPI, Depends, HTTPException, File, UploadFile, Form, Response, Cookie, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
+import json
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+import io
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,6 +45,19 @@ TRYBIT_API_KEY = "ТВОЙ_API_КЛЮЧ"
 TRYBIT_SHOP_ID = "ТВОЙ_SHOP_ID"
 TRYBIT_URL = "https://api.trybit.com/v2/invoice/create"
 
+# Загружаем настройки Google из переменных Railway
+GOOGLE_CREDS_JSON = os.getenv("GOOGLE_CREDENTIALS")
+GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID")
+
+def get_drive_service():
+    """Функция авторизации в Google Drive"""
+    creds_dict = json.loads(GOOGLE_CREDS_JSON)
+    creds = service_account.Credentials.from_service_account_info(
+        creds_dict, 
+        scopes=["https://www.googleapis.com/auth/drive.file"]
+    )
+    return build("drive", "v3", credentials=creds)
+    
 class AuthModel(BaseModel):
     username: str
     password: str
@@ -269,7 +287,7 @@ def get_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor.execute("SELECT photo_url FROM winner_photos WHERE winner_id = ? ORDER BY id ASC", (winner_id,))
     rows = cursor.fetchall()
     return [row["photo_url"] for row in rows]
-
+    
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(
     name: str = Form(...), file: UploadFile = File(...), user_id: Optional[str] = Cookie(None), db=Depends(get_db)
@@ -278,30 +296,47 @@ async def admin_add_contestant(
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE id = ?", (int(user_id),))
     check = cursor.fetchone()
-    if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Нет прав администратора")
-
-    if not file or not file.filename:
-        raise HTTPException(status_code=400, detail="Файл не выбран или пустой")
+    if not check or not check["is_admin"]: raise HTTPException(status_code=403, detail="Нет прав")
 
     try:
-        file_ext = os.path.splitext(file.filename)[1]
-        filename = f"{uuid.uuid4()}{file_ext}"
-        file_path = os.path.join(PHOTOS_DIR, filename)
-        
+        # Читаем файл в память
         content = await file.read()
+        file_stream = io.BytesIO(content)
         
-        # Записываем файл на диск
-        with open(file_path, "wb") as f:
-            f.write(content)
-            
-        photo_url = f"/static/photos/{filename}"
+        # Подключаемся к Google Диску
+        drive_service = get_drive_service()
+        
+        file_metadata = {
+            "name": f"{uuid.uuid4()}_{file.filename}",
+            "parents": [GOOGLE_FOLDER_ID]  # Загружаем строго в нашу папку
+        }
+        
+        media = MediaIoBaseUpload(file_stream, mimetype=file.content_type, resumable=True)
+        
+        # Отправляем файл в облако
+        uploaded_file = drive_service.files().create(
+            body=file_metadata, media_body=media, fields="id, webContentLink"
+        ).execute()
+        
+        file_id = uploaded_file.get("id")
+        
+        # Делаем файл доступным для просмотра всем в интернете
+        drive_service.permissions().create(
+            fileId=file_id,
+            body={"type": "anyone", "role": "reader"}
+        ).execute()
+        
+        # Формируем прямую ссылку для отображения картинки на сайте
+        photo_url = f"https://lh3.googleusercontent.com/d/{file_id}"
+        
+        # Сохраняем в базу данных SQLite
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, photo_url))
         db.commit()
         return {"status": "success"}
         
     except Exception as err:
-        print(f"!!! КРИТИЧЕСКАЯ ОШИБКА ПРИ ЗАПИСИ ФАЙЛА: {err} !!!", file=sys.stdout)
-        raise HTTPException(status_code=500, detail=f"Ошибка сервера при сохранении фото: {err}")
+        print(f"!!! ОШИБКА GOOGLE DRIVE: {err} !!!", file=sys.stdout)
+        raise HTTPException(status_code=500, detail=f"Ошибка Google Drive: {err}")
 
 @app.delete("/api/admin/contestants/{girl_id}")
 def admin_delete_contestant(girl_id: int, user_id: Optional[str] = Cookie(None), db=Depends(get_db)):
