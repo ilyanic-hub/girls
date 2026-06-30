@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2 import service_account
-from google.auth import transport  # Важный импорт для исправления синхронизации времени
+from google.auth.transport import requests  # ПРАВИЛЬНЫЙ ИМПОРТ ПРЯМО К МОДУЛЮ
 
 app = FastAPI()
 
@@ -91,10 +91,9 @@ def get_drive_service():
             scopes=["https://www.googleapis.com/auth/drive"]
         )
         
-        # ФИКС ВРЕМЕНИ: Принудительно запрашиваем свежий токен авторизации у Google,
-        # что заставляет библиотеку автоматически подстроиться под разницу в часах сервера Railway
-        request = transport.requests.Request()
-        creds.refresh(request)
+        # ФИКС ВРЕМЕНИ: Теперь вызываем через корректно импортированный модуль requests
+        req = requests.Request()
+        creds.refresh(req)
         
         return build("drive", "v3", credentials=creds)
     except Exception as e:
