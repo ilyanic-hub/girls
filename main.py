@@ -94,6 +94,7 @@ def init_db():
         is_admin INTEGER DEFAULT 0
     )
     """)
+    # Изменяем этот блок внутри init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,6 +103,17 @@ def init_db():
         photo_url TEXT NOT NULL
     )
     """)
+
+    # ДОБАВЛЯЕМ: Таблица для хранения остальных фоток из альбома этой королевы
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS history_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        history_id INTEGER NOT NULL,
+        photo_url TEXT NOT NULL,
+        FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
+    )
+    """)
+    
     
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
