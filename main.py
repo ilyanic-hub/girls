@@ -125,12 +125,15 @@ async def get_history(db=Depends(get_db)):
 
 # --- ХЕНДЛЕРЫ ДОБАВЛЕНИЯ ЧЕРЕЗ JSON (BASE64) ---
 
+# Для участниц (ловит и со слэшем, и без)
 @app.post("/api/admin/contestants")
+@app.post("/api/admin/contestants/")
 async def admin_add_contestant(
     data: ContestantJSONModel,
     user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
+    # ... тут весь остальной код функции без изменений ...
     print(">>> [БЭКЕНД] Получен запрос на добавление участницы через Base64", file=sys.stdout)
     
     # Временная заглушка авторизации, если куки ещё не настроены, чтобы код работал
@@ -178,12 +181,15 @@ async def admin_add_contestant(
         raise HTTPException(status_code=500, detail=f"Ошибка сервера: {str(err)}")
 
 
+# Для архива королев (ловит и со слэшем, и без)
 @app.post("/api/admin/history")
+@app.post("/api/admin/history/")
 async def admin_add_history(
     data: HistoryJSONModel,
     user_id: Optional[str] = Cookie(None),
     db=Depends(get_db)
 ):
+    # ... тут весь остальной код функции без изменений ...
     print(">>> [БЭКЕНД] Получен запрос на добавление в Архив Королев", file=sys.stdout)
     try:
         drive_service = get_drive_service()
@@ -245,3 +251,8 @@ async def delete_history(id: int, db=Depends(get_db)):
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     return {"status": "success"}
+
+@app.get("/admin", response_class=HTMLResponse)
+async def get_admin_page():
+    with open("templates/admin.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
