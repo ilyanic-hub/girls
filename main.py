@@ -1,10 +1,11 @@
 import os
 import sys
 import sqlite3
+import hashlib
 import dropbox
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
@@ -23,7 +24,7 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_TOKEN = "sl.u.AGls_K43zjvs_WQwm1IQp2PPQ56UDj1kC-qfHwNnMXehlfyhPOHkjwo77BBYvOKk4V8iLxQCBNr7Q5Rk-oXcRn4sMrd4QBqxEcuW8vJqNoxCnWig7xVp0gDmPzxXqEzO-3NqlE9uRz1Z6xtVtY5UdyTd0avhTDolateqENDT7OhlzFFTfF8BJsWwJPGH6_B5QnRBQ_H8rs3W8du4JB0nTWdV6HpPzQjye4j03CKvxXRlysl9ZynUV8m0hYrZJ0iPEHEGCsYl2nGSUImP0Iu9IcqHZzpUf3OvjRBOx4eF5061LhyiOeNcuY0rzti2YUoa_B5mc9-q_EFqAohCelBuFRUkAnS4u0zJ28cwjpG0DRNvLbl-QZqCE64X3TK8OXaTXkGa12kxi1RkxT84a3tjHafR9-TT_uuw0s87MDdIRyn1kKrN4wXfM-cJt9P63VPquWAAaAWKexQtUnOoQXol_q_GSJMVPAcNNifT_sdcZDSazv1EnCCVJN5gJ_g-vr_YLnizhjSZTPtI2I4w5QC-gNHIuFscg6fGkaBm6bqPLqIlZVRGtVXdO4FHTyLlZl6ojPcNm0pMPy9o5wUa2ZQVyHn87XF02SdmEm2wVZObck1OkqFRBmXiSqN1G2qh6Hv30-6ua50ZXc-h0ffcnYM45H24QcHH5tO9BCHOt9sM_Mx1zsRc7dlVhxordEOdHqOFD1NFc4qbt6XrqWI5rXZApVJBZVuONpRPPZcedmDEPsXaVDCp8fHRCCgKKdjSneiwDFg__cCYdbgd2tPe9sWSLQmqEYJvTlQW-EJ1MIi4gw2U1hkFAjaDdqNKrqUseeUnEqUE_w6AIc_B72_ypbj6SzoP-NaykMDME0YpSC_EtozfQhdSMO4QzmyxF5zI6cAJKgnPedtBStlIgeL5nc1sRu7d_IgXHYZIOOwASQ0ISu2AlcpZKBaadlAy3oec8je-xX3riaySJkScmlKMnae10ZbMmbsNkIu2KYkhQ2l7rIpftAhxEQTcdr7x72mAs1YnkA8rtuRzP1G5h5wOWJAQxAV50nnbF61DfUVX77h37cguo6eBGUpPWg5uVFkZOB6kNx62jd1iIZp6-_BAmTZP11V8-R9TZkaLLwF4P2BTA3Dik4RG6AjF7UMNgLHSkafphbV8iAQRv9j2J_0oS_OYZ7S88garFQEbZUzIF7z2-LfrwZD03skJe0Bply8c98HaS6MUMxCN1vAGBOf8zFOrzm_Xm8oXoyp8zkg7PSimcC7uYXJQNOjyASYiD55cyxMx5T44P39PvSZFlsSmy7U8IJwnHAoJovz7ipOewHjBx3BkwlMXfWFbQvK9dMbmfk1LWcdo1OZ03jlfCUB1xpcXQie2noDqBI8OdsKoxtdV_teYYr3IAoo30tyUIqKUGVun9g1kYMDiz5qONFYEAauG5js-ZLzJNUeCX6S7lKYzo5bCwiGyEL3IgfgZTeDKYPh-VDjAQ07JBS0iYBZgip8mVfhdXTbXnE65QK-gpemICzXKPA" 
+DROPBOX_TOKEN = "sl.u.AGkB9N4cNfcCcQSox4WlVx417pW1lGjF9Fj1XlLf8eJyQCrWhoXrApefG5Qz43Rlg8mqHu0YYjEHQ9nc4luXlgECC-QBhAb9nXGy6cvSJC95xt_7G6QQqp7TToSgolekCue2CrAUU35d0exShIlWlbJ-kOnzWx7t53lR2nRYhOEPHcBGdjaZaSmlcl44PfP_FClu1_xF0lKc8-u35aSyTWq-qSCi_4MwcjY2iWRQdEiznJxDNQBokdeYVTFbyoovqMPdTjhiD3yaeiLcPGa5ZjregpPCw2xihV9OoegYvcOI-DFgwu7zR-RXN9wsFrrm38h-2RrjhqryQVBNO9N6lA7p6vD0nCSdSlXAuQ4NH-0I4kKXQYLHJeVhwtQbSsrqSQ-nnZ7rCDwi4gNV37sria6CBtx02l-CcbPEJNchJ0A5BnP1pJSCQTN6ibcLT_1PUB2LjELfHXXn5kjS2x2lUHpo0f_uf8r-gvbnUA7OBPEP4uUmivKtyqJjh92ly2zIDa_k0GoXPOp0XDPBNgMiD9-6N1JZn8Nn1jgxlcTn9o2Io2QuhGqh0jBJydAsPC9xQTiMEsFyQYAitLz7RUGDZF1qxANcMNKynAH5cWLf2itGnRcQ2u3AejJuQ-bYmkiv-6spOZAa8Ar8qlVTN_DF_fOsReQiIVwYAwWpTmMYzd0Gd_lxr9sre5XRRMvsYtNnK-0_gqClbU-ppa0fWnZATG7p5MzNct8y2f5RBXaJKZCbc0cgaaOfQS7-VaLKvsep7nWVIo2G1YN1L79yFuswqVOc0Jn4IKInGK3FQ_5mFYhZHbIriZ2gpuv3RcM8r6VmAezXd40_oeRD-Hf-Dl2-sjIMOeCF3pOKbkzE86Y3qU2CCJoCB-YKO0rxYh8o8JicUPppK6ILDxPv5EwH6jS7eqa-RjLeCT0CXc5UOQifOcVdUZ-eSBhU7T3sTpjKDBaSKVvNIXoZhLga4heUUK5xSH15_M0I4fbU1SzPyT7kat7mk3-M-AVpxdigH4LitKRhASm8kx_ogkMKli_hI_RSWoQY3vLkQ4ZDLC5XqlrgHx9DgDbqed0c3HtRwCsy2sQPOPw72dR-dqeoa9UmpTPPjMAS9Qi7hh0YQrC1LlDjAjbEaijtMoJ5jJwBeG9-dDmk8mTdDVpm4GXdN6D2DAW8z4kJlblPavG3JMISl_YUR4DbZ39SJrzhof_H6Dp1QMyVdd7zXTt6kzbuFJ7WmUYgPG0M3Th6BIh4lQ_ovOyZYB7vN32SjbFeF_XIlCA__4rjHvxfI2ypwflul7LBpLLGu75qyFg9PZKITsMRcFTwazIH-fc7jN2iOlCjYjR3b42WTykezdKGQT92Lkwh0WV7ADkeKNj7IZ5gYD7Chl5ZsmqgtWGwYreJZl67U_YzYluNXMXRgBzkGcIHJ0PVsqZNECGJRBIEj6WZzE8AHUmkUXkq6QyMnh6dIL4KEONs5WWwMSDor_qJ6WSRrneiWoXerk32mBNHpeEaksXVpPGBJyRmtg" 
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
@@ -45,7 +46,7 @@ def download_db_from_dropbox():
             f.write(res.content)
         print("База данных успешно скачана!")
     except dropbox.exceptions.ApiError as e:
-        print("Файл базы данных не найден в Dropbox. Создаем новую локальную базу.")
+        print("Файл базы данных не найден в Dropbox. Создаем новую базу.")
     except Exception as e:
         print(f"Не удалось скачать базу: {e}")
 
@@ -58,7 +59,7 @@ def upload_db_to_dropbox():
         with open(DB_LOCAL_PATH, "rb") as f:
             db_bytes = f.read()
         dbx.files_upload(db_bytes, path=DB_DROPBOX_PATH, mode=dropbox.files.WriteMode.overwrite)
-        print("База данных успешно сохранена в облаке Dropbox!")
+        print("База данных успешно сохранена в Dropbox!")
     except Exception as e:
         print(f"Ошибка загрузки базы в Dropbox: {e}")
 
@@ -93,8 +94,10 @@ def init_db():
         is_admin INTEGER DEFAULT 0
     )
     """)
+    # Хэшируем дефолтный пароль админа для безопасности
+    admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     try:
-        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', 'admin', 500.0, 1)")
+        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
     except sqlite3.IntegrityError:
         pass
     db.commit()
@@ -103,26 +106,19 @@ def init_db():
 
 init_db()
 
-# ================= СТРОГИЕ МОДЕЛИ ДАННЫХ ДЛЯ ЖЕЛЕЗНОЙ ПРОВЕРКИ =================
+# ================= СХЕМЫ ДАННЫХ =================
+
+class UserAuthSchema(BaseModel):
+    username: str
+    password: str
 
 class ContestantSchema(BaseModel):
     name: str
     file_base64: str
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
 
-class AlbumFileSchema(BaseModel):
-    file_base64: str
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
-
-class HistorySchema(BaseModel):
-    name: str
-    title_date: str
-    file_base64: str
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
-    album_files: Optional[List[AlbumFileSchema]] = None
+# Функция-помощник для хэширования паролей
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
 
 # РОУТЫ СТРАНИЦ
@@ -143,14 +139,85 @@ async def get_admin_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+
+# ================= НАСТОЯЩАЯ АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
+
+# Узнать, кто авторизован (через куки сессии)
 @app.get("/api/me")
-async def api_me(db=Depends(get_db)):
+async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
+        
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = 'admin'")
+    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if user:
         return dict(user)
     return {"username": "Гость", "balance": 0, "is_admin": 0}
+
+# Регистрация нового аккаунта
+@app.post("/api/register")
+async def api_register(data: UserAuthSchema, db=Depends(get_db)):
+    username = data.username.strip()
+    password = data.password.strip()
+    
+    if len(username) < 3 or len(password) < 4:
+        raise HTTPException(status_code=400, detail="Слишком короткое имя (мин. 3) или пароль (мин. 4)")
+        
+    cursor = db.cursor()
+    # Проверяем, занято ли имя
+    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
+        
+    # Сохраняем с хэшированным паролем и стартовым балансом (например, 100 монет для теста)
+    password_hash = hash_password(password)
+    try:
+        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES (?, ?, 100.0, 0)", (username, password_hash))
+        db.commit()
+        upload_db_to_dropbox() # Синхронизируем с облаком
+        return {"status": "success", "message": "Регистрация успешна!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+
+# Логин (Вход)
+@app.post("/api/login")
+async def api_login(data: UserAuthSchema, response: Response, db=Depends(get_db)):
+    username = data.username.strip()
+    password = data.password.strip()
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT password, username FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    
+    if not user or user["password"] != hash_password(password):
+        raise HTTPException(status_code=400, detail="Неверное имя пользователя или пароль")
+        
+    # Ставим простую Cookie-сессию в браузер на 14 дней
+    response.set_cookie(key="session_user", value=user["username"], max_age=1209600, path="/")
+    return {"status": "success", "message": "Вход выполнен успешно!"}
+
+# Выход из аккаунта
+@app.post("/api/logout")
+async def api_logout(response: Response):
+    response.delete_cookie(key="session_user", path="/")
+    return {"status": "success", "message": "Вы вышли из системы"}
+
+# Пополнение баланса авторизованного пользователя
+@app.post("/api/deposit")
+async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Вы не авторизованы")
+        
+    amount = float(amount_data.get("amount", 100.0))
+    cursor = db.cursor()
+    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (amount, session_user))
+    db.commit()
+    upload_db_to_dropbox()
+    return {"status": "success", "balance_added": amount}
+
+
+# ================= КОНТЕНТ И ГОЛОСОВАНИЕ =================
 
 @app.get("/api/contestants")
 async def get_contestants(db=Depends(get_db)):
@@ -158,47 +225,60 @@ async def get_contestants(db=Depends(get_db)):
     cursor.execute("SELECT * FROM contestants")
     return [dict(row) for row in cursor.fetchall()]
 
-# ИСПРАВЛЕНО: Теперь роут использует ContestantSchema и точно знает, где искать картинку
 @app.post("/api/admin/contestants")
-@app.post("/api/admin/contestants/")
-async def admin_add_contestant(data: ContestantSchema, db=Depends(get_db)):
-    try:
-        name = data.name
-        raw_photo = data.file_base64
+async def admin_add_contestant(data: ContestantSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    # Проверка на админа
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="У вас нет прав администратора")
+
+    name = data.name
+    raw_photo = data.file_base64
+    
+    if not raw_photo or len(raw_photo.strip()) < 10:
+        raise HTTPException(status_code=400, detail="Файл картинки пустой")
         
-        if not raw_photo or len(raw_photo.strip()) < 10:
-            raise HTTPException(status_code=400, detail="Файл картинки пустой или слишком короткий")
-            
-        inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
-        
-        cursor = db.cursor()
-        cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, inline_photo_url))
-        db.commit()
-        
-        upload_db_to_dropbox()
-        return {"status": "success"}
-    except HTTPException as he:
-        raise he
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
+    inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
+    
+    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, inline_photo_url))
+    db.commit()
+    upload_db_to_dropbox()
+    return {"status": "success"}
 
 @app.post("/api/vote")
-async def api_vote(contestant_id: int, db=Depends(get_db)):
+async def api_vote(contestant_id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Чтобы голосовать, нужно войти в аккаунт")
+        
     cursor = db.cursor()
-    cursor.execute("SELECT balance FROM users WHERE username = 'admin'")
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
+    
     if user and user["balance"] >= 10:
-        cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = 'admin'")
+        # Списываем 10 монет у того, кто голосует
+        cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = ?", (session_user,))
         cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success"}
     else:
-        raise HTTPException(status_code=400, detail="Недостаточно средств")
+        raise HTTPException(status_code=400, detail="Недостаточно средств на балансе (нужно 10 монет)")
 
 @app.delete("/api/admin/contestants/{id}")
-async def delete_contestant(id: int, db=Depends(get_db)):
+async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
     cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
     cursor.execute("DELETE FROM contestants WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
