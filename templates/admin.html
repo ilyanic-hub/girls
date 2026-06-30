@@ -139,10 +139,11 @@
         btn.disabled = true;
 
         try {
-            const base64Str = await toBase64(file);
+            const base64Str = await toBase64(file); // Получаем готовую строку data:image/...
+            
             const payload = {
                 name: name,
-                file_base64: base64Str,
+                file_base64: base64Str, // Теперь сюда полетит чистый текст картинки
                 filename: file.name,
                 content_type: file.type
             };
@@ -153,13 +154,14 @@
                 body: JSON.stringify(payload)
             });
 
+            // ИСПРАВЛЕНО: Безопасный разбор ответа, чтобы не вылезало [object Object]
             const result = await response.json();
             if (response.ok) {
                 alert('Участница успешно добавлена!');
                 document.getElementById('contestantForm').reset();
                 loadContestants();
             } else {
-                alert('Ошибка: ' + result.detail);
+                alert('Ошибка сервера: ' + (result.detail || JSON.stringify(result)));
             }
         } catch (error) {
             alert('Сбой сети или разбора: ' + error.message);
