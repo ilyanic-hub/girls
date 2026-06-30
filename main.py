@@ -25,22 +25,22 @@ if os.path.exists("templates"):
 
 DB_PATH = "/data/database.db"
 
+# ИСПРАВЛЕНО: Добавлен параметр check_same_thread=False
 def get_db():
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH, check_same_thread=False)
     db.row_factory = sqlite3.Row
     try:
         yield db
     finally:
         db.close()
 
-# Инициализация базы данных (Добавляем поддержку хранения картинок прямо в БД)
+# ИСПРАВЛЕНО: Тут тоже добавлен параметр check_same_thread=False
 def init_db():
     if not os.path.exists("/data"):
         os.makedirs("/data")
-    db = sqlite3.connect(DB_PATH)
+    db = sqlite3.connect(DB_PATH, check_same_thread=False)
     cursor = db.cursor()
     
-    # Создаем таблицы (photo_url теперь будет содержать сам base64 код картинки)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,13 +105,11 @@ async def get_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history")
     return [dict(row) for row in cursor.fetchall()]
 
-# ЭНДПОИНТЫ ДЛЯ ДАННЫХ — ТЕПЕРЬ РАБОТАЮТ АВТОНОМНО И БЕЗУПРЕЧНО
+# ЭНДПОИНТЫ ДЛЯ ДАННЫХ
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
     try:
-        # Вместо отправки в Google, мы формируем готовую Data-URL строку, 
-        # которую любой браузер сразу отобразит как картинку!
         inline_photo_url = f"data:{data.content_type};base64,{data.file_base64}"
         
         cursor = db.cursor()
