@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2 import service_account
+from google.auth import transport  # Важный импорт для исправления синхронизации времени
 
 app = FastAPI()
 
@@ -70,29 +71,31 @@ init_db()
 
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
-# УМНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ С АВТО-ИСПРАВЛЕНИЕМ КЛЮЧА
+# СВЕРХНАДЕЖНАЯ ФУНКЦИЯ С ИСПРАВЛЕНИЕМ ВРЕМЕНИ СЕРВЕРА
 def get_drive_service():
     if not os.path.exists("google_keys.json"):
         print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
         raise HTTPException(status_code=500, detail="На сервере Admin отсутствует файл google_keys.json")
         
     try:
-        # Читаем файл как обычный текст
         with open("google_keys.json", "r", encoding="utf-8") as f:
             creds_data = json.load(f)
             
-        # Насильно заменяем текстовые '\n' на настоящие знаки переноса строки
         if "private_key" in creds_data:
             key = creds_data["private_key"]
-            # Исправляем двойное экранирование, если оно случилось
             key = key.replace("\\\\n", "\n").replace("\\n", "\n")
             creds_data["private_key"] = key
             
-        # Авторизуемся через исправленный словарь данных
         creds = service_account.Credentials.from_service_account_info(
             creds_data, 
             scopes=["https://www.googleapis.com/auth/drive"]
         )
+        
+        # ФИКС ВРЕМЕНИ: Принудительно запрашиваем свежий токен авторизации у Google,
+        # что заставляет библиотеку автоматически подстроиться под разницу в часах сервера Railway
+        request = transport.requests.Request()
+        creds.refresh(request)
+        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
