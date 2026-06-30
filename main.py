@@ -8,6 +8,8 @@ import sqlite3
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Cookie
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse  # Важный импорт для отдачи HTML страниц
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -23,6 +25,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Подключаем папку templates, чтобы FastAPI знал, где искать файлы страниц
+if os.path.exists("templates"):
+    app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 DB_PATH = "/data/database.db"
 
@@ -66,10 +72,9 @@ GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
 # НАДЕЖНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ К ГУГЛ ДИСКУ
 def get_drive_service():
-    # Проверяем, существует ли локальный файл с ключами
     if not os.path.exists("google_keys.json"):
         print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="На сервере отсутствует файл google_keys.json")
+        raise HTTPException(status_code=500, detail="На сервере Admin отсутствует файл google_keys.json")
         
     try:
         creds = service_account.Credentials.from_service_account_file(
@@ -79,7 +84,6 @@ def get_drive_service():
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE ИЗ ФАЙЛА: {e} !!!", file=sys.stderr)
-        import traceback
         traceback.print_exc(file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
 
@@ -98,7 +102,19 @@ class HistoryJSONModel(BaseModel):
     content_type: str
     album_files: Optional[List[dict]] = []
 
-# ЭНДПОИНТЫ
+# ==================== РОУТ ДЛЯ ОТКРЫТИЯ СТРАНИЦЫ АДМИНКИ ====================
+@app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin/", response_class=HTMLResponse)
+async def get_admin_page():
+    # Проверяем, где лежит файл, чтобы не упасть с ошибкой
+    path_to_html = "templates/admin.html"
+    if not os.path.exists(path_to_html):
+        raise HTTPException(status_code=404, detail="Файл templates/admin.html не найден на сервере!")
+        
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+# ЭНДПОИНТЫ ДЛЯ ТЕСТОВ
 @app.get("/force-admin")
 async def force_admin():
     return {"status": "Успешный вход под ADMIN через локальный SQLite!"}
@@ -115,6 +131,7 @@ async def get_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history")
     return [dict(row) for row in cursor.fetchall()]
 
+# ЭНДПОИНТЫ ДЛЯ ДАННЫХ
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
@@ -148,12 +165,11 @@ async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, photo_url))
         db.commit()
         
-        print(">>> [БЭКЕНД] Участница успешно сохранена в базу и на Диск!", file=sys.stdout)
+        print(">>> [БЭКЕНД] Участница успешно сохранена!", file=sys.stdout)
         return {"status": "success"}
         
     except Exception as err:
         print("!!! [БЭКЕНД] СБОЙ ВНУТРИ АДМИНКИ !!!", file=sys.stderr)
-        import traceback
         traceback.print_exc(file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Ошибка обработки: {str(err)}")
 
