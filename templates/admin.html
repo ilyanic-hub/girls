@@ -118,6 +118,10 @@
         async function checkAdminAndLoad() {
             try {
                 let res = await fetch(`${BASE_URL}/api/me`);
+                if (!res.ok) {
+                    alert("Ошибка проверки сессии. Пожалуйста, зайдите на /force-admin");
+                    return;
+                }
                 let user = await res.json();
                 if (!user || user.is_admin !== 1) {
                     alert("Доступ запрещен! Вы не авторизованы как администратор.");
@@ -127,6 +131,7 @@
                 loadAllData();
             } catch (err) {
                 console.error("Ошибка авторизации:", err);
+                alert("Не удалось связаться с сервером для проверки прав.");
             }
         }
 
@@ -214,11 +219,11 @@
                     loadAllData();
                 } else {
                     let err = await res.json();
-                    alert("Ошибка добавления: " + (err.detail || "Неизвестный сбой"));
+                    alert("Бэкенд отклонил запрос: " + (err.detail || "Неизвестная ошибка сервера"));
                 }
             } catch (error) {
-                console.error("Ошибка сети при добавлении:", error);
-                alert("Сетевая ошибка бэкенда Railway. Попробуйте еще раз.");
+                console.error("Ошибка отправки:", error);
+                alert("Критический сбой сети. Проверьте размер файла или статус контейнера Railway.");
             }
         }
 
@@ -249,11 +254,11 @@
                     loadAllData();
                 } else {
                     let err = await res.json();
-                    alert("Ошибка архива: " + (err.detail || "Неизвестный сбой"));
+                    alert("Ошибка архива от сервера: " + (err.detail || "Неизвестный сбой"));
                 }
             } catch (error) {
                 console.error("Ошибка сети в архиве:", error);
-                alert("Ошибка соединения с базой архива.");
+                alert("Сбой сети при загрузке архива.");
             }
         }
 
@@ -270,8 +275,14 @@
 
             try {
                 let res = await fetch(`${BASE_URL}/api/admin/contestants/${id}`, { method: 'POST', body: formData });
-                if (res.ok) { closeModals(); loadAllData(); document.getElementById('editGirlFile').value=''; }
-                else { alert("Ошибка сохранения изменений"); }
+                if (res.ok) { 
+                    closeModals(); 
+                    loadAllData(); 
+                    document.getElementById('editGirlFile').value=''; 
+                } else { 
+                    let err = await res.json();
+                    alert("Ошибка изменения: " + (err.detail || "Сбой")); 
+                }
             } catch(e) { console.error(e); }
         }
 
@@ -292,8 +303,15 @@
 
             try {
                 let res = await fetch(`${BASE_URL}/api/admin/history/${id}`, { method: 'POST', body: formData });
-                if (res.ok) { closeModals(); loadAllData(); document.getElementById('editHistFile').value=''; document.getElementById('editHistAlbum').value=''; }
-                else { alert("Ошибка сохранения архива"); }
+                if (res.ok) { 
+                    closeModals(); 
+                    loadAllData(); 
+                    document.getElementById('editHistFile').value=''; 
+                    document.getElementById('editHistAlbum').value=''; 
+                } else { 
+                    let err = await res.json();
+                    alert("Ошибка изменения архива: " + (err.detail || "Сбой")); 
+                }
             } catch(e) { console.error(e); }
         }
 
