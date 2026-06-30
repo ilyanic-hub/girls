@@ -5,7 +5,6 @@ import uuid
 import base64
 import traceback
 import sqlite3
-import json
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Cookie
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,8 +13,6 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2 import service_account
-from google.auth.transport import requests  # ПРАВИЛЬНЫЙ ИМПОРТ ПРЯМО К МОДУЛЮ
 
 app = FastAPI()
 
@@ -69,37 +66,18 @@ def init_db():
 
 init_db()
 
+# ==================== НАСТРОЙКА GOOGLE DRIVE ЧЕРЕЗ API-КЛЮЧ ====================
+# Вставь сюда между кавычками свой скопированный API-ключ из консоли Google Cloud
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "AIzaSyC0T0wky5WCNUn5wa9Hre6IPajWpPQrYsQ")
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
-# СВЕРХНАДЕЖНАЯ ФУНКЦИЯ С ИСПРАВЛЕНИЕМ ВРЕМЕНИ СЕРВЕРА
 def get_drive_service():
-    if not os.path.exists("google_keys.json"):
-        print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="На сервере Admin отсутствует файл google_keys.json")
-        
     try:
-        with open("google_keys.json", "r", encoding="utf-8") as f:
-            creds_data = json.load(f)
-            
-        if "private_key" in creds_data:
-            key = creds_data["private_key"]
-            key = key.replace("\\\\n", "\n").replace("\\n", "\n")
-            creds_data["private_key"] = key
-            
-        creds = service_account.Credentials.from_service_account_info(
-            creds_data, 
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        
-        # ФИКС ВРЕМЕНИ: Теперь вызываем через корректно импортированный модуль requests
-        req = requests.Request()
-        creds.refresh(req)
-        
-        return build("drive", "v3", credentials=creds)
+        # Авторизация по простому текстовому ключу, здесь нечему ломаться
+        return build("drive", "v3", developerKey=GOOGLE_API_KEY)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка создания клиента Drive: {str(e)}")
 
 # PYDANTIC МОДЕЛИ
 class ContestantJSONModel(BaseModel):
@@ -148,7 +126,7 @@ async def get_history(db=Depends(get_db)):
 @app.post("/api/admin/contestants")
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
-    print(">>> [БЭКЕНД] Начинаем загрузку участницы...", file=sys.stdout)
+    print(">>> [БЭКЕНД] Начинаем загрузку участницы через API-ключ...", file=sys.stdout)
     try:
         file_bytes = base64.b64decode(data.file_base64)
         file_stream = io.BytesIO(file_bytes)
@@ -167,6 +145,7 @@ async def admin_add_contestant(data: ContestantJSONModel, db=Depends(get_db)):
         
         file_id = uploaded_file.get("id")
         
+        # Делаем файл доступным для всех
         drive_service.permissions().create(
             fileId=file_id,
             body={"type": "anyone", "role": "reader"}
