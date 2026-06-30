@@ -94,12 +94,17 @@ def init_db():
         is_admin INTEGER DEFAULT 0
     )
     """)
-    # Хэшируем дефолтный пароль админа для безопасности
+    
+    # Хэшируем пароль "admin"
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
-    try:
+    
+    # ОБНОВЛЕНО: Если админ уже есть, мы принудительно обновляем ему пароль на правильный хэш
+    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
+    if cursor.fetchone():
+        cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
+    else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
-    except sqlite3.IntegrityError:
-        pass
+        
     db.commit()
     db.close()
     upload_db_to_dropbox()
