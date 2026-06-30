@@ -160,7 +160,15 @@ async def get_admin_page(session_user: Optional[str] = Cookie(None)):
         return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
-
+        
+@app.get("/history", response_class=HTMLResponse)
+@app.get("/history/", response_class=HTMLResponse)
+async def get_history_page():
+    path_to_html = "templates/history.html"  # Проверяем этот файл
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл history.html не найден!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 # ================= НАСТОЯЩАЯ АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 
