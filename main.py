@@ -24,7 +24,7 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_TOKEN = "sl.u.AGkB9N4cNfcCcQSox4WlVx417pW1lGjF9Fj1XlLf8eJyQCrWhoXrApefG5Qz43Rlg8mqHu0YYjEHQ9nc4luXlgECC-QBhAb9nXGy6cvSJC95xt_7G6QQqp7TToSgolekCue2CrAUU35d0exShIlWlbJ-kOnzWx7t53lR2nRYhOEPHcBGdjaZaSmlcl44PfP_FClu1_xF0lKc8-u35aSyTWq-qSCi_4MwcjY2iWRQdEiznJxDNQBokdeYVTFbyoovqMPdTjhiD3yaeiLcPGa5ZjregpPCw2xihV9OoegYvcOI-DFgwu7zR-RXN9wsFrrm38h-2RrjhqryQVBNO9N6lA7p6vD0nCSdSlXAuQ4NH-0I4kKXQYLHJeVhwtQbSsrqSQ-nnZ7rCDwi4gNV37sria6CBtx02l-CcbPEJNchJ0A5BnP1pJSCQTN6ibcLT_1PUB2LjELfHXXn5kjS2x2lUHpo0f_uf8r-gvbnUA7OBPEP4uUmivKtyqJjh92ly2zIDa_k0GoXPOp0XDPBNgMiD9-6N1JZn8Nn1jgxlcTn9o2Io2QuhGqh0jBJydAsPC9xQTiMEsFyQYAitLz7RUGDZF1qxANcMNKynAH5cWLf2itGnRcQ2u3AejJuQ-bYmkiv-6spOZAa8Ar8qlVTN_DF_fOsReQiIVwYAwWpTmMYzd0Gd_lxr9sre5XRRMvsYtNnK-0_gqClbU-ppa0fWnZATG7p5MzNct8y2f5RBXaJKZCbc0cgaaOfQS7-VaLKvsep7nWVIo2G1YN1L79yFuswqVOc0Jn4IKInGK3FQ_5mFYhZHbIriZ2gpuv3RcM8r6VmAezXd40_oeRD-Hf-Dl2-sjIMOeCF3pOKbkzE86Y3qU2CCJoCB-YKO0rxYh8o8JicUPppK6ILDxPv5EwH6jS7eqa-RjLeCT0CXc5UOQifOcVdUZ-eSBhU7T3sTpjKDBaSKVvNIXoZhLga4heUUK5xSH15_M0I4fbU1SzPyT7kat7mk3-M-AVpxdigH4LitKRhASm8kx_ogkMKli_hI_RSWoQY3vLkQ4ZDLC5XqlrgHx9DgDbqed0c3HtRwCsy2sQPOPw72dR-dqeoa9UmpTPPjMAS9Qi7hh0YQrC1LlDjAjbEaijtMoJ5jJwBeG9-dDmk8mTdDVpm4GXdN6D2DAW8z4kJlblPavG3JMISl_YUR4DbZ39SJrzhof_H6Dp1QMyVdd7zXTt6kzbuFJ7WmUYgPG0M3Th6BIh4lQ_ovOyZYB7vN32SjbFeF_XIlCA__4rjHvxfI2ypwflul7LBpLLGu75qyFg9PZKITsMRcFTwazIH-fc7jN2iOlCjYjR3b42WTykezdKGQT92Lkwh0WV7ADkeKNj7IZ5gYD7Chl5ZsmqgtWGwYreJZl67U_YzYluNXMXRgBzkGcIHJ0PVsqZNECGJRBIEj6WZzE8AHUmkUXkq6QyMnh6dIL4KEONs5WWwMSDor_qJ6WSRrneiWoXerk32mBNHpeEaksXVpPGBJyRmtg" 
+DROPBOX_TOKEN = "ТВОЙ_ПОЛУЧЕННЫЙ_ТОКЕН_DROPBOX" 
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
@@ -94,7 +94,6 @@ def init_db():
         is_admin INTEGER DEFAULT 0
     )
     """)
-    # НОВАЯ ТАБЛИЦА ДЛЯ ЗАЛА СЛАВЫ
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,7 +116,7 @@ def init_db():
 
 init_db()
 
-# ================= СХЕМЫ ДАННЫХ =================
+# ================= СХЕМЫ ДАННЫХ (ОБЪЯВЛЕНЫ НАВЕРХУ) =================
 
 class UserAuthSchema(BaseModel):
     username: str
@@ -127,7 +126,19 @@ class ContestantSchema(BaseModel):
     name: str
     file_base64: str
 
-# Функция-помощник для хэширования паролей
+class AlbumFileSchema(BaseModel):
+    file_base64: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+
+class HistorySchema(BaseModel):
+    name: str
+    title_date: str
+    file_base64: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    album_files: Optional[List[AlbumFileSchema]] = None
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -144,46 +155,38 @@ async def get_main_page():
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
 async def get_admin_page(session_user: Optional[str] = Cookie(None)):
-    # 1. Если куки пустые — сразу редирект на главную (к форме логина)
     if not session_user:
         return RedirectResponse(url="/", status_code=303)
-        
-    # 2. Проверяем в базе статус пользователя
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     db.close()
-    
-    # 3. Если пользователя нет в базе или он не админ — редирект на главную
     if not user or not user["is_admin"]:
         return RedirectResponse(url="/", status_code=303)
-        
-    # 4. И только если проверку прошёл настоящий админ — отдаем страницу
     path_to_html = "templates/admin.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
-        
+
 @app.get("/history", response_class=HTMLResponse)
 @app.get("/history/", response_class=HTMLResponse)
 async def get_history_page():
-    path_to_html = "templates/history.html"  # Проверяем этот файл
+    path_to_html = "templates/history.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл history.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# ================= НАСТОЯЩАЯ АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 
-# Узнать, кто авторизован (через куки сессии)
+# ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
+
 @app.get("/api/me")
 async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         return {"username": "Гость", "balance": 0, "is_admin": 0}
-        
     cursor = db.cursor()
     cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
@@ -191,60 +194,46 @@ async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db))
         return dict(user)
     return {"username": "Гость", "balance": 0, "is_admin": 0}
 
-# Регистрация нового аккаунта
 @app.post("/api/register")
 async def api_register(data: UserAuthSchema, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
-    
     if len(username) < 3 or len(password) < 4:
-        raise HTTPException(status_code=400, detail="Слишком короткое имя (мин. 3) или пароль (мин. 4)")
-        
+        raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
     cursor = db.cursor()
-    # Проверяем, занято ли имя
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
-        
-    # Сохраняем с хэшированным паролем и стартовым балансом (например, 100 монет для теста)
+        raise HTTPException(status_code=400, detail="Пользователь уже существует")
     password_hash = hash_password(password)
     try:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES (?, ?, 100.0, 0)", (username, password_hash))
         db.commit()
-        upload_db_to_dropbox() # Синхронизируем с облаком
+        upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-# Логин (Вход)
 @app.post("/api/login")
 async def api_login(data: UserAuthSchema, response: Response, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
-    
     cursor = db.cursor()
     cursor.execute("SELECT password, username FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
-    
     if not user or user["password"] != hash_password(password):
-        raise HTTPException(status_code=400, detail="Неверное имя пользователя или пароль")
-        
-    # Ставим простую Cookie-сессию в браузер на 14 дней
+        raise HTTPException(status_code=400, detail="Неверное имя или пароль")
     response.set_cookie(key="session_user", value=user["username"], max_age=1209600, path="/")
-    return {"status": "success", "message": "Вход выполнен успешно!"}
+    return {"status": "success", "message": "Вход выполнен!"}
 
-# Выход из аккаунта
 @app.post("/api/logout")
 async def api_logout(response: Response):
     response.delete_cookie(key="session_user", path="/")
-    return {"status": "success", "message": "Вы вышли из системы"}
+    return {"status": "success", "message": "Вы вышли"}
 
-# Пополнение баланса авторизованного пользователя
 @app.post("/api/deposit")
 async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        raise HTTPException(status_code=401, detail="Вы не авторизованы")
-        
+        raise HTTPException(status_code=401, detail="Не авторизован")
     amount = float(amount_data.get("amount", 100.0))
     cursor = db.cursor()
     cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (amount, session_user))
@@ -253,7 +242,7 @@ async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(No
     return {"status": "success", "balance_added": amount}
 
 
-# ================= КОНТЕНТ И ГОЛОСОВАНИЕ =================
+# ================= РАБОТА С УЧАСТНИЦАМИ =================
 
 @app.get("/api/contestants")
 async def get_contestants(db=Depends(get_db)):
@@ -263,25 +252,15 @@ async def get_contestants(db=Depends(get_db)):
 
 @app.post("/api/admin/contestants")
 async def admin_add_contestant(data: ContestantSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    # Проверка на админа
     if not session_user:
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-    
+        raise HTTPException(status_code=401, detail="Не авторизован")
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="У вас нет прав администратора")
-
-    name = data.name
-    raw_photo = data.file_base64
-    
-    if not raw_photo or len(raw_photo.strip()) < 10:
-        raise HTTPException(status_code=400, detail="Файл картинки пустой")
-        
-    inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
-    
-    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, inline_photo_url))
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, inline_photo_url))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success"}
@@ -289,21 +268,17 @@ async def admin_add_contestant(data: ContestantSchema, session_user: Optional[st
 @app.post("/api/vote")
 async def api_vote(contestant_id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        raise HTTPException(status_code=401, detail="Чтобы голосовать, нужно войти в аккаунт")
-        
+        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт")
     cursor = db.cursor()
     cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
-    
     if user and user["balance"] >= 10:
-        # Списываем 10 монет у того, кто голосует
         cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = ?", (session_user,))
         cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success"}
-    else:
-        raise HTTPException(status_code=400, detail="Недостаточно средств на балансе (нужно 10 монет)")
+    raise HTTPException(status_code=400, detail="Недостаточно средств")
 
 @app.delete("/api/admin/contestants/{id}")
 async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -314,54 +289,39 @@ async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None),
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
     cursor.execute("DELETE FROM contestants WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success"}
 
-# ================= РОУТЫ ДЛЯ РАБОТЫ С ЗАЛОМ СЛАВЫ (ИСТОРИЕЙ) =================
 
-# 1. Получить список всех королев для страницы Зала славы
+# ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
+
 @app.get("/api/history")
 async def get_api_history(db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT * FROM history ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
 
-# 2. Добавить новую королеву в историю (с проверкой на админа)
 @app.post("/api/admin/history")
 @app.post("/api/admin/history/")
 async def admin_add_history(data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        raise HTTPException(status_code=401, detail="Требуется авторизация")
-        
+        raise HTTPException(status_code=401, detail="Не авторизован")
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
     try:
-        name = data.name
-        title_date = data.title_date
-        raw_photo = data.file_base64
-        
-        if not raw_photo or len(raw_photo.strip()) < 10:
-            raise HTTPException(status_code=400, detail="Файл картинки пустой")
-            
-        inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
-        
-        cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (name, title_date, inline_photo_url))
+        inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (data.name, data.title_date, inline_photo_url))
         db.commit()
-        
-        # Сохраняем обновленную базу в Dropbox
         upload_db_to_dropbox()
-        return {"status": "success", "message": "Королева успешно добавлена в историю!"}
+        return {"status": "success", "message": "Добавлено в историю!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-# 3. Удалить запись из истории
 @app.delete("/api/admin/history/{id}")
 async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -371,7 +331,6 @@ async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
