@@ -10,3 +10,7 @@ google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 python-multipart
 google-auth-oauthlib
+fastapi
+uvicorn
+pydantic
+dropbox
