@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from typing import Optional, List
 
 app = FastAPI()
 
@@ -22,7 +23,7 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_TOKEN = "ТВОЙ_ПОЛУЧЕННЫЙ_ТОКЕН_DROPBOX" 
+DROPBOX_TOKEN = "sl.u.AGls_K43zjvs_WQwm1IQp2PPQ56UDj1kC-qfHwNnMXehlfyhPOHkjwo77BBYvOKk4V8iLxQCBNr7Q5Rk-oXcRn4sMrd4QBqxEcuW8vJqNoxCnWig7xVp0gDmPzxXqEzO-3NqlE9uRz1Z6xtVtY5UdyTd0avhTDolateqENDT7OhlzFFTfF8BJsWwJPGH6_B5QnRBQ_H8rs3W8du4JB0nTWdV6HpPzQjye4j03CKvxXRlysl9ZynUV8m0hYrZJ0iPEHEGCsYl2nGSUImP0Iu9IcqHZzpUf3OvjRBOx4eF5061LhyiOeNcuY0rzti2YUoa_B5mc9-q_EFqAohCelBuFRUkAnS4u0zJ28cwjpG0DRNvLbl-QZqCE64X3TK8OXaTXkGa12kxi1RkxT84a3tjHafR9-TT_uuw0s87MDdIRyn1kKrN4wXfM-cJt9P63VPquWAAaAWKexQtUnOoQXol_q_GSJMVPAcNNifT_sdcZDSazv1EnCCVJN5gJ_g-vr_YLnizhjSZTPtI2I4w5QC-gNHIuFscg6fGkaBm6bqPLqIlZVRGtVXdO4FHTyLlZl6ojPcNm0pMPy9o5wUa2ZQVyHn87XF02SdmEm2wVZObck1OkqFRBmXiSqN1G2qh6Hv30-6ua50ZXc-h0ffcnYM45H24QcHH5tO9BCHOt9sM_Mx1zsRc7dlVhxordEOdHqOFD1NFc4qbt6XrqWI5rXZApVJBZVuONpRPPZcedmDEPsXaVDCp8fHRCCgKKdjSneiwDFg__cCYdbgd2tPe9sWSLQmqEYJvTlQW-EJ1MIi4gw2U1hkFAjaDdqNKrqUseeUnEqUE_w6AIc_B72_ypbj6SzoP-NaykMDME0YpSC_EtozfQhdSMO4QzmyxF5zI6cAJKgnPedtBStlIgeL5nc1sRu7d_IgXHYZIOOwASQ0ISu2AlcpZKBaadlAy3oec8je-xX3riaySJkScmlKMnae10ZbMmbsNkIu2KYkhQ2l7rIpftAhxEQTcdr7x72mAs1YnkA8rtuRzP1G5h5wOWJAQxAV50nnbF61DfUVX77h37cguo6eBGUpPWg5uVFkZOB6kNx62jd1iIZp6-_BAmTZP11V8-R9TZkaLLwF4P2BTA3Dik4RG6AjF7UMNgLHSkafphbV8iAQRv9j2J_0oS_OYZ7S88garFQEbZUzIF7z2-LfrwZD03skJe0Bply8c98HaS6MUMxCN1vAGBOf8zFOrzm_Xm8oXoyp8zkg7PSimcC7uYXJQNOjyASYiD55cyxMx5T44P39PvSZFlsSmy7U8IJwnHAoJovz7ipOewHjBx3BkwlMXfWFbQvK9dMbmfk1LWcdo1OZ03jlfCUB1xpcXQie2noDqBI8OdsKoxtdV_teYYr3IAoo30tyUIqKUGVun9g1kYMDiz5qONFYEAauG5js-ZLzJNUeCX6S7lKYzo5bCwiGyEL3IgfgZTeDKYPh-VDjAQ07JBS0iYBZgip8mVfhdXTbXnE65QK-gpemICzXKPA" 
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
@@ -56,7 +57,6 @@ def upload_db_to_dropbox():
         print("Синхронизация базы данных с Dropbox...")
         with open(DB_LOCAL_PATH, "rb") as f:
             db_bytes = f.read()
-        # ИСПРАВЛЕНО: передаем чистые байты файла в Dropbox, чтобы избежать ошибок кодировки latin-1
         dbx.files_upload(db_bytes, path=DB_DROPBOX_PATH, mode=dropbox.files.WriteMode.overwrite)
         print("База данных успешно сохранена в облаке Dropbox!")
     except Exception as e:
@@ -103,9 +103,27 @@ def init_db():
 
 init_db()
 
-class FlexibleModel(BaseModel):
-    class Config:
-        extra = "allow"
+# ================= СТРОГИЕ МОДЕЛИ ДАННЫХ ДЛЯ ЖЕЛЕЗНОЙ ПРОВЕРКИ =================
+
+class ContestantSchema(BaseModel):
+    name: str
+    file_base64: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+
+class AlbumFileSchema(BaseModel):
+    file_base64: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+
+class HistorySchema(BaseModel):
+    name: str
+    title_date: str
+    file_base64: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    album_files: Optional[List[AlbumFileSchema]] = None
+
 
 # РОУТЫ СТРАНИЦ
 @app.get("/", response_class=HTMLResponse)
@@ -140,18 +158,18 @@ async def get_contestants(db=Depends(get_db)):
     cursor.execute("SELECT * FROM contestants")
     return [dict(row) for row in cursor.fetchall()]
 
+# ИСПРАВЛЕНО: Теперь роут использует ContestantSchema и точно знает, где искать картинку
 @app.post("/api/admin/contestants")
-async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
+@app.post("/api/admin/contestants/")
+async def admin_add_contestant(data: ContestantSchema, db=Depends(get_db)):
     try:
-        body = data.__dict__ if data else {}
-        name = body.get("name", "Без имени")
+        name = data.name
+        raw_photo = data.file_base64
         
-        # ИСПРАВЛЕНО: Теперь бэкенд одинаково успешно принимает и 'file_base64', и чистый текст
-        raw_photo = body.get("file_base64", "")
-        if not raw_photo:
-            raise HTTPException(status_code=400, detail="Файл картинки не передан или пустой")
+        if not raw_photo or len(raw_photo.strip()) < 10:
+            raise HTTPException(status_code=400, detail="Файл картинки пустой или слишком короткий")
             
-        inline_photo_url = str(raw_photo).replace("\n", "").replace("\r", "").strip()
+        inline_photo_url = raw_photo.replace("\n", "").replace("\r", "").strip()
         
         cursor = db.cursor()
         cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (name, inline_photo_url))
@@ -159,6 +177,8 @@ async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
         
         upload_db_to_dropbox()
         return {"status": "success"}
+    except HTTPException as he:
+        raise he
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
