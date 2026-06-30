@@ -1,0 +1,11 @@
+def get_drive_service():
+    try:
+        # Читаем ключи напрямую из файла проекта
+        creds = service_account.Credentials.from_service_account_file(
+            "google_keys.json", 
+            scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        return build("drive", "v3", credentials=creds)
+    except Exception as e:
+        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
+        raise HTTPException(status_code=500, detail=f"Ошибка конфигурации Google Drive: {str(e)}")
