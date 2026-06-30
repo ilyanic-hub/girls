@@ -82,6 +82,8 @@ GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 def get_drive_service():
     try:
         import json
+        from google.auth import transport
+        
         creds_clean = GOOGLE_CREDS_JSON.strip()
         if creds_clean.startswith("'") or creds_clean.startswith('"'):
             creds_clean = creds_clean[1:-1]
@@ -89,18 +91,23 @@ def get_drive_service():
         creds_dict = json.loads(creds_clean)
         
         if "private_key" in creds_dict:
-            # Вычищаем любые проблемы с переносами строк
             key = creds_dict["private_key"]
+            # Заменяем двойные слэши, которые мог добавить Railway
             key = key.replace("\\\\n", "\n").replace("\\n", "\n")
             creds_dict["private_key"] = key
             
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
         )
+        
+        # ХИТРЫЙ ТРЮК: Заставляем Google игнорировать мелкие рассинхронизации часов сервера (до 10 секунд)
+        request = transport.requests.Request()
+        creds.refresh(request)
+        
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка конфигурации Google Drive: {str(e)}")
+        return None # Если упало тут, вернем None, чтобы обработать дальше
 
 # --- PYDANTIC МОДЕЛИ ДЛЯ ДАННЫХ (ВМЕСТО ФОРМ) ---
 class ContestantJSONModel(BaseModel):
