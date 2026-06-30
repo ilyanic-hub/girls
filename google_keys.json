@@ -1,11 +1,13 @@
-def get_drive_service():
-    try:
-        # Читаем ключи напрямую из файла проекта
-        creds = service_account.Credentials.from_service_account_file(
-            "google_keys.json", 
-            scopes=["https://www.googleapis.com/auth/drive"]
-        )
-        return build("drive", "v3", credentials=creds)
-    except Exception as e:
-        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail=f"Ошибка конфигурации Google Drive: {str(e)}")
+{
+  "type": "service_account",
+  "project_id": "girls-501001",
+  "private_key_id": "e68d7b71ab6da0fb1ef7c98207509618c80176fe",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCmm4f91kLJgOc5\nQNFkeT1fHoNxe4JmU2qWKnDVzlwLAe1hAAlz0Xr8pU1WZxYbHdsv0i3vrKbXmOXu\nNMPAbMcmPyxNCntf0PfMKWHXVIlDBc0t582OZVogWF0J38Z7pC4aXAj1vytwjZpx\nIQDJ9Im4B4XSbDdXp61ZptqlsU/APz9YIQssq4d83kOh4LpZ7pSiD/FdfkQB+pJj\nBL9b3Dv7eXintDWzNap7laZtFvnskVw80xoxjOW+mUfbqw3b0HHgCmD8YxfdZl3j\nzLMoCrvJido52A1m8G4lc5IMa7uBNYNzLhIWXv91BY1RC4RNNMQeqAb2+I51kX1Y\n8nZ1tCH3AgMBAAECggEAEfkpXIrmvZI4X4bMkAg8RKyoBXALizpofzao4YfXiiB1\nGUfFvUbV+7dhdna8fcRkxu3norl/bjbCZ0Yt7+5MNaYPA2ikEpwaf13ffjlSbXaM\nwe0F0dzBMkgWEWCgqun1R0ayeMBc0VGVXarvyNmmmcHGAANInR4rp0ZGxCUys0xy\n25qdYuv7Uxhe8/Uu3amo/Ud7eMRHbl7zCfOxozfpopzYT8cpRgh6mcQ0ChgNubXW\nGO90tGp5bS0RvRLUs2gG5DtYGLXSSb/R4nT2R8qcBJRwyHitoMSSl2voj6/a0bPq\nKQIrAoEoxi9oQDDw/X3HjBFFrEXqo75NSHm186784QKBgQDPvhXvkkb4N/iflma4\nRr9TeWlJGe+3YoHZWCzoM28nuq5UmL0JGdBZwyfO0VT337pWHW8AsoY/JT/pUdHX\nlZVOtsY+JGiXZnnIE9GEH9Q9bzdBlksouUZYz4l4h7yM+N0FtO6YrziPH4ewMtpa\nRugnAg8t2L3SlogZPBW+EUXIbwKBgQDNT0EGHI1SixTtrsaY5HSbpesQ09LnxkYy\nKok1afs0wAQHSSMFmD77np5xMppBtveeiTX7X+ppx63ZSG8N7bWDnQ4ZknWmWuTs\nDZQte+fakjaX4bSAsDEYThM77oubGq1e7ooQlrkc2+TmVGP1k+wdTF0cs3/JybYl\nFJIKiXmy+QKBgDdqU1umv3uzIoUfj6MUbDEOMAGqA4H9qvmZRdFi9wG4EIzMeZCV\n7DglkNbgjDPa4E/cZiHffWQWwaexhbJmWn+2zccB20yXr2CpuLfv7aO9qRW7y6y/\nT36dTeRzAN7x+7NsAkGEbCfxlzZvOkPeqkrNh9MJAAnO0ds5ZetfnCfNAoGBAKEy\nmNszj8I/cS8tCsEAno2Wt/l+Vxmjk3nP6+sESzgfiwotYlICN3FYGQ7HrFXsUn8n\nPDsiE+r53IW9WXSWLu4nYeqyE62JsDOmdbFAl8oFAtg9Xnur2uA6bN+ha/tb9sOS\nhtR/gtglzpMJr3IhskFOs8zVIoBM37Y9cGzVg7gBAoGAP0pSbankjFp1TtDIKBou\nERK+FnLoJtwhoAIPN6xleN9NxJloRw5iqA7QjazdvUyWzo2zqFhRaTmQ0AOkJqfy\nLJzrJLyBieiXRj13ELrROlCUKFbGSYGGSqMiBDBV08/QfknJGUlN0zZavUikKk0Y\nik/8GA9iQMXHBGlsZdazu64=\n-----END PRIVATE KEY-----\n",
+  "client_email": "girls-627@girls-501001.iam.gserviceaccount.com",
+  "client_id": "110884948637200453883",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/girls-627%40girls-501001.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
