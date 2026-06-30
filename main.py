@@ -5,10 +5,11 @@ import uuid
 import base64
 import traceback
 import sqlite3
+import json
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse  # Важный импорт для отдачи HTML страниц
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from googleapiclient.discovery import build
@@ -26,7 +27,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключаем папку templates, чтобы FastAPI знал, где искать файлы страниц
 if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
@@ -70,20 +70,32 @@ init_db()
 
 GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 
-# НАДЕЖНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ К ГУГЛ ДИСКУ
+# УМНАЯ ФУНКЦИЯ ПОДКЛЮЧЕНИЯ С АВТО-ИСПРАВЛЕНИЕМ КЛЮЧА
 def get_drive_service():
     if not os.path.exists("google_keys.json"):
         print("!!! КРИТИЧЕСКАЯ ОШИБКА: Файл google_keys.json не найден в проекте !!!", file=sys.stderr)
         raise HTTPException(status_code=500, detail="На сервере Admin отсутствует файл google_keys.json")
         
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            "google_keys.json", 
+        # Читаем файл как обычный текст
+        with open("google_keys.json", "r", encoding="utf-8") as f:
+            creds_data = json.load(f)
+            
+        # Насильно заменяем текстовые '\n' на настоящие знаки переноса строки
+        if "private_key" in creds_data:
+            key = creds_data["private_key"]
+            # Исправляем двойное экранирование, если оно случилось
+            key = key.replace("\\\\n", "\n").replace("\\n", "\n")
+            creds_data["private_key"] = key
+            
+        # Авторизуемся через исправленный словарь данных
+        creds = service_account.Credentials.from_service_account_info(
+            creds_data, 
             scopes=["https://www.googleapis.com/auth/drive"]
         )
         return build("drive", "v3", credentials=creds)
     except Exception as e:
-        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE ИЗ ФАЙЛА: {e} !!!", file=sys.stderr)
+        print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         raise HTTPException(status_code=500, detail=f"Ошибка авторизации Google: {str(e)}")
 
@@ -102,11 +114,10 @@ class HistoryJSONModel(BaseModel):
     content_type: str
     album_files: Optional[List[dict]] = []
 
-# ==================== РОУТ ДЛЯ ОТКРЫТИЯ СТРАНИЦЫ АДМИНКИ ====================
+# РОУТ ДЛЯ ОТКРЫТИЯ СТРАНИЦЫ АДМИНКИ
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
 async def get_admin_page():
-    # Проверяем, где лежит файл, чтобы не упасть с ошибкой
     path_to_html = "templates/admin.html"
     if not os.path.exists(path_to_html):
         raise HTTPException(status_code=404, detail="Файл templates/admin.html не найден на сервере!")
