@@ -315,6 +315,7 @@ async def get_api_history(db=Depends(get_db)):
     cursor.execute("SELECT * FROM history ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
 
+# 1. ИСПРАВЛЕНО: Теперь этот роут сохраняет и главную фотку, и фотки альбома (если они есть)
 @app.post("/api/admin/history")
 @app.post("/api/admin/history/")
 async def admin_add_history(data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -326,13 +327,32 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     try:
+        # Сохраняем главную обложку
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (data.name, data.title_date, inline_photo_url))
+        history_id = cursor.lastrowid # Получаем ID только что созданной королевы
+
+        # Если админ прикрепил дополнительные фотки для альбома, сохраняем их
+        if data.album_files:
+            for album_file in data.album_files:
+                file_url = album_file.file_base64.replace("\n", "").replace("\r", "").strip()
+                if file_url:
+                    cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (history_id, file_url))
+
         db.commit()
         upload_db_to_dropbox()
-        return {"status": "success", "message": "Добавлено в историю!"}
+        return {"status": "success", "message": "Добавлено в историю вместе с альбомом!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
+
+# 2. ДОБАВЛЕНО: Тот самый роут, который запрашивает твой новый history.html
+@app.get("/api/history/{winner_id}/photos")
+async def get_winner_photos(winner_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    # Достаем все дополнительные фотографии для конкретной победительницы
+    cursor.execute("SELECT photo_url FROM history_photos WHERE history_id = ?", (winner_id,))
+    rows = cursor.fetchall()
+    return [row["photo_url"] for row in rows]
 
 @app.delete("/api/admin/history/{id}")
 async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -343,6 +363,9 @@ async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    # Сначала удаляем фотки альбома, затем саму запись
+    cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
