@@ -60,7 +60,6 @@ def init_db():
 
 init_db()
 
-# Универсальная модель, которая примет любые поля от фронтенда, чтобы ничего не падало
 class FlexibleModel(BaseModel):
     class Config:
         extra = "allow"
@@ -70,7 +69,7 @@ class FlexibleModel(BaseModel):
 async def get_main_page():
     path_to_html = "templates/index.html"
     if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл index.html не найден в templates!</h1>", status_code=404)
+        return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
@@ -79,32 +78,38 @@ async def get_main_page():
 async def get_admin_page():
     path_to_html = "templates/admin.html"
     if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл admin.html не найден в templates!</h1>", status_code=404)
+        return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
 
-# ================= СУПЕР-ЗАГЛУШКИ ДЛЯ АВТОРИЗАЦИИ =================
-# Перехватываем абсолютно любые запросы на вход/регистрацию и всегда говорим "ДА"
+# ================= ТОЧНЫЕ ЗАГЛУШКИ ПОД ТВОЙ ФРОНТЕНД =================
+# Теперь адреса на 100% совпадают с тем, что требует твой JavaScript в консоли!
 
-@app.api_route("/api/auth/login", methods=["GET", "POST", "PUT"])
-@app.api_route("/api/auth/login/", methods=["GET", "POST", "PUT"])
-@app.api_route("/auth/login", methods=["GET", "POST", "PUT"])
-@app.api_route("/login", methods=["POST"])
+@app.api_route("/api/login", methods=["GET", "POST", "PUT"])
+@app.api_route("/api/login/", methods=["GET", "POST", "PUT"])
 async def fake_login(payload: Optional[dict] = None):
-    return JSONResponse(content={"status": "success", "message": "Успешный вход", "token": "fake-super-token", "user": {"username": "admin", "role": "admin"}})
+    return JSONResponse(content={
+        "status": "success", 
+        "message": "Успешный вход", 
+        "token": "fake-super-token", 
+        "user": {"username": "admin", "role": "admin"}
+    })
 
-@app.api_route("/api/auth/register", methods=["GET", "POST", "PUT"])
-@app.api_route("/api/auth/register/", methods=["GET", "POST", "PUT"])
-@app.api_route("/auth/register", methods=["GET", "POST", "PUT"])
-@app.api_route("/register", methods=["POST"])
+@app.api_route("/api/register", methods=["GET", "POST", "PUT"])
+@app.api_route("/api/register/", methods=["GET", "POST", "PUT"])
 async def fake_register(payload: Optional[dict] = None):
-    return JSONResponse(content={"status": "success", "message": "Успешная регистрация", "token": "fake-super-token"})
+    return JSONResponse(content={
+        "status": "success", 
+        "message": "Успешная регистрация", 
+        "token": "fake-super-token"
+    })
 
-@app.get("/api/auth/me")
-@app.get("/api/user")
+@app.get("/api/me")
+@app.get("/api/me/")
 async def fake_me():
-    return {"username": "admin", "role": "admin", "status": "success"}
+    # Отдаем статус успеха, чтобы скрипт сразу считал нас авторизованным админом
+    return {"username": "admin", "role": "admin", "status": "success", "authenticated": True}
 
 
 # ЭНДПОИНТЫ ДЛЯ ДАННЫХ
@@ -128,8 +133,7 @@ async def get_history(db=Depends(get_db)):
 @app.post("/api/admin/contestants/")
 async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
     try:
-        # Извлекаем данные динамически
-        body = data.__dict__
+        body = data.__dict__ if data else {}
         name = body.get("name", "Без имени")
         file_base64 = body.get("file_base64", "")
         content_type = body.get("content_type", "image/jpeg")
@@ -146,7 +150,7 @@ async def admin_add_contestant(db=Depends(get_db), data: FlexibleModel = None):
 @app.post("/api/admin/history/")
 async def admin_add_history(db=Depends(get_db), data: FlexibleModel = None):
     try:
-        body = data.__dict__
+        body = data.__dict__ if data else {}
         name = body.get("name", "Без имени")
         title_date = body.get("title_date", "")
         file_base64 = body.get("file_base64", "")
