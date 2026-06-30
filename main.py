@@ -5,8 +5,7 @@ import hashlib
 import dropbox
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponsefrom fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 
@@ -132,7 +131,24 @@ async def get_main_page():
 
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
-async def get_admin_page():
+async def get_admin_page(session_user: Optional[str] = Cookie(None)):
+    # 1. Если куки пустые — сразу редирект на главную (к форме логина)
+    if not session_user:
+        return RedirectResponse(url="/", status_code=303)
+        
+    # 2. Проверяем в базе статус пользователя
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    db.close()
+    
+    # 3. Если пользователя нет в базе или он не админ — редирект на главную
+    if not user or not user["is_admin"]:
+        return RedirectResponse(url="/", status_code=303)
+        
+    # 4. И только если проверку прошёл настоящий админ — отдаем страницу
     path_to_html = "templates/admin.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
