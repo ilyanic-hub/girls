@@ -4,3 +4,4 @@ requests
 pydantic
 python-multipart
 jinja2
+python-multipart==0.0.12
