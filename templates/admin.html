@@ -116,12 +116,13 @@
         loadHistory();
     });
 
-    // Функция-помощник для конвертации файлов в Base64
+    // ИСПРАВЛЕНО: Функция теперь возвращает ПОЛНУЮ готовую строку картинки
     function toBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result.split(',')[1]);
+            // Возвращаем строку целиком, ничего не отрезая!
+            reader.onload = () => resolve(reader.result); 
             reader.onerror = error => reject(error);
         });
     }
