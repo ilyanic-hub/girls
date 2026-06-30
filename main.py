@@ -82,14 +82,25 @@ GOOGLE_FOLDER_ID = os.getenv("GOOGLE_FOLDER_ID", "")
 def get_drive_service():
     try:
         import json
-        creds_dict = json.loads(GOOGLE_CREDS_JSON)
+        # Чистим строку от возможных случайных внешних кавычек или пробелов по краям
+        creds_clean = GOOGLE_CREDS_JSON.strip()
+        if creds_clean.startswith("'") or creds_clean.startswith('"'):
+            creds_clean = creds_clean[1:-1]
+            
+        creds_dict = json.loads(creds_clean)
+        
+        # Исправляем возможную проблему с экранированием переносов строк в ключе
+        if "private_key" in creds_dict:
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=["https://www.googleapis.com/auth/drive"]
         )
         return build("drive", "v3", credentials=creds)
     except Exception as e:
         print(f"!!! ОШИБКА ИНИЦИАЛИЗАЦИИ GOOGLE DRIVE: {e} !!!", file=sys.stderr)
-        raise HTTPException(status_code=500, detail="Ошибка конфигурации Google Drive")
+        # Выводим реальную техническую ошибку, чтобы сразу увидеть её в логах
+        raise HTTPException(status_code=500, detail=f"Ошибка конфигурации Google Drive: {str(e)}")
 
 # --- PYDANTIC МОДЕЛИ ДЛЯ ДАННЫХ (ВМЕСТО ФОРМ) ---
 class ContestantJSONModel(BaseModel):
