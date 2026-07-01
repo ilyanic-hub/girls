@@ -3,6 +3,8 @@ import sys
 import sqlite3
 import hashlib
 import dropbox
+import time
+import httpx
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -474,30 +476,57 @@ async def get_balance(request: Request, db=Depends(get_db)):
 async def create_payment(data: DepositSchema, request: Request, db=Depends(get_db)):
     user_ip = request.client.host
     
-    # Стоимость одного коина (например, 0.1 USDT или 10 рублей — настрой как хочешь)
-    price_per_coin = 0.1 
-    total_price = data.amount * price_per_coin
+    # 1 коин = 1 рубль (так как на фронтенде у нас 100 коинов = 10 ₽, значит 1 коин = 0.1 ₽)
+    # Если на фронтенде написано 100 коинов = 10 ₽, то стоимость в рублях — это количество коинов * 0.1
+    price_per_coin = 0.1  
+    total_price_rub = data.amount * price_per_coin
     
-    # ТУТ БУДЕТ ЗАПРОС К TRYBIT API
-    # Мы передаем сумму total_price, валюту (USDT/BTC) и в параметр tracking_id прячем user_ip
-    # Пример того, как это будет выглядеть:
-    """
-    headers = {"Authorization": "Bearer ТВОЙ_API_КЛЮЧ"}
-    payload = {
-        "amount": total_price,
-        "currency": "USDT",
-        "order_id": f"deposit_{user_ip}_{int(time.time())}",
-        "callback_url": "https://твоя-королева.railway.app/api/payment/webhook"
+    # Твой API-ключ от TryBit (замени на свой реальный ключ в кавычках)
+    TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
+    
+    # Формируем уникальный ID заказа, чтобы платежка вернула его нам в вебхуке
+    # Например: deposit_127.0.0.1_1719823456
+    order_id = f"deposit_{user_ip}_{int(time.time())}"
+    
+    # Сюда вставь URL твоего деплоя на Railway (обязательно с /api/payment/webhook на конце)
+    CALLBACK_URL = "https://girls-production.up.railway.app/api/payment/webhook"
+    
+    headers = {
+        "Authorization": f"Bearer {TRYBIT_API_KEY}",
+        "Content-Type": "application/json"
     }
-    res = requests.post("https://api.trybit.com/v1/invoices", json=payload, headers=headers)
-    payment_url = res.json().get("payment_url")
-    """
     
-    # Пока мы настраиваем интеграцию, делаем симуляцию ссылки:
-    # Вместо этого эмулятора потом будет реальная ссылка от TryBit
-    mock_payment_url = f"https://example.com/pay?amount={total_price}&user={user_ip}"
+    payload = {
+        "amount": total_price_rub,
+        "currency": "RUB", # Или "USDT", если баланс мерчанта в TryBit настроен в долларах/крипте
+        "order_id": order_id,
+        "callback_url": CALLBACK_URL
+    }
     
-    return {"status": "success", "payment_url": mock_payment_url}
+    try:
+        # Делаем асинхронный запрос к TryBit API для создания инвойса
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.trybit.com/v1/invoices", # Проверь точный эндпоинт в документации TryBit, если он отличается
+                json=payload,
+                headers=headers,
+                timeout=10.0
+            )
+            
+        if response.status_code == 200 or response.status_code == 211:
+            res_data = response.json()
+            # Достаем реальную ссылку на оплату из ответа спикера API
+            payment_url = res_data.get("payment_url") or res_data.get("data", {}).get("payment_url")
+            
+            if payment_url:
+                return {"status": "success", "payment_url": payment_url}
+            else:
+                return {"status": "error", "detail": "В ответе TryBit отсутствует payment_url"}
+        else:
+            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}"}
+            
+    except Exception as e:
+        return {"status": "error", "detail": f"Не удалось связаться с платежной системой: {str(e)}"}
 
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
