@@ -505,9 +505,10 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
     
     try:
         # Делаем асинхронный запрос к TryBit API для создания инвойса
+        # Делаем асинхронный запрос к новому эндпоинту TryBit API v2
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "https://api.trybit.com/v1/invoices", # Проверь точный эндпоинт в документации TryBit, если он отличается
+                "https://api.trybit.com/v2/invoice/create",  # <-- Поменяли адрес здесь
                 json=payload,
                 headers=headers,
                 timeout=10.0
