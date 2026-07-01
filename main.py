@@ -304,20 +304,20 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
         
 @app.post("/api/login")
-@app.post("/api/login")
-@limiter.limit("5 per minute")  # <-- Защита: максимум 5 нажатий в минуту с одного IP
-async def api_login(request: Request, data: UserAuthSchema, db=Depends(get_db)):
-    # Твой текущий код роута авторизации остается без изменений...
-async def api_login(data: UserAuthSchema, response: Response, db=Depends(get_db)):
+@limiter.limit("5 per minute")  # <-- Защита от брутфорса
+async def api_login(request: Request, data: UserAuthSchema, response: Response, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
+    
     cursor = db.cursor()
-    cursor.execute("SELECT password, username FROM users WHERE username = ?", (username,))
+    cursor.execute("SELECT password, is_admin FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
-    if not user or user["password"] != hash_password(password):
-        raise HTTPException(status_code=400, detail="Неверное имя или пароль")
-    response.set_cookie(key="session_user", value=user["username"], max_age=1209600, path="/")
-    return {"status": "success", "message": "Вход выполнен!"}
+    
+    if not user or hash_password(password) != user["password"]:
+        raise HTTPException(status_code=400, detail="Неверное имя пользователя или пароль")
+        
+    response.set_cookie(key="session_user", value=username, max_age=86400, httponly=True)
+    return {"status": "success", "message": "Вход выполнен успешно!", "is_admin": user["is_admin"]}
 
 @app.post("/api/logout")
 async def api_logout(response: Response):
