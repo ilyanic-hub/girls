@@ -196,10 +196,12 @@
     </div>
 
     <div id="lightboxModal" class="lightbox" onclick="closeLightbox()">
-        <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
-        <span class="nav-arrow arrow-left" onclick="prevPhoto(event)">&#10094;</span>
-        <span class="nav-arrow arrow-right" onclick="nextPhoto(event)">&#10095;</span>
-        <img id="lightboxImage" class="lightbox-img" src="" onclick="event.stopPropagation()">
+    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+    <button class="lightbox-nav nav-left" onclick="changePhoto(-1, event)">&lt;</button>
+    
+    <img id="lightboxImage" src="" alt="Полноэкранное фото" style="max-width: 90%; max-height: 90vh; border-radius: 8px; object-fit: contain;">
+    
+    <button class="lightbox-nav nav-right" onclick="changePhoto(1, event)">&gt;</button>
     </div>
 
     <script>
