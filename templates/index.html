@@ -54,8 +54,6 @@
             margin: 0 auto;
         }
 
-        
-
         /* --- КАРТОЧКА УЧАСТНИЦЫ --- */
         .contestant-card {
             background: var(--card-bg);
@@ -129,6 +127,21 @@
             background: #e2e8f0;
         }
 
+        .btn-deposit {
+            background: #f1f5f9;
+            color: #1e293b;
+            border: 2px solid #0f172a;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .btn-deposit:hover {
+            background: #e2e8f0;
+        }
+
         /* --- ОКНО АВТОРИЗАЦИИ --- */
         .auth-container {
             display: flex;
@@ -169,72 +182,71 @@
             background: #fff;
         }
 
-        /* Стили для окна пополнения */
-.deposit-modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 2000;
-    justify-content: center;
-    align-items: center;
-    font-family: sans-serif;
-}
-.deposit-modal-content {
-    background: #fff;
-    padding: 30px;
-    border-radius: 16px;
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-    position: relative;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-}
-.deposit-close {
-    position: absolute;
-    top: 15px; right: 20px;
-    font-size: 24px; font-weight: bold; color: #a0aec0;
-    cursor: pointer;
-}
-.deposit-close:hover { color: #4a5568; }
-.deposit-options {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-}
-.deposit-opt-btn {
-    background: #f7fafc;
-    border: 2px solid #e2e8f0;
-    padding: 12px 5px;
-    border-radius: 10px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.2s;
-}
-.deposit-opt-btn:hover {
-    border-color: #00bcd4;
-    background: #e6fffa;
-}
-.deposit-opt-btn.active {
-    border-color: #00bcd4;
-    background: #00bcd4;
-    color: white;
-}
-.deposit-opt-btn.active small { color: #e6fffa; }
-.btn-pay-submit {
-    background: #2ed573;
-    color: white;
-    border: none;
-    width: 100%;
-    padding: 14px;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: 0.2s;
-}
-.btn-pay-submit:hover { background: #26af5f; }
+        /* --- МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ --- */
+        .deposit-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .deposit-modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .deposit-close {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px; font-weight: bold; color: #a0aec0;
+            cursor: pointer;
+        }
+        .deposit-close:hover { color: #4a5568; }
+        .deposit-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .deposit-opt-btn {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            padding: 12px 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .deposit-opt-btn:hover {
+            border-color: #ff4757;
+            background: #fff5f5;
+        }
+        .deposit-opt-btn.active {
+            border-color: #ff4757;
+            background: #ff4757;
+            color: white;
+        }
+        .deposit-opt-btn.active small { color: #ffe3e3; }
+        .btn-pay-submit {
+            background: #2ed573;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+        .btn-pay-submit:hover { background: #26af5f; }
     </style>
 </head>
 <body>
@@ -257,7 +269,7 @@
                 
                 <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
                 <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> ₽</div>
-                <button class="..." onclick="openDepositModal()">+ Пополнить</button>
+                <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
                 <button class="btn btn-sec" onclick="logout()">Выйти</button>
             </div>
         </header>
@@ -265,8 +277,30 @@
         <main class="contestants-grid" id="gallery"></main>
     </div>
 
+    <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
+        <div class="deposit-modal-content" onclick="event.stopPropagation()">
+            <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
+            <h2>💎 Пополнение баланса</h2>
+            <p style="color: #718096; margin-bottom: 20px;">Выберите количество коинов для покупки:</p>
+            
+            <div class="deposit-options">
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(100)">100 коинов <br><small>10 ₽</small></button>
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(500)">500 коинов <br><small>50 ₽</small></button>
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(1000)">1000 коинов <br><small>100 ₽</small></button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold; color:#4a5568;">Своя сумма (в коинах):</label>
+                <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px;">
+            </div>
+
+            <button id="payBtn" class="btn-pay-submit" onclick="sendPaymentRequest()">Перейти к оплате криптой</button>
+        </div>
+    </div>
+
     <script>
         let isLoginMode = true;
+        let selectedAmount = 0;
 
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
@@ -279,14 +313,12 @@
             if (res.ok) {
                 let user = await res.json();
                 
-                // ИСПРАВЛЕНО: Если бэкенд отдал "Гостя", перенаправляем на форму логина
                 if (!user.username || user.username === "Гость") {
                     document.getElementById('main-page').style.display = 'none';
                     document.getElementById('auth-page').style.display = 'flex';
                     return;
                 }
 
-                // Если это реальный залогиненный пользователь:
                 document.getElementById('auth-page').style.display = 'none';
                 document.getElementById('main-page').style.display = 'block';
                 document.getElementById('user-name').innerText = user.username;
@@ -361,52 +393,65 @@
             }
         }
 
-        async function depositMoney() {
-            let amt = prompt("Сумма пополнения (₽):", "100");
-            if(!amt || isNaN(amt) || amt <= 0) return;
-            
+        /* ЛОГИКА ОКНА ПОПОЛНЕНИЯ БАЛАНСА */
+        function openDepositModal() {
+            document.getElementById('depositModal').style.display = 'flex';
+            selectedAmount = 0;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function closeDepositModal() {
+            document.getElementById('depositModal').style.display = 'none';
+        }
+
+        function selectDepositAmount(amount) {
+            selectedAmount = amount;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        document.getElementById('customAmount').addEventListener('input', function() {
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+            selectedAmount = parseInt(this.value) || 0;
+        });
+
+        async function sendPaymentRequest() {
+            if (selectedAmount < 100) {
+                alert('Минимальная сумма пополнения — 100 коинов!');
+                return;
+            }
+
+            const payBtn = document.getElementById('payBtn');
+            payBtn.innerText = "Генерация счета...";
+            payBtn.disabled = true;
+
             try {
-                let res = await fetch('/api/deposit', {
+                let response = await fetch('/api/payment/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount: parseFloat(amt) })
+                    body: JSON.stringify({ amount: selectedAmount })
                 });
+
+                let result = await response.json();
                 
-                let data = await res.json();
-                
-                if (res.ok && data.payment_url) {
-                    window.location.href = data.payment_url;
+                if (response.ok && result.payment_url) {
+                    window.location.href = result.payment_url;
                 } else {
-                    alert("Ошибка создания платежа: " + (data.detail || "Неизвестная ошибка"));
+                    alert('Ошибка платежной системы: ' + (result.detail || 'Не удалось создать счет'));
+                    payBtn.innerText = "Перейти к оплате криптой";
+                    payBtn.disabled = false;
                 }
-            } catch (err) {
-                console.error(err);
-                alert("Не удалось связаться с сервером оплаты");
+            } catch (e) {
+                alert('Сетевая ошибка: ' + e.message);
+                payBtn.innerText = "Перейти к оплате криптой";
+                payBtn.disabled = false;
             }
         }
 
+        // Запуск проверки авторизации
         checkAuth();
     </script>
-
-    <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
-    <div class="deposit-modal-content" onclick="event.stopPropagation()">
-        <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
-        <h2>💎 Пополнение баланса</h2>
-        <p style="color: #718096; margin-bottom: 20px;">Выберите количество коинов для покупки:</p>
-        
-        <div class="deposit-options">
-            <button class="deposit-opt-btn" onclick="selectDepositAmount(100)">100 коинов <br><small>10 ₽</small></button>
-            <button class="deposit-opt-btn" onclick="selectDepositAmount(500)">500 коинов <br><small>50 ₽</small></button>
-            <button class="deposit-opt-btn" onclick="selectDepositAmount(1000)">1000 коинов <br><small>100 ₽</small></button>
-        </div>
-
-        <div style="margin-top: 20px;">
-            <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold; color:#4a5568;">Своя сумма (в коинах):</label>
-            <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px;">
-        </div>
-
-        <button id="payBtn" class="btn-pay-submit" onclick="sendPaymentRequest()">Перейти к оплате криптой</button>
-    </div>
-</div>
 </body>
 </html>
