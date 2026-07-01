@@ -6,27 +6,6 @@
     <title>🔥 PHOTO RATING</title>
 
     <style>
-.heart-particle {
-    position: fixed;
-    font-size: 20px;
-    color: #ff4757;
-    pointer-events: none;
-    z-index: 9999;
-    animation: flyUpAndFade 1s ease-out forwards;
-}
-
-@keyframes flyUpAndFade {
-    0% {
-        transform: translate(0, 0) scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(var(--x), var(--y)) scale(0.5);
-        opacity: 0;
-    }
-}
-</style>
-    <style>
         :root {
             --bg-color: #f5f7fb;
             --card-bg: #ffffff;
@@ -43,6 +22,25 @@
             color: var(--text-main);
             margin: 0;
             padding: 0;
+        }
+
+        .heart-particle {
+            position: fixed;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: flyUpAndFade 0.8s ease-out forwards;
+        }
+
+        @keyframes flyUpAndFade {
+            0% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.4) rotate(var(--r));
+                opacity: 0;
+            }
         }
 
         /* --- ШАПКА САЙТА --- */
@@ -75,11 +73,6 @@
             max-width: 1200px;
             margin: 0 auto;
         }
-
-        <div class="timer-container" style="text-align: center; margin: 20px auto; padding: 15px; background: #fff5f6; border-radius: 10px; max-width: 400px; border: 1px solid #ff4757;">
-    <h3 style="margin: 0 0 10px 0; color: #ff4757;">До конца раунда осталось:</h3>
-    <div id="countdown-timer" style="font-size: 24px; font-weight: bold; color: #2d3748;">00:00:00:00</div>
-</div>
 
         /* --- КАРТОЧКА УЧАСТНИЦЫ --- */
         .contestant-card {
@@ -283,28 +276,33 @@
             <h2 id="auth-title">Вход в аккаунт</h2>
             <input type="text" id="username" placeholder="Логин">
             <input type="password" id="password" placeholder="Пароль">
+            
+            <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;">
+            
             <button class="btn" style="width: 100%; margin-top: 10px;" onclick="submitAuth()">Продолжить</button>
-            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" onclick="toggleAuthMode()" id="auth-toggle-text">Нет аккаунта? Зарегистрироваться</p>
+            
+            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem; id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
+            <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
         </div>
     </div>
 
     <div id="main-page" style="display: none;">
         <header>
             <a href="/" class="logo">🔥 PHOTO RATING</a>
-            <!-- Блок с таймером и бонусом -->
-<div class="bonus-container" style="text-align: center; margin: 20px auto; padding: 15px; background: #fff5f6; border-radius: 10px; max-width: 400px; border: 1px solid #ff4757;">
-    <h3 style="margin: 0 0 10px 0; color: #ff4757;">До конца раунда осталось:</h3>
-    <div id="countdown-timer" style="font-size: 22px; font-weight: bold; color: #2d3748; margin-bottom: 15px;">00д 00ч 00м 00с</div>
-    
-    <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
-        🎁 Получить ежедневный бонус
-    </button>
-</div>
+            
+            <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
+                <div>
+                    <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
+                    <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
+                </div>
+                <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
+                    🎁 Ежедневный бонус
+                </button>
+            </div>
+
             <div style="display: flex; align-items: center; gap: 15px;">
                 <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
-                
                 <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-                
                 <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
                 <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
                 <button class="btn btn-sec" onclick="logout()">Выйти</button>
@@ -336,53 +334,47 @@
     </div>
 
     <script>
-
-        function spawnHearts(event) {
-    const heartCount = 6; // Количество сердечек за один клик
-    for (let i = 0; i < heartCount; i++) {
-        const heart = document.createElement('div');
-        heart.classList.add('heart-particle');
-        heart.innerText = '❤️';
-        
-        // Позиция клика мышки
-        heart.style.left = event.clientX + 'px';
-        heart.style.top = event.clientY + 'px';
-        
-        // Разбрасываем сердечки в случайные стороны
-        const x = (Math.random() - 0.5) * 150; // вправо-влево
-        const y = (Math.random() - 0.8) * 150; // вверх
-        
-        heart.style.setProperty('--x', `${x}px`);
-        heart.style.setProperty('--y', `${y}px`);
-        
-        document.body.appendChild(heart);
-        
-        // Удаляем элемент после завершения анимации
-        setTimeout(() => {
-            heart.remove();
-        }, 1000);
-    }
-}
-        let isLoginMode = true;
+        // Переменные состояний авторизации: 'login', 'register', 'reset'
+        let authMode = 'login'; 
         let selectedAmount = 0;
 
         function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            document.getElementById('auth-title').innerText = isLoginMode ? "Вход в аккаунт" : "Регистрация";
-            document.getElementById('auth-toggle-text').innerText = isLoginMode ? "Нет аккаунта? Зарегистрироваться" : "Уже есть аккаунт? Войти";
+            if (authMode === 'login') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
+        }
+
+        function enableResetMode() {
+            authMode = 'reset';
+            document.getElementById('auth-title').innerText = "Восстановление";
+            document.getElementById('password').placeholder = "Введите НОВЫЙ пароль";
+            document.getElementById('secret_answer').placeholder = "Ваше секретное слово";
+            document.getElementById('secret_answer').style.display = 'block';
+            document.getElementById('auth-toggle-text').innerText = "Вспомнили данные? Назад ко входу";
+            document.getElementById('auth-reset-text').style.display = 'none';
         }
 
         async function checkAuth() {
             let res = await fetch('/api/me');
             if (res.ok) {
                 let user = await res.json();
-                
                 if (!user.username || user.username === "Гость") {
                     document.getElementById('main-page').style.display = 'none';
                     document.getElementById('auth-page').style.display = 'flex';
                     return;
                 }
-
                 document.getElementById('auth-page').style.display = 'none';
                 document.getElementById('main-page').style.display = 'block';
                 document.getElementById('user-name').innerText = user.username;
@@ -403,18 +395,33 @@
         async function submitAuth() {
             let u = document.getElementById('username').value;
             let p = document.getElementById('password').value;
-            let url = isLoginMode ? '/api/login' : '/api/register';
+            let s = document.getElementById('secret_answer').value;
+
+            let url = '/api/login';
+            let bodyData = { username: u, password: p };
+
+            if (authMode === 'register') {
+                url = '/api/register';
+                bodyData.secret_answer = s;
+            } else if (authMode === 'reset') {
+                url = '/api/reset-password';
+                bodyData = { username: u, secret_answer: s, new_password: p };
+            }
 
             let res = await fetch(url, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: u, password: p })
+                body: JSON.stringify(bodyData)
             });
             let data = await res.json();
+            
             if (res.ok) {
-                if (!isLoginMode) { 
-                    alert("Регистрация успешна! Теперь войдите."); 
-                    toggleAuthMode(); 
+                if (authMode === 'register') { 
+                    alert("Регистрация успешна! Теперь вы можете войти."); 
+                    authMode = 'register'; toggleAuthMode(); 
+                } else if (authMode === 'reset') {
+                    alert("Пароль успешно сброшен! Войдите под новым паролем.");
+                    authMode = 'reset'; toggleAuthMode();
                 } else { 
                     window.location.reload(); 
                 }
@@ -447,20 +454,76 @@
             });
         }
 
-        async function vote(id, event) { // <-- Добавили event сюда
-    // Сразу запускаем сердечки при клике, чтобы не ждать ответа сервера
-    if (event) spawnHearts(event); 
+        async function vote(id, event) {
+            if (event) spawnHearts(event); 
+            let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
+            if (res.ok) { 
+                checkAuth(); 
+            } else { 
+                let d = await res.json(); 
+                alert(d.detail || "Ошибка при голосовании"); 
+            }
+        }
 
-    let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
-    if (res.ok) { 
-        checkAuth(); 
-    } else { 
-        let d = await res.json(); 
-        alert(d.detail || "Ошибка при голосовании"); 
-    }
-}
+        function spawnHearts(event) {
+            const heartCount = 6;
+            for (let i = 0; i < heartCount; i++) {
+                const heart = document.createElement('div');
+                heart.classList.add('heart-particle');
+                heart.innerText = '❤️';
+                heart.style.left = event.clientX + 'px';
+                heart.style.top = event.clientY + 'px';
+                
+                const x = (Math.random() - 0.5) * 160;
+                const y = (Math.random() - 0.8) * 160;
+                const r = (Math.random() - 0.5) * 90;
+                
+                heart.style.setProperty('--x', `${x}px`);
+                heart.style.setProperty('--y', `${y}px`);
+                heart.style.setProperty('--r', `${r}deg`);
+                
+                document.body.appendChild(heart);
+                setTimeout(() => { heart.remove(); }, 800);
+            }
+        }
 
-        /* ЛОГИКА ОКНА ПОПОЛНЕНИЯ БАЛАНСА */
+        async function getDailyBonus() {
+            try {
+                const response = await fetch('/api/bonus', { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert("🎉 Ура! " + result.message);
+                    checkAuth();
+                } else {
+                    alert("❌ " + (result.detail || "Ошибка получения бонуса"));
+                }
+            } catch (error) {
+                alert("Сетевая ошибка при получении бонуса");
+            }
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const nextDeadline = new Date();
+            nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
+            nextDeadline.setHours(23, 59, 59, 999);
+            
+            const diff = nextDeadline - now;
+            if (diff <= 0) {
+                document.getElementById("countdown-timer").innerText = "Раунд завершен!";
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            document.getElementById("countdown-timer").innerText = 
+                `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+        }
+
+        /* ОКНО ПОПОЛНЕНИЯ БАЛАНСА */
         function openDepositModal() {
             document.getElementById('depositModal').style.display = 'flex';
             selectedAmount = 0;
@@ -489,7 +552,6 @@
                 alert('Минимальная сумма пополнения — 100 коинов!');
                 return;
             }
-
             const payBtn = document.getElementById('payBtn');
             payBtn.innerText = "Генерация счета...";
             payBtn.disabled = true;
@@ -500,9 +562,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount: selectedAmount })
                 });
-
                 let result = await response.json();
-                
                 if (response.ok && result.payment_url) {
                     window.location.href = result.payment_url;
                 } else {
@@ -517,137 +577,24 @@
             }
         }
 
-        // Запуск проверки авторизации
+        setInterval(updateTimer, 1000);
+        updateTimer();
         checkAuth();
     </script>
-
-    <script>
-function updateTimer() {
-    // Установим фиксированную дату окончания (например, каждое воскресенье)
-    const now = new Date();
-    const nextDeadline = new Date();
-    
-    // Устанавливаем дедлайн на ближайшее воскресенье 23:59:59
-    nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
-    nextDeadline.setHours(23, 59, 59, 999);
-    
-    const diff = nextDeadline - now;
-    
-    if (diff <= 0) {
-        document.getElementById("countdown-timer").innerText = "Раунд завершен! Подсчет голосов...";
-        return;
-    }
-    
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
-    document.getElementById("countdown-timer").innerText = 
-        `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
-}
-// Запускаем каждую секунду
-setInterval(updateTimer, 1000);
-updateTimer();
-</script>
-
-    <script>
-// 1. ЛОГИКА ТАЙМЕРА
-function updateTimer() {
-    const now = new Date();
-    const nextDeadline = new Date();
-    
-    // Дедлайн на ближайшее воскресенье 23:59:59
-    nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
-    nextDeadline.setHours(23, 59, 59, 999);
-    
-    const diff = nextDeadline - now;
-    
-    if (diff <= 0) {
-        document.getElementById("countdown-timer").innerText = "Раунд завершен!";
-        return;
-    }
-    
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    
-    document.getElementById("countdown-timer").innerText = 
-        `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
-}
-setInterval(updateTimer, 1000);
-updateTimer();
-
-// 2. ЛОГИКА ЕЖЕДНЕВНОГО БОНУСА
-async function getDailyBonus() {
-    try {
-        const response = await fetch('/api/bonus', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert("🎉 Ура! " + result.message);
-            // Если у тебя на сайте есть функция обновления баланса (например, checkMe или loadUser), вызови её здесь:
-            if (typeof checkMe === 'function') checkMe();
-            else location.reload(); // или просто обновим страницу, чтобы коин отобразился
-        } else {
-            alert("❌ " + (result.detail || "Ошибка получения бонуса"));
-        }
-    } catch (error) {
-        alert("Сетевая ошибка при получении бонуса");
-    }
-}
-
-        function spawnHearts(event) {
-    const heartCount = 6; // Количество сердечек за клик
-    for (let i = 0; i < heartCount; i++) {
-        const heart = document.createElement('div');
-        heart.classList.add('heart-particle');
-        heart.innerText = '❤️';
-        
-        // Позиция клика мышки
-        heart.style.left = event.clientX + 'px';
-        heart.style.top = event.clientY + 'px';
-        
-        // Случайное направление разлёта
-        const x = (Math.random() - 0.5) * 160; // Влево-вправо
-        const y = (Math.random() - 0.8) * 160; // Вверх
-        const r = (Math.random() - 0.5) * 90;  // Случайный поворот
-        
-        heart.style.setProperty('--x', `${x}px`);
-        heart.style.setProperty('--y', `${y}px`);
-        heart.style.setProperty('--r', `${r}deg`);
-        
-        document.body.appendChild(heart);
-        
-        // Удаляем сердечко после анимации
-        setTimeout(() => {
-            heart.remove();
-        }, 800);
-    }
-}
-</script>
 </body>
-    <footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
-    <!-- Блок контактов для поддержки -->
+
+<footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
     <div style="margin-bottom: 20px; font-size: 0.95rem;">
         <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">Служба поддержки пользователей:</strong>
         <p style="margin: 5px 0;">📧 Email: <a href="mailto:photo.rating.girls@gmail.com" style="color: var(--accent); text-decoration: none; font-weight: bold;">photo.rating.girls@gmail.com</a></p>
         <p style="margin: 5px 0;">💬 Telegram: <a href="https://t.me/photo_rating_support" target="_blank" style="color: #0088cc; text-decoration: none; font-weight: bold;">@photo_rating_support</a></p>
     </div>
-
     <hr style="border: 0; border-top: 1px solid #edf2f7; max-width: 400px; margin: 15px auto;">
-
-    <!-- Юридические ссылки -->
     <p style="margin-top: 15px;">
         <a href="/terms" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Пользовательское соглашение</a> | 
         <a href="/privacy" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Политика конфиденциальности</a> | 
         <a href="/refund" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Политика возвратов</a>
     </p>
-    <p style="margin-size: 0.8rem; color: #a0aec0; margin-top: 10px;">© 2026 PHOTO RATING. Все права защищены.</p>
+    <p style="font-size: 0.8rem; color: #a0aec0; margin-top: 10px;">© 2026 PHOTO RATING. Все права защищены.</p>
 </footer>
 </html>
