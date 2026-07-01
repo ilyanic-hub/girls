@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
-from fastapi.templating import Jinja2Templates
+import requests
 
 app = FastAPI()
 
@@ -23,13 +23,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ИНИЦИАЛИЗАЦИЯ ШАБЛОНОВ (Это чинит NameError)
-templates = Jinja2Templates(directory="templates")
-
-# Подключаем статику только если нужна отдельная папка static. 
-# Саму папку templates монтировать как StaticFiles НЕЛЬЗЯ, иначе Jinja2 ломается.
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+# Возвращаем твой исходный статический маунт папки templates
+if os.path.exists("templates"):
+    app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
 DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
@@ -170,21 +166,22 @@ class HistorySchema(BaseModel):
     content_type: Optional[str] = None
     album_files: Optional[List[AlbumFileSchema]] = None
 
-class DepositSchema(BaseModel):
-    amount: int
-
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
 
 # ================= РОУТЫ СТРАНИЦ =================
 @app.get("/", response_class=HTMLResponse)
-async def get_main_page(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def get_main_page():
+    path_to_html = "templates/index.html"
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
-async def get_admin_page(request: Request, session_user: Optional[str] = Cookie(None)):
+async def get_admin_page(session_user: Optional[str] = Cookie(None)):
     if not session_user:
         return RedirectResponse(url="/", status_code=303)
     db = sqlite3.connect(DB_LOCAL_PATH)
@@ -195,25 +192,39 @@ async def get_admin_page(request: Request, session_user: Optional[str] = Cookie(
     db.close()
     if not user or not user["is_admin"]:
         return RedirectResponse(url="/", status_code=303)
-    return templates.TemplateResponse("admin.html", {"request": request})
+    path_to_html = "templates/admin.html"
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.get("/history", response_class=HTMLResponse)
 @app.get("/history/", response_class=HTMLResponse)
-async def get_history_page(request: Request):
-    return templates.TemplateResponse("history.html", {"request": request})
+async def get_history_page():
+    path_to_html = "templates/history.html"
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл history.html не найден!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
-# ЮРИДИЧЕСКИЕ СТРАНИЦЫ (ТЕПЕРЬ РАБОТАЮТ ИДЕАЛЬНО)
+# БЕЗОПАСНЫЕ РОУТЫ ДЛЯ СОГЛАШЕНИЙ (Читают файлы так же, как главная)
 @app.get("/terms", response_class=HTMLResponse)
-async def get_terms(request: Request):
-    return templates.TemplateResponse("terms.html", {"request": request})
+async def get_terms():
+    path = "templates/terms.html"
+    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл terms.html не найден!</h1>", status_code=404)
+    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 @app.get("/privacy", response_class=HTMLResponse)
-async def get_privacy(request: Request):
-    return templates.TemplateResponse("privacy.html", {"request": request})
+async def get_privacy():
+    path = "templates/privacy.html"
+    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл privacy.html не найден!</h1>", status_code=404)
+    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 @app.get("/refund", response_class=HTMLResponse)
-async def get_refund(request: Request):
-    return templates.TemplateResponse("refund.html", {"request": request})
+async def get_refund():
+    path = "templates/refund.html"
+    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл refund.html не найден!</h1>", status_code=404)
+    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
@@ -338,7 +349,8 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
     inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-    if len(inline_photo_url) < 50:
+    
+    if len(inline_photo_url) < 50: 
         cursor.execute("UPDATE contestants SET name = ? WHERE id = ?", (data.name, id))
     else:
         cursor.execute("UPDATE contestants SET name = ?, photo_url = ? WHERE id = ?", (data.name, inline_photo_url, id))
@@ -369,6 +381,7 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (data.name, data.title_date, inline_photo_url))
         inserted_id = cursor.lastrowid
+
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success", "history_id": inserted_id, "message": "Основная запись создана!"}
@@ -379,6 +392,7 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
 async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         raise HTTPException(status_code=401, detail="Не авторизован")
+    
     cursor = db.cursor()
     cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
@@ -387,14 +401,20 @@ async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, sessi
         
     try:
         file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        
         if file_url:
-            cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (int(history_id), str(file_url)))
+            cursor.execute(
+                "INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", 
+                (int(history_id), str(file_url))
+            )
             db.commit()
             upload_db_to_dropbox()
             return {"status": "success", "message": "Фото успешно добавлено в альбом!"}
         else:
             return {"status": "error", "message": "Пустая строка Base64"}
+            
     except Exception as err:
+        print(f"Ошибка сохранения фото в альбом: {str(err)}")
         raise HTTPException(status_code=500, detail=str(err))
 
 @app.get("/api/history/{winner_id}/photos")
@@ -413,6 +433,7 @@ async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
     cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
@@ -428,11 +449,14 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
     try:
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         cursor.execute("UPDATE history SET name = ?, title_date = ? WHERE id = ?", (data.name, data.title_date, id))
+        
         if len(inline_photo_url) > 50:
             cursor.execute("UPDATE history SET photo_url = ? WHERE id = ?", (inline_photo_url, id))
+            
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success", "history_id": id, "message": "Основная информация обновлена!"}
@@ -444,7 +468,17 @@ async def debug_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT id, LENGTH(photo_url) as size FROM history_photos WHERE history_id = ?", (winner_id,))
     rows = cursor.fetchall()
-    return {"total_photos_in_db": len(rows), "photos": [{"photo_table_id": r["id"], "base64_length": r["size"]} for r in rows]}
+    
+    result = []
+    for row in rows:
+        result.append({
+            "photo_table_id": row["id"],
+            "base64_length": row["size"]
+        })
+    return {
+        "total_photos_in_db": len(result),
+        "photos": result
+    }
 
 @app.delete("/api/admin/history/{id}/photos")
 async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -455,6 +489,7 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
     try:
         cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
         db.commit()
@@ -464,6 +499,9 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
         raise HTTPException(status_code=500, detail=str(err))
 
 
+class DepositSchema(BaseModel):
+    amount: int  
+
 # ================= ПЛАТЕЖИ TRYBIT =================
 @app.get("/api/balance")
 async def get_balance(request: Request, db=Depends(get_db)):
@@ -471,10 +509,12 @@ async def get_balance(request: Request, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
     row = cursor.fetchone()
+    
     if not row:
         cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, 0)", (user_ip,))
         db.commit()
         return {"balance": 0}
+        
     return {"balance": row["balance"]}
 
 @app.post("/api/payment/create")
@@ -499,7 +539,7 @@ async def create_payment(data: DepositSchema, request: Request, session_user: Op
         "amount": total_price_usd,
         "currency": "USD",
         "order_id": order_id,
-        "callback_url": CALLBACK_URL,
+        "callback_url": CALLBACK_URL,  
         "add_fields": {
             "available_currencies": ["USDT_TRC20", "USDT_BSC", "USDT_TON", "TON", "BTC"]
         }
@@ -517,6 +557,7 @@ async def create_payment(data: DepositSchema, request: Request, session_user: Op
         if response.status_code in [200, 201, 211]:
             res_data = response.json()
             payment_url = res_data.get("result", {}).get("link")
+            
             if payment_url:
                 return {"status": "success", "payment_url": payment_url}
             else:
@@ -532,14 +573,16 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
     try:
         data = await request.json()
         print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===")
+        
         payment_status = data.get("status") 
         
         if payment_status in ["success", "completed"]:
             order_id = data.get("order_id", "") 
+            
             if order_id.startswith("user_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
-                    target_username = parts[1]
+                    target_username = parts[1] 
                     amount_usd = float(data.get("amount_usd") or data.get("amount", 0))
                     coins_to_add = int(amount_usd * 100)
                     
@@ -547,10 +590,13 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
                         cursor = db.cursor()
                         cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (float(coins_to_add), target_username))
                         db.commit()
-                        print(f"Успешно начислено {coins_to_add} коинов на аккаунт: {target_username}")
+                        
+                        print(f"Успешно начислено {coins_to_add} руб/коинов на аккаунт: {target_username}")
                         upload_db_to_dropbox()
                         return {"status": "accepted"}
+                        
         return {"status": "ignored"}
+        
     except Exception as e:
         print(f"Ошибка при обработке вебхука: {str(e)}")
         return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
