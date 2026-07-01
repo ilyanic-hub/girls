@@ -567,7 +567,7 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
         raise HTTPException(status_code=400, detail="Новый пароль слишком короткий")
         
     cursor = db.cursor()
-    cursor.execute("SELECT secret_answer FROM users WHERE username = ?", (username,))
+    cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password_hash, username))
     user = cursor.fetchone()
     
     if not user or not user["secret_answer"]:
