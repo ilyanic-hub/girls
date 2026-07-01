@@ -24,7 +24,7 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_TOKEN = "ТВОЙ_ПОЛУЧЕННЫЙ_ТОКЕН_DROPBOX" 
+DROPBOX_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6" 
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
