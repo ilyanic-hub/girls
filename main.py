@@ -24,13 +24,22 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6" 
+# ВСТАВЬ СЮДА СВОИ ДАННЫЕ:
+DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
+DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
+DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
+
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
 def get_dropbox_client():
     try:
-        return dropbox.Dropbox(DROPBOX_TOKEN)
+        # Теперь подключаемся правильно: используя Refresh Token, App Key и App Secret
+        return dropbox.Dropbox(
+            oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+            app_key=DROPBOX_APP_KEY,
+            app_secret=DROPBOX_APP_SECRET
+        )
     except Exception as e:
         print(f"Ошибка инициализации Dropbox: {e}")
         return None
@@ -38,6 +47,7 @@ def get_dropbox_client():
 def download_db_from_dropbox():
     dbx = get_dropbox_client()
     if not dbx:
+        print("Dropbox клиент не готов.")
         return
     try:
         print("Скачивание базы данных из Dropbox...")
@@ -45,10 +55,12 @@ def download_db_from_dropbox():
         with open(DB_LOCAL_PATH, "wb") as f:
             f.write(res.content)
         print("База данных успешно скачана!")
-    except dropbox.exceptions.ApiError as e:
-        print("Файл базы данных не найден в Dropbox. Создаем новую базу.")
+    except dropbox.exceptions.AuthError as auth_err:
+        print(f"Ошибка авторизации Dropbox! Проверь ключи: {auth_err}")
+    except dropbox.exceptions.ApiError as api_err:
+        print("Файл базы данных еще не создан в Dropbox. Создаем новую локальную базу.")
     except Exception as e:
-        print(f"Не удалось скачать базу: {e}")
+        print(f"Не удалось скачать базу (другая ошибка): {e}")
 
 def upload_db_to_dropbox():
     dbx = get_dropbox_client()
