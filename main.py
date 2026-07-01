@@ -536,34 +536,57 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
 
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
+# 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
 async def payment_webhook(request: Request, db=Depends(get_db)):
-    # Получаем данные от платежной системы
-    data = await request.json()
-    
-    # В реальном TryBit мы проверим секретную подпись (хеш), чтобы никто не подделал платеж.
-    # Допустим, платежка прислала статус "COMPLETED" и инфо о пользователе
-    payment_status = data.get("status") # например, "success" или "completed"
-    
-    if payment_status == "completed":
-        # Вытаскиваем IP пользователя, который платил
-        # (обычно передается в custom-полях или парсится из order_id)
-        order_id = data.get("order_id", "") 
-        # Допустим, вытащили IP из строки deposit_192.168.1.1_17198...
-        user_ip = order_id.split("_")[1] 
+    try:
+        # Получаем данные от платежной системы
+        data = await request.json()
+        print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===") # Лог в консоль Railway для проверки
         
-        # Сколько коинов начислить (вычисляем из полученной суммы крипты)
-        amount_paid = float(data.get("amount", 0))
-        coins_to_add = int(amount_paid / 0.1) 
+        # TryBit v2 присылает статус в поле status. Обычно успешный платеж — это "success" или "completed"
+        payment_status = data.get("status") 
         
-        cursor = db.cursor()
-        # Начисляем коины на баланс IP-адреса
-        cursor.execute("UPDATE user_balances SET balance = balance + ? WHERE user_ip = ?", (coins_to_add, user_ip))
-        db.commit()
+        if payment_status in ["success", "completed"]:
+            order_id = data.get("order_id", "") 
+            
+            # Проверяем, что это наш инвойс на пополнение
+            if order_id.startswith("deposit_"):
+                # Вытаскиваем IP пользователя из order_id (строка вида: deposit_127.0.0.1_17198...)
+                parts = order_id.split("_")
+                if len(parts) >= 2:
+                    user_ip = parts[1]
+                    
+                    # TryBit возвращает чистую сумму фиата или USD, которую мы запрашивали
+                    # Мы считали: 1 доллар (USD) = 100 коинов.
+                    # Значит, количество коинов — это сумма в USD умноженная на 100.
+                    amount_usd = float(data.get("amount_usd") or data.get("amount", 0))
+                    coins_to_add = int(amount_usd * 100)
+                    
+                    if coins_to_add > 0:
+                        cursor = db.cursor()
+                        
+                        # Проверяем, существует ли уже этот IP в таблице балансов
+                        cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
+                        row = cursor.fetchone()
+                        
+                        if row is not None:
+                            # Если есть, просто плюсуем коины
+                            cursor.execute("UPDATE user_balances SET balance = balance + ? WHERE user_ip = ?", (coins_to_add, user_ip))
+                        else:
+                            # Если зашел абсолютно новый IP, создаем запись сразу с коинами
+                            cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, ?)", (user_ip, coins_to_add))
+                            
+                        db.commit()
+                        print(f"Успешно начислено {coins_to_add} коинов для IP: {user_ip}")
+                        
+                        # Синхронизируем обновленную базу с Dropbox, чтобы балансы не стерлись при перезапуске Railway!
+                        upload_db_to_dropbox()
+                        
+                        return {"status": "accepted"}
+                        
+        return {"status": "ignored"}
         
-        # Синхронизируем обновленную базу с Dropbox, чтобы балансы не стерлись!
-        upload_db_to_dropbox()
-        
-        return {"status": "accepted"}
-        
-    return {"status": "ignored"}
+    except Exception as e:
+        print(f"Ошибка при обработке вебхука: {str(e)}")
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
