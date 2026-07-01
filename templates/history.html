@@ -138,7 +138,7 @@
             width: 100vw; 
             height: 100vh;
             background: rgba(0, 0, 0, 0.95);
-            z-index: 3000; /* Подняли выше модального окна, чтобы быть на самом переднем плане! */
+            z-index: 3000;
             justify-content: center;
             align-items: center;
             user-select: none;
@@ -156,7 +156,7 @@
             top: 20px; right: 25px;
             color: #fff; font-size: 3rem; font-weight: bold;
             cursor: pointer;
-            z-index: 2100;
+            z-index: 3100;
         }
 
         .nav-arrow {
@@ -168,7 +168,9 @@
             font-weight: bold;
             cursor: pointer;
             padding: 20px;
-            z-index: 2100;
+            z-index: 3100;
+            background: transparent;
+            border: none;
         }
 
         .arrow-left { left: 20px; }
@@ -196,12 +198,10 @@
     </div>
 
     <div id="lightboxModal" class="lightbox" onclick="closeLightbox()">
-    <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-    <button class="lightbox-nav nav-left" onclick="changePhoto(-1, event)">&lt;</button>
-    
-    <img id="lightboxImage" src="" alt="Полноэкранное фото" style="max-width: 90%; max-height: 90vh; border-radius: 8px; object-fit: contain;">
-    
-    <button class="lightbox-nav nav-right" onclick="changePhoto(1, event)">&gt;</button>
+        <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
+        <button class="nav-arrow arrow-left" onclick="changePhoto(-1, event)">&#10094;</button>
+        <img id="lightboxImage" class="lightbox-img" src="" alt="Полноэкранное фото" onclick="event.stopPropagation()">
+        <button class="nav-arrow arrow-right" onclick="changePhoto(1, event)">&#10095;</button>
     </div>
 
     <script>
@@ -226,7 +226,6 @@
                 }
 
                 list.forEach(winner => {
-                    // УБРАЛИ ХВОСТИК ?t=... , чтобы не ломать Base64-код картинки!
                     let freshPhotoUrl = winner.photo_url; 
                     
                     gallery.innerHTML += `
@@ -256,7 +255,6 @@
                 photosDiv.innerHTML = '<p style="color: var(--text-muted)">Альбом пуст.</p>';
             } else {
                 currentAlbumPhotos.forEach((url, index) => {
-                    // ИСПРАВЛЕНО: Убрали хвостик ?t=..., чтобы не ломать Base64 альбома
                     photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox(${index})">`;
                 });
             }
@@ -265,52 +263,39 @@
 
         function closeAlbum(event) { document.getElementById('albumModal').style.display = 'none'; }
 
-        function updateLightboxImage() {
-            let lightboxImg = document.getElementById('lightboxImage');
-            // ИСПРАВЛЕНО: Убрали хвостик ?t=... и здесь
-            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
+        function openLightbox(index) {
+            console.log("Открываю фото на весь экран, индекс:", index);
+            currentPhotoIndex = index;
+            updateLightboxImage();
+            document.getElementById('lightboxModal').style.display = 'flex';
         }
 
         function updateLightboxImage() {
             let lightboxImg = document.getElementById('lightboxImage');
             if (currentAlbumPhotos && currentAlbumPhotos[currentPhotoIndex]) {
-                // Берем чистый URL/Base64 из массива без каких-либо приписок
                 lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
                 console.log("Успешно подставили фото в лайтбокс, индекс:", currentPhotoIndex);
             } else {
                 console.error("Не нашли фото для индекса:", currentPhotoIndex);
             }
         }
-        function nextPhoto(event) {
-            if (event) event.stopPropagation();
-            currentPhotoIndex = (currentPhotoIndex + 1) % currentAlbumPhotos.length;
-            updateLightboxImage();
-        }
 
-        function prevPhoto(event) {
+        function changePhoto(direction, event) {
             if (event) event.stopPropagation();
-            currentPhotoIndex = (currentPhotoIndex - 1 + currentAlbumPhotos.length) % currentAlbumPhotos.length;
-            updateLightboxImage();
-        }
-
-        function openLightbox(index) {
-            console.log("Открываю фото на весь экран, индекс:", index);
-            currentPhotoIndex = index;
-            updateLightboxImage();
+            currentPhotoIndex += direction;
             
-            // Находим наш лайтбокс и принудительно выводим на самый передний план
-            let lightbox = document.getElementById('lightboxModal');
-            lightbox.style.display = 'flex';
+            if (currentPhotoIndex >= currentAlbumPhotos.length) currentPhotoIndex = 0;
+            if (currentPhotoIndex < 0) currentPhotoIndex = currentAlbumPhotos.length - 1;
+            
+            updateLightboxImage();
         }
 
-        function closeLightbox() { 
-            document.getElementById('lightboxModal').style.display = 'none'; 
-        }
+        function closeLightbox() { document.getElementById('lightboxModal').style.display = 'none'; }
 
         document.addEventListener('keydown', function(e) {
             if (document.getElementById('lightboxModal').style.display === 'flex') {
-                if (e.key === 'ArrowRight') nextPhoto();
-                if (e.key === 'ArrowLeft') prevPhoto();
+                if (e.key === 'ArrowRight') changePhoto(1);
+                if (e.key === 'ArrowLeft') changePhoto(-1);
                 if (e.key === 'Escape') closeLightbox();
             }
         });
