@@ -4,6 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔥 PHOTO RATING</title>
+
+    <style>
+.heart-particle {
+    position: fixed;
+    font-size: 20px;
+    color: #ff4757;
+    pointer-events: none;
+    z-index: 9999;
+    animation: flyUpAndFade 1s ease-out forwards;
+}
+
+@keyframes flyUpAndFade {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--x), var(--y)) scale(0.5);
+        opacity: 0;
+    }
+}
+</style>
     <style>
         :root {
             --bg-color: #f5f7fb;
@@ -53,6 +75,11 @@
             max-width: 1200px;
             margin: 0 auto;
         }
+
+        <div class="timer-container" style="text-align: center; margin: 20px auto; padding: 15px; background: #fff5f6; border-radius: 10px; max-width: 400px; border: 1px solid #ff4757;">
+    <h3 style="margin: 0 0 10px 0; color: #ff4757;">До конца раунда осталось:</h3>
+    <div id="countdown-timer" style="font-size: 24px; font-weight: bold; color: #2d3748;">00:00:00:00</div>
+</div>
 
         /* --- КАРТОЧКА УЧАСТНИЦЫ --- */
         .contestant-card {
@@ -299,6 +326,33 @@
     </div>
 
     <script>
+
+        function spawnHearts(event) {
+    const heartCount = 6; // Количество сердечек за один клик
+    for (let i = 0; i < heartCount; i++) {
+        const heart = document.createElement('div');
+        heart.classList.add('heart-particle');
+        heart.innerText = '❤️';
+        
+        // Позиция клика мышки
+        heart.style.left = event.clientX + 'px';
+        heart.style.top = event.clientY + 'px';
+        
+        // Разбрасываем сердечки в случайные стороны
+        const x = (Math.random() - 0.5) * 150; // вправо-влево
+        const y = (Math.random() - 0.8) * 150; // вверх
+        
+        heart.style.setProperty('--x', `${x}px`);
+        heart.style.setProperty('--y', `${y}px`);
+        
+        document.body.appendChild(heart);
+        
+        // Удаляем элемент после завершения анимации
+        setTimeout(() => {
+            heart.remove();
+        }, 1000);
+    }
+}
         let isLoginMode = true;
         let selectedAmount = 0;
 
@@ -385,6 +439,7 @@
 
         async function vote(id) {
             let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
+            if (event) spawnHearts(event);
             if (res.ok) { 
                 checkAuth(); 
             } else { 
@@ -453,6 +508,36 @@
         // Запуск проверки авторизации
         checkAuth();
     </script>
+
+    <script>
+function updateTimer() {
+    // Установим фиксированную дату окончания (например, каждое воскресенье)
+    const now = new Date();
+    const nextDeadline = new Date();
+    
+    // Устанавливаем дедлайн на ближайшее воскресенье 23:59:59
+    nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
+    nextDeadline.setHours(23, 59, 59, 999);
+    
+    const diff = nextDeadline - now;
+    
+    if (diff <= 0) {
+        document.getElementById("countdown-timer").innerText = "Раунд завершен! Подсчет голосов...";
+        return;
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    document.getElementById("countdown-timer").innerText = 
+        `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+}
+// Запускаем каждую секунду
+setInterval(updateTimer, 1000);
+updateTimer();
+</script>
 </body>
     <footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
     <!-- Блок контактов для поддержки -->
