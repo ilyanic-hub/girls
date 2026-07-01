@@ -5,6 +5,7 @@ import hashlib
 import dropbox
 import time
 import httpx
+from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -122,6 +123,16 @@ def init_db():
         history_id INTEGER NOT NULL,
         photo_url TEXT NOT NULL,
         FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
+    )
+    """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        balance REAL DEFAULT 0.0,
+        is_admin INTEGER DEFAULT 0,
+        last_bonus_date TEXT DEFAULT NULL  -- <-- Новое поле для отслеживания времени бонуса
     )
     """)
     cursor.execute("""
@@ -567,6 +578,44 @@ async def create_payment(data: DepositSchema, request: Request, session_user: Op
             
     except Exception as e:
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
+
+@app.post("/api/bonus")
+async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт, чтобы получить бонус")
+        
+    cursor = db.cursor()
+    cursor.execute("SELECT balance, last_bonus_date FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+    now = datetime.now()
+    last_bonus_str = user["last_bonus_date"]
+    
+    if last_bonus_str:
+        last_bonus_time = datetime.fromisoformat(last_bonus_str)
+        # Проверяем, прошло ли 24 часа с момента последнего получения
+        if now - last_bonus_time < timedelta(hours=24):
+            time_left = timedelta(hours=24) - (now - last_bonus_time)
+            hours_left = int(time_left.total_seconds() // 3600)
+            minutes_left = int((time_left.total_seconds() % 3600) // 60)
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Бонус уже получен. До следующего осталось: {hours_left}ч {minutes_left}м"
+            )
+            
+    # Если всё ок, начисляем 1 коин и обновляем время
+    new_time_str = now.isoformat()
+    cursor.execute(
+        "UPDATE users SET balance = balance + 1.0, last_bonus_date = ? WHERE username = ?", 
+        (new_time_str, session_user)
+    )
+    db.commit()
+    upload_db_to_dropbox()
+    
+    return {"status": "success", "message": "Вы получили 1 бесплатный коин!"}
 
 @app.post("/api/payment/webhook")
 async def payment_webhook(request: Request, db=Depends(get_db)):
