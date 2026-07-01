@@ -273,9 +273,14 @@
 
         function updateLightboxImage() {
             let lightboxImg = document.getElementById('lightboxImage');
-            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex] + '?t=' + new Date().getTime();
+            if (currentAlbumPhotos && currentAlbumPhotos[currentPhotoIndex]) {
+                // Берем чистый URL/Base64 из массива без каких-либо приписок
+                lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
+                console.log("Успешно подставили фото в лайтбокс, индекс:", currentPhotoIndex);
+            } else {
+                console.error("Не нашли фото для индекса:", currentPhotoIndex);
+            }
         }
-
         function nextPhoto(event) {
             if (event) event.stopPropagation();
             currentPhotoIndex = (currentPhotoIndex + 1) % currentAlbumPhotos.length;
