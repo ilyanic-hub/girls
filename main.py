@@ -518,20 +518,13 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
         if response.status_code in [200, 201, 211]:
             res_data = response.json()
             
-            # Достаем ссылку на оплату. В API v2 она обычно лежит в корне или внутри "data"
-            payment_url = (
-                res_data.get("payment_url") or 
-                res_data.get("url") or 
-                res_data.get("data", {}).get("payment_url") or
-                res_data.get("data", {}).get("url")
-            )
+            # Достаем ссылку из поля 'link' внутри объекта 'result'
+            payment_url = res_data.get("result", {}).get("link")
             
             if payment_url:
                 return {"status": "success", "payment_url": payment_url}
             else:
-                return {"status": "error", "detail": f"Ссылка не найдена в ответе: {res_data}"}
-        else:
-            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}, Ответ: {response.text}"}
+                return {"status": "error", "detail": f"Ссылка 'link' не найдена в result: {res_data}"}
             
     except Exception as e:
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
