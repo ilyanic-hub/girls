@@ -391,6 +391,30 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
+# Роут для поштучной дозагрузки фотографий в альбом королевы
+@app.post("/api/admin/history/{history_id}/upload-photo")
+async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        if file_url:
+            cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (history_id, file_url))
+            db.commit()
+            # Для экономии ресурсов загрузку в Dropbox сделаем в самом конце на фронтенде,
+            # но если фоток немного, можно оставить и здесь:
+            upload_db_to_dropbox()
+            return {"status": "success", "message": "Фото успешно добавлено в альбом!"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
 # 2. ДОБАВЛЕНО: Тот самый роут, который запрашивает твой новый history.html
 @app.get("/api/history/{winner_id}/photos")
 async def get_winner_photos(winner_id: int, db=Depends(get_db)):
@@ -430,24 +454,37 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
     try:
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         
-        # Обновляем текстовые поля
+        # Обновляем только основные текстовые поля королевы
         cursor.execute("UPDATE history SET name = ?, title_date = ? WHERE id = ?", (data.name, data.title_date, id))
         
-        # Если передана новая главная фотография — обновляем её
+        # Если передана новая главная фотография (обложка) — обновляем её
         if len(inline_photo_url) > 50:
             cursor.execute("UPDATE history SET photo_url = ? WHERE id = ?", (inline_photo_url, id))
             
-        # Если админ загрузил новые фото для альбома, старый альбом очищаем и пишем новый
-        if data.album_files and len(data.album_files) > 0:
-            cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
-            for album_file in data.album_files:
-                file_url = album_file.file_base64.replace("\n", "").replace("\r", "").strip()
-                if file_url:
-                    cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (id, file_url))
-                    
         db.commit()
         upload_db_to_dropbox()
-        return {"status": "success", "message": "Запись в истории обновлена!"}
+        
+        return {"status": "success", "message": "Основная информация обновлена! Теперь можно загружать альбом."}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+# ДОБАВЬ ЭТОТ РОУТ ДЛЯ ОЧИСТКИ СТАРЫХ ФОТО ПЕРЕД ПЕРЕЗАПИСЬЮ АЛЬБОМА
+@app.delete("/api/admin/history/{id}/photos")
+async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        # Просто удаляем все старые фотографии альбома для этой записи
+        cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
+        db.commit()
+        upload_db_to_dropbox()
+        return {"status": "success", "message": "Старый альбом очищен!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
        
