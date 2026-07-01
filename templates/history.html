@@ -189,8 +189,9 @@
 
     <main class="history-grid" id="history-gallery"></main>
 
-    <div id="albumModal" class="modal" onclick="closeAlbum(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
+    <!-- ИСПРАВЛЕНО: клик по серому фону теперь не ломает картинки -->
+    <div id="albumModal" class="modal" onclick="if(event.target === this) document.getElementById('albumModal').style.display='none'">
+        <div class="modal-content">
             <span class="close-btn" onclick="document.getElementById('albumModal').style.display='none'">&times;</span>
             <h2 id="modalTitle" style="margin-top: 0;">Фотосессия</h2>
             <div class="album-grid" id="modalPhotos"></div>
@@ -255,7 +256,8 @@
                 photosDiv.innerHTML = '<p style="color: var(--text-muted)">Альбом пуст.</p>';
             } else {
                 currentAlbumPhotos.forEach((url, index) => {
-                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox(${index})">`;
+                    // ИСПРАВЛЕНО: добавили event.stopPropagation(), клик больше не "пробивает" насквозь
+                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="event.stopPropagation(); openLightbox(${index})">`;
                 });
             }
             document.getElementById('albumModal').style.display = 'flex';
