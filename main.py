@@ -125,6 +125,14 @@ def init_db():
         FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
     )
     """)
+
+   # Таблица для хранения баланса пользователей (привязка к IP)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_balances (
+            user_ip TEXT PRIMARY KEY,
+            balance INTEGER DEFAULT 0
+        )
+    """)
     
     
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
@@ -438,3 +446,88 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
         return {"status": "success", "message": "Запись в истории обновлена!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
+
+from pydantic import BaseModel
+import requests
+
+class DepositSchema(BaseModel):
+    amount: int  # Количество коинов для покупки (например, 10, 50, 100)
+
+# 1. Получить текущий баланс пользователя
+@app.get("/api/balance")
+async def get_balance(request: Request, db=Depends(get_db)):
+    user_ip = request.client.host
+    cursor = db.cursor()
+    cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
+    row = cursor.fetchone()
+    
+    if not row:
+        # Если пользователя еще нет в таблице, его баланс равен 0
+        cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, 0)", (user_ip,))
+        db.commit()
+        return {"balance": 0}
+        
+    return {"balance": row["balance"]}
+
+# 2. Создание инвойса (счета) на оплату в TryBit
+@app.post("/api/payment/create")
+async def create_payment(data: DepositSchema, request: Request, db=Depends(get_db)):
+    user_ip = request.client.host
+    
+    # Стоимость одного коина (например, 0.1 USDT или 10 рублей — настрой как хочешь)
+    price_per_coin = 0.1 
+    total_price = data.amount * price_per_coin
+    
+    # ТУТ БУДЕТ ЗАПРОС К TRYBIT API
+    # Мы передаем сумму total_price, валюту (USDT/BTC) и в параметр tracking_id прячем user_ip
+    # Пример того, как это будет выглядеть:
+    """
+    headers = {"Authorization": "Bearer ТВОЙ_API_КЛЮЧ"}
+    payload = {
+        "amount": total_price,
+        "currency": "USDT",
+        "order_id": f"deposit_{user_ip}_{int(time.time())}",
+        "callback_url": "https://твоя-королева.railway.app/api/payment/webhook"
+    }
+    res = requests.post("https://api.trybit.com/v1/invoices", json=payload, headers=headers)
+    payment_url = res.json().get("payment_url")
+    """
+    
+    # Пока мы настраиваем интеграцию, делаем симуляцию ссылки:
+    # Вместо этого эмулятора потом будет реальная ссылка от TryBit
+    mock_payment_url = f"https://example.com/pay?amount={total_price}&user={user_ip}"
+    
+    return {"status": "success", "payment_url": mock_payment_url}
+
+# 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
+@app.post("/api/payment/webhook")
+async def payment_webhook(request: Request, db=Depends(get_db)):
+    # Получаем данные от платежной системы
+    data = await request.json()
+    
+    # В реальном TryBit мы проверим секретную подпись (хеш), чтобы никто не подделал платеж.
+    # Допустим, платежка прислала статус "COMPLETED" и инфо о пользователе
+    payment_status = data.get("status") # например, "success" или "completed"
+    
+    if payment_status == "completed":
+        # Вытаскиваем IP пользователя, который платил
+        # (обычно передается в custom-полях или парсится из order_id)
+        order_id = data.get("order_id", "") 
+        # Допустим, вытащили IP из строки deposit_192.168.1.1_17198...
+        user_ip = order_id.split("_")[1] 
+        
+        # Сколько коинов начислить (вычисляем из полученной суммы крипты)
+        amount_paid = float(data.get("amount", 0))
+        coins_to_add = int(amount_paid / 0.1) 
+        
+        cursor = db.cursor()
+        # Начисляем коины на баланс IP-адреса
+        cursor.execute("UPDATE user_balances SET balance = balance + ? WHERE user_ip = ?", (coins_to_add, user_ip))
+        db.commit()
+        
+        # Синхронизируем обновленную базу с Dropbox, чтобы балансы не стерлись!
+        upload_db_to_dropbox()
+        
+        return {"status": "accepted"}
+        
+    return {"status": "ignored"}
