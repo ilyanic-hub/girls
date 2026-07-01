@@ -474,6 +474,7 @@ async def get_balance(request: Request, db=Depends(get_db)):
 # 2. Создание инвойса (счета) на оплату в TryBit
 # 2. Создание инвойса (счета) на оплату в TryBit
 # 2. Создание инвойса (счета) на оплату в TryBit
+# 2. Создание инвойса (счета) на оплату в TryBit
 @app.post("/api/payment/create")
 async def create_payment(data: DepositSchema, request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     # Проверяем, авторизован ли пользователь. Если нет — не даем создать счет.
@@ -488,19 +489,24 @@ async def create_payment(data: DepositSchema, request: Request, session_user: Op
     # Переводим коины в доллары (100 коинов = 1 USD)
     total_price_usd = data.amount / 100.0  
     
-    # ТЕПЕРЬ В ORDER_ID МЫ ПРЯЧЕМ ИМЯ ПОЛЬЗОВАТЕЛЯ (username) вместо IP
+    # Прячем имя пользователя (username) внутрь order_id
     order_id = f"user_{session_user}_{int(time.time())}"
+    
+    # !!! ВСТАВЬ СЮДА СВОЙ РЕАЛЬНЫЙ АДРЕС НА RAILWAY !!!
+    CALLBACK_URL = "https://girls-production.up.railway.app/api/payment/webhook"
     
     headers = {
         "Authorization": f"Token {TRYBIT_API_KEY}",
         "Content-Type": "application/json"
     }
     
+    # Собираем параметры запроса (переменная callback_url теперь на месте!)
     payload = {
         "shop_id": TRYBIT_SHOP_ID,
         "amount": total_price_usd,
         "currency": "USD",
         "order_id": order_id,
+        "callback_url": CALLBACK_URL,  # <--- ВОТ ОН! Теперь TryBit знает, куда слать ответ
         "add_fields": {
             "available_currencies": ["USDT_TRC20", "USDT_BSC", "USDT_TON", "TON", "BTC"]
         }
@@ -528,7 +534,6 @@ async def create_payment(data: DepositSchema, request: Request, session_user: Op
             
     except Exception as e:
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
-
 
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
