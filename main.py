@@ -13,8 +13,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
 import requests
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI()
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -150,6 +156,12 @@ def init_db():
     except sqlite3.OperationalError:
         # Если колонка уже есть, SQLite выдаст ошибку, и мы её просто игнорируем
         pass
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN secret_answer TEXT DEFAULT NULL")
+        db.commit()
+    except sqlite3.OperationalError:
+        pass
     
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
@@ -168,6 +180,7 @@ init_db()
 class UserAuthSchema(BaseModel):
     username: str
     password: str
+    secret_answer: Optional[str] = None  # <-- Добавили поле в схему
 
 class ContestantSchema(BaseModel):
     name: str
@@ -263,22 +276,38 @@ async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db))
 async def api_register(data: UserAuthSchema, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
+    secret_answer = data.secret_answer.strip() if data.secret_answer else ""
+    
     if len(username) < 3 or len(password) < 4:
         raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
+    if not secret_answer:
+        raise HTTPException(status_code=400, detail="Укажите секретное слово для восстановления")
+        
     cursor = db.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
+        
     password_hash = hash_password(password)
+    # Хэшируем секретный ответ в нижнем регистре, чтобы не зависеть от больших/маленьких букв
+    answer_hash = hash_password(secret_answer.lower())
+    
     try:
-        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES (?, ?, 0.0, 0)", (username, password_hash))
+        cursor.execute(
+            "INSERT INTO users (username, password, balance, is_admin, secret_answer) VALUES (?, ?, 0.0, 0, ?)", 
+            (username, password_hash, answer_hash)
+        )
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+        
 @app.post("/api/login")
+@app.post("/api/login")
+@limiter.limit("5 per minute")  # <-- Защита: максимум 5 нажатий в минуту с одного IP
+async def api_login(request: Request, data: UserAuthSchema, db=Depends(get_db)):
+    # Твой текущий код роута авторизации остается без изменений...
 async def api_login(data: UserAuthSchema, response: Response, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
@@ -521,6 +550,40 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
 
 class DepositSchema(BaseModel):
     amount: int  
+
+class ResetPasswordSchema(BaseModel):
+    username: str
+    secret_answer: str
+    new_password: str
+
+@app.post("/api/reset-password")
+@limiter.limit("3 per minute")  # <-- Всего 3 попытки угадать секретное слово в минуту
+async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Depends(get_db)):
+    username = data.username.strip()
+    secret_answer = data.secret_answer.strip().lower()
+    new_password = data.new_password.strip()
+    
+    if len(new_password) < 4:
+        raise HTTPException(status_code=400, detail="Новый пароль слишком короткий")
+        
+    cursor = db.cursor()
+    cursor.execute("SELECT secret_answer FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    
+    if not user or not user["secret_answer"]:
+        raise HTTPException(status_code=404, detail="Пользователь не найден или для него не настроено восстановление")
+        
+    # Проверяем секретное слово
+    if hash_password(secret_answer) != user["secret_answer"]:
+        raise HTTPException(status_code=400, detail="Неверное секретное слово!")
+        
+    # Если всё правильно, меняем пароль на новый
+    new_password_hash = hash_password(new_password)
+    cursor.execute("UPDATE users TYPE SET password = ? WHERE username = ?", (new_password_hash, username))
+    db.commit()
+    upload_db_to_dropbox()
+    
+    return {"status": "success", "message": "Пароль успешно изменен! Теперь вы можете войти."}
 
 # ================= ПЛАТЕЖИ TRYBIT =================
 @app.get("/api/balance")
