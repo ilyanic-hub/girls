@@ -504,30 +504,36 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
     }
     
     try:
-        # Делаем асинхронный запрос к TryBit API для создания инвойса
-        # Делаем асинхронный запрос к новому эндпоинту TryBit API v2
-        async with httpx.AsyncClient() as client:
+        # Добавляем verify=False, чтобы исключить проблемы с SSL-сертификатами
+        async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
-                "https://api.trybit.com/v2/invoice/create",  # <-- Поменяли адрес здесь
+                "https://api.trybit.com/v2/invoice/create",
                 json=payload,
                 headers=headers,
-                timeout=10.0
+                timeout=20.0  # Увеличили таймаут до 20 секунд
             )
             
-        if response.status_code == 200 or response.status_code == 211:
+        if response.status_code in [200, 201, 211]:
             res_data = response.json()
-            # Достаем реальную ссылку на оплату из ответа спикера API
-            payment_url = res_data.get("payment_url") or res_data.get("data", {}).get("payment_url")
+            # TryBit v2 может возвращать ссылку в разных полях. Проверяем все варианты:
+            payment_url = (
+                res_data.get("payment_url") or 
+                res_data.get("url") or 
+                res_data.get("data", {}).get("payment_url") or
+                res_data.get("data", {}).get("url")
+            )
             
             if payment_url:
                 return {"status": "success", "payment_url": payment_url}
             else:
-                return {"status": "error", "detail": "В ответе TryBit отсутствует payment_url"}
+                # Если ссылка не найдена, выведем в ошибку весь ответ от TryBit, чтобы понять структуру
+                return {"status": "error", "detail": f"Ответ платежки без ссылки: {res_data}"}
         else:
-            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}"}
+            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}, Ответ: {response.text}"}
             
     except Exception as e:
-        return {"status": "error", "detail": f"Не удалось связаться с платежной системой: {str(e)}"}
+        # Выводим полную ошибку, чтобы точно знать, в чем затык
+        return {"status": "error", "detail": f"Не удалось связаться с платежной системой: {type(e).__name__} - {str(e)}"}
 
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
