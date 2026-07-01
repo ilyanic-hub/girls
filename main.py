@@ -355,13 +355,15 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
 
+# ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
+
 @app.get("/api/history")
 async def get_api_history(db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT * FROM history ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
 
-# 1. ИСПРАВЛЕНО: Теперь этот роут сохраняет и главную фотку, и фотки альбома (если они есть)
+# 1. ИСПРАВЛЕНО: Теперь возвращает history_id, чтобы админка знала, куда лить фотки альбома
 @app.post("/api/admin/history")
 @app.post("/api/admin/history/")
 async def admin_add_history(data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -376,23 +378,17 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
         # Сохраняем главную обложку
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (data.name, data.title_date, inline_photo_url))
-        history_id = cursor.lastrowid # Получаем ID только что созданной королевы
-
-        # Если админ прикрепил дополнительные фотки для альбома, сохраняем их
-        if data.album_files:
-            for album_file in data.album_files:
-                file_url = album_file.file_base64.replace("\n", "").replace("\r", "").strip()
-                if file_url:
-                    cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (history_id, file_url))
+        inserted_id = cursor.lastrowid # Вытаскиваем созданный ID
 
         db.commit()
         upload_db_to_dropbox()
-        return {"status": "success", "message": "Добавлено в историю вместе с альбомом!"}
+        
+        # КРИТИЧЕСКИ ВАЖНО ДЛЯ ФРОНТЕНДА: отдаем ID
+        return {"status": "success", "history_id": inserted_id, "message": "Основная запись создана!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-# Роут для поштучной дозагрузки фотографий в альбом королевы
-# Роут для поштучной дозагрузки фотографий в альбом королевы
+# 2. ИСПРАВЛЕНО: Убран дублирующийся код и починена привязка по типам
 @app.post("/api/admin/history/{history_id}/upload-photo")
 async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -405,49 +401,32 @@ async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, sessi
         raise HTTPException(status_code=403, detail="Доступ запрещен")
         
     try:
-        # Очищаем строку от возможных переносов
         file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
         
         if file_url:
-            # Записываем фото в таблицу альбома
             cursor.execute(
                 "INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", 
                 (int(history_id), str(file_url))
             )
             db.commit()
-            
-            # Синхронизируем с Dropbox
             upload_db_to_dropbox()
-            
-            return {"status": "success", "message": "Фото добавлено в альбом"}
+            return {"status": "success", "message": "Фото успешно добавлено в альбом!"}
         else:
             return {"status": "error", "message": "Пустая строка Base64"}
             
     except Exception as err:
-        print(f"Ошибка сохранения фото в альбом: {str(err)}") # Лог для консоли Railway
-        raise HTTPException(status_code=500, detail=str(err))
-        
-    try:
-        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        if file_url:
-            cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (history_id, file_url))
-            db.commit()
-            # Для экономии ресурсов загрузку в Dropbox сделаем в самом конце на фронтенде,
-            # но если фоток немного, можно оставить и здесь:
-            upload_db_to_dropbox()
-            return {"status": "success", "message": "Фото успешно добавлено в альбом!"}
-    except Exception as err:
+        print(f"Ошибка сохранения фото в альбом: {str(err)}")
         raise HTTPException(status_code=500, detail=str(err))
 
-# 2. ДОБАВЛЕНО: Тот самый роут, который запрашивает твой новый history.html
+# 3. ПОЛУЧЕНИЕ ФОТО: Оставляем без изменений, роут написан отлично
 @app.get("/api/history/{winner_id}/photos")
 async def get_winner_photos(winner_id: int, db=Depends(get_db)):
     cursor = db.cursor()
-    # Достаем все дополнительные фотографии для конкретной победительницы
     cursor.execute("SELECT photo_url FROM history_photos WHERE history_id = ?", (winner_id,))
     rows = cursor.fetchall()
     return [row["photo_url"] for row in rows]
 
+# 4. УДАЛЕНИЕ: Очищает каскадом и альбом, и саму запись
 @app.delete("/api/admin/history/{id}")
 async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -458,13 +437,13 @@ async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
-    # Сначала удаляем фотки альбома, затем саму запись
     cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
     cursor.execute("DELETE FROM history WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success"}
 
+# 5. ИСПРАВЛЕНО РЕДАКТИРОВАНИЕ: Теперь возвращает history_id, чтобы запускался JS цикл на фронтенде
 @app.put("/api/admin/history/{id}")
 async def admin_edit_history(id: int, data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -477,22 +456,20 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
     
     try:
         inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        
-        # Обновляем только основные текстовые поля королевы
         cursor.execute("UPDATE history SET name = ?, title_date = ? WHERE id = ?", (data.name, data.title_date, id))
         
-        # Если передана новая главная фотография (обложка) — обновляем её
         if len(inline_photo_url) > 50:
             cursor.execute("UPDATE history SET photo_url = ? WHERE id = ?", (inline_photo_url, id))
             
         db.commit()
         upload_db_to_dropbox()
         
-        return {"status": "success", "message": "Основная информация обновлена! Теперь можно загружать альбом."}
+        # КРИТИЧЕСКИ ВАЖНО: возвращаем history_id обратно во фронтенд-скрипт
+        return {"status": "success", "history_id": id, "message": "Основная информация обновлена!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-# ДОБАВЬ ЭТОТ РОУТ ДЛЯ ОЧИСТКИ СТАРЫХ ФОТО ПЕРЕД ПЕРЕЗАПИСЬЮ АЛЬБОМА
+# 6. ОЧИСТКА: Удаление старого альбома перед перезаписью новых картинок
 @app.delete("/api/admin/history/{id}/photos")
 async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -504,7 +481,6 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
         raise HTTPException(status_code=403, detail="Доступ запрещен")
         
     try:
-        # Просто удаляем все старые фотографии альбома для этой записи
         cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
         db.commit()
         upload_db_to_dropbox()
