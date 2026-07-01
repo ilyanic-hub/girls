@@ -476,46 +476,49 @@ async def get_balance(request: Request, db=Depends(get_db)):
 async def create_payment(data: DepositSchema, request: Request, db=Depends(get_db)):
     user_ip = request.client.host
     
-    # 1 коин = 1 рубль (так как на фронтенде у нас 100 коинов = 10 ₽, значит 1 коин = 0.1 ₽)
-    # Если на фронтенде написано 100 коинов = 10 ₽, то стоимость в рублях — это количество коинов * 0.1
-    price_per_coin = 0.1  
-    total_price_rub = data.amount * price_per_coin
-    
-    # Твой API-ключ от TryBit (замени на свой реальный ключ в кавычках)
+    # --- НАСТРОЙКИ TRYBIT (ЗАПОЛНИ СВОИМИ ДАННЫМИ) ---
     TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
+    TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+    # ------------------------------------------------
     
-    # Формируем уникальный ID заказа, чтобы платежка вернула его нам в вебхуке
-    # Например: deposit_127.0.0.1_1719823456
+    # Так как в доках написано "Сумма платежа в USD", давай переводить коины в доллары.
+    # Допустим, 100 коинов = 1 доллар (USD). Тогда сумма в USD = коины / 100.
+    total_price_usd = data.amount / 100.0  
+    
     order_id = f"deposit_{user_ip}_{int(time.time())}"
+    CALLBACK_URL = "https://твоя-королева.railway.app/api/payment/webhook"
     
-    # Сюда вставь URL твоего деплоя на Railway (обязательно с /api/payment/webhook на конце)
-    CALLBACK_URL = "https://girls-production.up.railway.app/api/payment/webhook"
-    
+    # Исправляем формат авторизации: строго "Token <ключ>"
     headers = {
-        "Authorization": f"Bearer {TRYBIT_API_KEY}",
+        "Authorization": f"Token {TRYBIT_API_KEY}",
         "Content-Type": "application/json"
     }
     
+    # Собираем параметры строго по документации TryBit v2
     payload = {
-        "amount": total_price_rub,
-        "currency": "RUB", # Или "USDT", если баланс мерчанта в TryBit настроен в долларах/крипте
+        "shop_id": TRYBIT_SHOP_ID,       # Обязательное поле!
+        "amount": total_price_usd,       # Обязательное поле (в USD)
+        "currency": "USD",               # Обязательное поле
         "order_id": order_id,
-        "callback_url": CALLBACK_URL
+        # Передаем доступные криптовалюты, чтобы пользователю было удобно выбирать
+        "add_fields": {
+            "available_currencies": ["USDT_TRC20", "TON", "TRX", "BTC"]
+        }
     }
     
     try:
-        # Добавляем verify=False, чтобы исключить проблемы с SSL-сертификатами
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.post(
                 "https://api.trybit.com/v2/invoice/create",
                 json=payload,
                 headers=headers,
-                timeout=20.0  # Увеличили таймаут до 20 секунд
+                timeout=20.0
             )
             
         if response.status_code in [200, 201, 211]:
             res_data = response.json()
-            # TryBit v2 может возвращать ссылку в разных полях. Проверяем все варианты:
+            
+            # Достаем ссылку на оплату. В API v2 она обычно лежит в корне или внутри "data"
             payment_url = (
                 res_data.get("payment_url") or 
                 res_data.get("url") or 
@@ -526,14 +529,12 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
             if payment_url:
                 return {"status": "success", "payment_url": payment_url}
             else:
-                # Если ссылка не найдена, выведем в ошибку весь ответ от TryBit, чтобы понять структуру
-                return {"status": "error", "detail": f"Ответ платежки без ссылки: {res_data}"}
+                return {"status": "error", "detail": f"Ссылка не найдена в ответе: {res_data}"}
         else:
             return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}, Ответ: {response.text}"}
             
     except Exception as e:
-        # Выводим полную ошибку, чтобы точно знать, в чем затык
-        return {"status": "error", "detail": f"Не удалось связаться с платежной системой: {type(e).__name__} - {str(e)}"}
+        return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
 
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
