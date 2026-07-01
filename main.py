@@ -318,6 +318,28 @@ async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None),
     upload_db_to_dropbox()
     return {"status": "success"}
 
+@app.put("/api/admin/contestants/{id}")
+async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+    
+    # Если фото не передано (админ меняет только имя), обновляем только имя
+    if len(inline_photo_url) < 50: # Обычное имя короткое, а Base64-карта огромная
+        cursor.execute("UPDATE contestants SET name = ? WHERE id = ?", (data.name, id))
+    else:
+        cursor.execute("UPDATE contestants SET name = ?, photo_url = ? WHERE id = ?", (data.name, inline_photo_url, id))
+        
+    db.commit()
+    upload_db_to_dropbox()
+    return {"status": "success", "message": "Участница успешно изменена!"}
+
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
 
@@ -382,3 +404,37 @@ async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success"}
+
+@app.put("/api/admin/history/{id}")
+async def admin_edit_history(id: int, data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    try:
+        inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        
+        # Обновляем текстовые поля
+        cursor.execute("UPDATE history SET name = ?, title_date = ? WHERE id = ?", (data.name, data.title_date, id))
+        
+        # Если передана новая главная фотография — обновляем её
+        if len(inline_photo_url) > 50:
+            cursor.execute("UPDATE history SET photo_url = ? WHERE id = ?", (inline_photo_url, id))
+            
+        # Если админ загрузил новые фото для альбома, старый альбом очищаем и пишем новый
+        if data.album_files and len(data.album_files) > 0:
+            cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
+            for album_file in data.album_files:
+                file_url = album_file.file_base64.replace("\n", "").replace("\r", "").strip()
+                if file_url:
+                    cursor.execute("INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", (id, file_url))
+                    
+        db.commit()
+        upload_db_to_dropbox()
+        return {"status": "success", "message": "Запись в истории обновлена!"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
