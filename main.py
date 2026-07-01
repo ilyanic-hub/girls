@@ -567,20 +567,25 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
         raise HTTPException(status_code=400, detail="Новый пароль слишком короткий")
         
     cursor = db.cursor()
-    cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password_hash, username))
+    
+    # 1. Сначала ИЩЕМ пользователя в базе, чтобы проверить секретное слово
+    cursor.execute("SELECT secret_answer FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     
+    # Если пользователя нет или у него пустое секретное слово
     if not user or not user["secret_answer"]:
         raise HTTPException(status_code=404, detail="Пользователь не найден или для него не настроено восстановление")
         
-    # Проверяем секретное слово
+    # 2. Проверяем, совпадает ли хэш введенного секретного слова с базой
     if hash_password(secret_answer) != user["secret_answer"]:
         raise HTTPException(status_code=400, detail="Неверное секретное слово!")
         
-    # Если всё правильно, меняем пароль на новый
+    # 3. Если всё правильно, хэшируем НОВЫЙ пароль и ОБНОВЛЯЕМ его в базе
     new_password_hash = hash_password(new_password)
-    cursor.execute("UPDATE users TYPE SET password = ? WHERE username = ?", (new_password_hash, username))
+    cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password_hash, username))
     db.commit()
+    
+    # Синхронизируем обновленную базу с Dropbox
     upload_db_to_dropbox()
     
     return {"status": "success", "message": "Пароль успешно изменен! Теперь вы можете войти."}
