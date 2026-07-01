@@ -13,6 +13,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from pydantic import BaseModel
 import requests
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
 
@@ -504,6 +506,18 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
         return {"status": "success", "message": "Старый альбом очищен!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
+
+@app.get("/terms", response_class=HTMLResponse)
+async def get_terms(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def get_privacy(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+@app.get("/refund", response_class=HTMLResponse)
+async def get_refund(request: Request):
+    return templates.TemplateResponse("refund.html", {"request": request})
        
 
 class DepositSchema(BaseModel):
