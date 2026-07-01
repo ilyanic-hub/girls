@@ -441,22 +441,24 @@
                         <div class="contestant-info">
                             <div class="contestant-name">${girl.name}</div>
                             <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
-                            <button class="btn" onclick="vote(${girl.id})">Проголосовать (10 коинов)</button>
+                            <button class="btn" onclick="vote(${girl.id, event})">Проголосовать (10 коинов)</button>
                         </div>
                     </div>`;
             });
         }
 
-        async function vote(id) {
-            let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
-            if (event) spawnHearts(event);
-            if (res.ok) { 
-                checkAuth(); 
-            } else { 
-                let d = await res.json(); 
-                alert(d.detail || "Ошибка при голосовании"); 
-            }
-        }
+        async function vote(id, event) { // <-- Добавили event сюда
+    // Сразу запускаем сердечки при клике, чтобы не ждать ответа сервера
+    if (event) spawnHearts(event); 
+
+    let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
+    if (res.ok) { 
+        checkAuth(); 
+    } else { 
+        let d = await res.json(); 
+        alert(d.detail || "Ошибка при голосовании"); 
+    }
+}
 
         /* ЛОГИКА ОКНА ПОПОЛНЕНИЯ БАЛАНСА */
         function openDepositModal() {
@@ -597,6 +599,35 @@ async function getDailyBonus() {
         }
     } catch (error) {
         alert("Сетевая ошибка при получении бонуса");
+    }
+}
+
+        function spawnHearts(event) {
+    const heartCount = 6; // Количество сердечек за клик
+    for (let i = 0; i < heartCount; i++) {
+        const heart = document.createElement('div');
+        heart.classList.add('heart-particle');
+        heart.innerText = '❤️';
+        
+        // Позиция клика мышки
+        heart.style.left = event.clientX + 'px';
+        heart.style.top = event.clientY + 'px';
+        
+        // Случайное направление разлёта
+        const x = (Math.random() - 0.5) * 160; // Влево-вправо
+        const y = (Math.random() - 0.8) * 160; // Вверх
+        const r = (Math.random() - 0.5) * 90;  // Случайный поворот
+        
+        heart.style.setProperty('--x', `${x}px`);
+        heart.style.setProperty('--y', `${y}px`);
+        heart.style.setProperty('--r', `${r}deg`);
+        
+        document.body.appendChild(heart);
+        
+        // Удаляем сердечко после анимации
+        setTimeout(() => {
+            heart.remove();
+        }, 800);
     }
 }
 </script>
