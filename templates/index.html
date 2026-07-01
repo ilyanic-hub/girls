@@ -548,6 +548,58 @@ function updateTimer() {
 setInterval(updateTimer, 1000);
 updateTimer();
 </script>
+
+    <script>
+// 1. ЛОГИКА ТАЙМЕРА
+function updateTimer() {
+    const now = new Date();
+    const nextDeadline = new Date();
+    
+    // Дедлайн на ближайшее воскресенье 23:59:59
+    nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
+    nextDeadline.setHours(23, 59, 59, 999);
+    
+    const diff = nextDeadline - now;
+    
+    if (diff <= 0) {
+        document.getElementById("countdown-timer").innerText = "Раунд завершен!";
+        return;
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    document.getElementById("countdown-timer").innerText = 
+        `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+}
+setInterval(updateTimer, 1000);
+updateTimer();
+
+// 2. ЛОГИКА ЕЖЕДНЕВНОГО БОНУСА
+async function getDailyBonus() {
+    try {
+        const response = await fetch('/api/bonus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert("🎉 Ура! " + result.message);
+            // Если у тебя на сайте есть функция обновления баланса (например, checkMe или loadUser), вызови её здесь:
+            if (typeof checkMe === 'function') checkMe();
+            else location.reload(); // или просто обновим страницу, чтобы коин отобразился
+        } else {
+            alert("❌ " + (result.detail || "Ошибка получения бонуса"));
+        }
+    } catch (error) {
+        alert("Сетевая ошибка при получении бонуса");
+    }
+}
+</script>
 </body>
     <footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
     <!-- Блок контактов для поддержки -->
