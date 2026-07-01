@@ -14,3 +14,4 @@ fastapi
 uvicorn
 pydantic
 dropbox
+httpx==0.27.0
