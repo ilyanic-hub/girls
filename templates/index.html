@@ -291,11 +291,7 @@
     <div id="main-page" style="display: none;">
         <header>
             <a href="/" class="logo">🔥 PHOTO RATING</a>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
-                
-                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-                <!-- Блок с таймером и бонусом -->
+            <!-- Блок с таймером и бонусом -->
 <div class="bonus-container" style="text-align: center; margin: 20px auto; padding: 15px; background: #fff5f6; border-radius: 10px; max-width: 400px; border: 1px solid #ff4757;">
     <h3 style="margin: 0 0 10px 0; color: #ff4757;">До конца раунда осталось:</h3>
     <div id="countdown-timer" style="font-size: 22px; font-weight: bold; color: #2d3748; margin-bottom: 15px;">00д 00ч 00м 00с</div>
@@ -304,6 +300,11 @@
         🎁 Получить ежедневный бонус
     </button>
 </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
+                
+                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                
                 <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
                 <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
                 <button class="btn btn-sec" onclick="logout()">Выйти</button>
