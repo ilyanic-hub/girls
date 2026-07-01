@@ -14,6 +14,8 @@
             --accent-hover: #0097a7;
             --danger-color: #f44336;
             --danger-hover: #d32f2f;
+            --warning-color: #ff9800;
+            --warning-hover: #f57c00;
             --border-color: #444444;
         }
  
@@ -24,13 +26,18 @@
         h1 { font-size: 24px; color: var(--accent-color); }
         .btn-home { color: var(--text-muted); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 4px; text-decoration: none; font-size: 14px; }
         .btn-home:hover { color: var(--text-color); border-color: var(--text-color); }
-        .admin-section { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; margin-bottom: 30px; }
+        .admin-section { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 25px; margin-bottom: 30px; position: relative; }
         h2 { font-size: 18px; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); color: var(--accent-color); }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--text-muted); }
         input[type="text"], input[type="file"] { width: 100%; padding: 10px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-color); font-size: 14px; }
         .btn-submit { background-color: var(--accent-color); color: var(--bg-color); border: none; padding: 12px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; transition: 0.3s; }
         .btn-submit:hover { background-color: var(--accent-hover); }
+        
+        .btn-edit { background-color: transparent; color: var(--warning-color); border: 1px solid var(--warning-color); padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        .btn-edit:hover { background-color: var(--warning-color); color: var(--text-color); }
+        .btn-cancel { background-color: #555; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 10px; display: none; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
         th { background-color: var(--bg-color); color: var(--text-muted); }
@@ -48,23 +55,23 @@
     </header>
 
     <div class="admin-section">
-        <h2>Добавить новую участницу (на голосование)</h2>
-        <form id="contestantForm" onsubmit="addContestant(event)">
+        <h2 id="contestantFormTitle">Добавить новую участницу (на голосование) <button id="cancelContestantEdit" class="btn-cancel" onclick="resetContestantForm()">Отмена</button></h2>
+        <form id="contestantForm" onsubmit="saveContestant(event)">
             <div class="form-group">
                 <label>Имя участницы:</label>
                 <input type="text" id="girlName" placeholder="Введите имя участницы" required>
             </div>
             <div class="form-group">
-                <label>Фотография участницы:</label>
-                <input type="file" id="girlPhoto" accept="image/*" required>
+                <label id="photoLabel">Фотография участницы:</label>
+                <input type="file" id="girlPhoto" accept="image/*">
             </div>
             <button type="submit" id="submitGirlBtn" class="btn-submit">Загрузить в систему</button>
         </form>
     </div>
 
     <div class="admin-section">
-        <h2>Добавить королеву в историю (Архив победительниц)</h2>
-        <form id="historyForm" onsubmit="addHistoryWinner(event)">
+        <h2 id="historyFormTitle">Добавить королеву в историю (Архив победительниц) <button id="cancelHistoryEdit" class="btn-cancel" onclick="resetHistoryForm()">Отмена</button></h2>
+        <form id="historyForm" onsubmit="saveHistoryWinner(event)">
             <div class="form-group">
                 <label>Имя победительницы:</label>
                 <input type="text" id="winnerName" placeholder="Например: Елизавета" required>
@@ -74,11 +81,11 @@
                 <input type="text" id="titleDate" placeholder="Например: Июнь 2026" required>
             </div>
             <div class="form-group">
-                <label>Главное фото королевы:</label>
-                <input type="file" id="winnerMainPhoto" accept="image/*" required>
+                <label id="mainPhotoLabel">Главное фото королевы:</label>
+                <input type="file" id="winnerMainPhoto" accept="image/*">
             </div>
             <div class="form-group">
-                <label>Дополнительные фото в альбом:</label>
+                <label>Дополнительные фото в альбом (фотосессия):</label>
                 <input type="file" id="winnerAlbum" accept="image/*" multiple>
             </div>
             <button type="submit" id="submitWinnerBtn" class="btn-submit">Добавить королеву в историю</button>
@@ -111,68 +118,106 @@
 </div>
 
 <script>
+    // Переменные для отслеживания текущего редактируемого ID (null означает режим создания)
+    let editContestantId = null;
+    let editHistoryId = null;
+
     document.addEventListener("DOMContentLoaded", () => {
         loadContestants();
         loadHistory();
     });
 
-    // ИСПРАВЛЕНО: Функция теперь возвращает ПОЛНУЮ готовую строку картинки
     function toBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            // Возвращаем строку целиком, ничего не отрезая!
             reader.onload = () => resolve(reader.result); 
             reader.onerror = error => reject(error);
         });
     }
 
-    // ==================== 1. ДОБАВЛЕНИЕ УЧАСТНИЦЫ ====================
-    async function addContestant(event) {
+    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ УЧАСТНИЦЫ ====================
+    async function saveContestant(event) {
         event.preventDefault();
         const btn = document.getElementById('submitGirlBtn');
         const name = document.getElementById('girlName').value;
         const file = document.getElementById('girlPhoto').files[0];
 
-        if (!file) return;
-        btn.innerText = "Загрузка файла...";
+        // Если это создание новой, фото обязательно. Если редактирование — можно не прикреплять
+        if (!editContestantId && !file) {
+            alert('Пожалуйста, выберите фотографию участницы!');
+            return;
+        }
+
+        btn.innerText = "Сохранение...";
         btn.disabled = true;
 
         try {
-            const base64Str = await toBase64(file); // Получаем готовую строку data:image/...
+            let base64Str = "";
+            if (file) {
+                base64Str = await toBase64(file);
+            }
             
             const payload = {
                 name: name,
-                file_base64: base64Str, // Теперь сюда полетит чистый текст картинки
-                filename: file.name,
-                content_type: file.type
+                file_base64: base64Str,
+                filename: file ? file.name : "",
+                content_type: file ? file.type : ""
             };
 
-            const response = await fetch('/api/admin/contestants', {
-                method: 'POST',
+            let url = '/api/admin/contestants';
+            let method = 'POST';
+
+            // Если выставлен ID редактирования, переключаем роут на PUT
+            if (editContestantId) {
+                url = `/api/admin/contestants/${editContestantId}`;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
-            // ИСПРАВЛЕНО: Безопасный разбор ответа, чтобы не вылезало [object Object]
             const result = await response.json();
             if (response.ok) {
-                alert('Участница успешно добавлена!');
-                document.getElementById('contestantForm').reset();
+                alert(editContestantId ? 'Данные участницы обновлены!' : 'Участница успешно добавлена!');
+                resetContestantForm();
                 loadContestants();
             } else {
                 alert('Ошибка сервера: ' + (result.detail || JSON.stringify(result)));
             }
         } catch (error) {
-            alert('Сбой сети или разбора: ' + error.message);
+            alert('Сбой сети: ' + error.message);
         } finally {
-            btn.innerText = "Загрузить в систему";
             btn.disabled = false;
+            btn.innerText = editContestantId ? "Сохранить изменения" : "Загрузить в систему";
         }
     }
 
-    // ==================== 2. ДОБАВЛЕНИЕ В АРХИВ ====================
-    async function addHistoryWinner(event) {
+    // Включение режима редактирования участницы
+    function startEditContestant(id, currentName) {
+        editContestantId = id;
+        document.getElementById('contestantFormTitle').firstChild.textContent = "Редактировать участницу ";
+        document.getElementById('cancelContestantEdit').style.display = 'inline-block';
+        document.getElementById('girlName').value = currentName;
+        document.getElementById('photoLabel').innerText = "Изменить фотографию (оставьте пустым, чтобы не менять):";
+        document.getElementById('submitGirlBtn').innerText = "Сохранить изменения";
+        document.getElementById('girlName').focus();
+    }
+
+    function resetContestantForm() {
+        editContestantId = null;
+        document.getElementById('contestantForm').reset();
+        document.getElementById('contestantFormTitle').firstChild.textContent = "Добавить новую участницу (на голосование) ";
+        document.getElementById('cancelContestantEdit').style.display = 'none';
+        document.getElementById('photoLabel').innerText = "Фотография участницы:";
+        document.getElementById('submitGirlBtn').innerText = "Загрузить в систему";
+    }
+
+    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ ЗАЛА СЛАВЫ ====================
+    async function saveHistoryWinner(event) {
         event.preventDefault();
         const btn = document.getElementById('submitWinnerBtn');
         const name = document.getElementById('winnerName').value;
@@ -180,14 +225,21 @@
         const mainFile = document.getElementById('winnerMainPhoto').files[0];
         const albumFiles = document.getElementById('winnerAlbum').files;
 
-        if (!mainFile) return;
-        btn.innerText = "Сборка архива и отправка...";
+        if (!editHistoryId && !mainFile) {
+            alert('Пожалуйста, выберите главное фото королевы!');
+            return;
+        }
+
+        btn.innerText = "Сохранение архива...";
         btn.disabled = true;
 
         try {
-            const mainBase64 = await toBase64(mainFile);
-            const albumPayloads = [];
+            let mainBase64 = "";
+            if (mainFile) {
+                mainBase64 = await toBase64(mainFile);
+            }
 
+            const albumPayloads = [];
             for (let i = 0; i < albumFiles.length; i++) {
                 const b64 = await toBase64(albumFiles[i]);
                 albumPayloads.push({
@@ -201,38 +253,67 @@
                 name: name,
                 title_date: titleDate,
                 file_base64: mainBase64,
-                filename: mainFile.name,
-                content_type: mainFile.type,
+                filename: mainFile ? mainFile.name : "",
+                content_type: mainFile ? mainFile.type : "",
                 album_files: albumPayloads
             };
 
-            const response = await fetch('/api/admin/history', {
-                method: 'POST',
+            let url = '/api/admin/history';
+            let method = 'POST';
+
+            if (editHistoryId) {
+                url = `/api/admin/history/${editHistoryId}`;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
-                alert('Королева добавлена в архив!');
-                document.getElementById('historyForm').reset();
+                alert(editHistoryId ? 'Архив королевы обновлен!' : 'Королева добавлена в архив!');
+                resetHistoryForm();
                 loadHistory();
             } else {
                 const err = await response.json();
                 alert('Ошибка: ' + err.detail);
             }
         } catch (error) {
-            alert('Сбой отправки архива: ' + error.message);
+            alert('Сбой сети: ' + error.message);
         } finally {
-            btn.innerText = "Добавить королеву в историю";
             btn.disabled = false;
+            btn.innerText = editHistoryId ? "Сохранить изменения архива" : "Добавить королеву в историю";
         }
     }
 
-    // ==================== СЛУЖЕБНЫЕ ТАБЛИЦЫ ====================
+    // Включение режима редактирования Зала славы
+    function startEditHistory(id, currentName, currentDate) {
+        editHistoryId = id;
+        document.getElementById('historyFormTitle').firstChild.textContent = "Редактировать архив королевы ";
+        document.getElementById('cancelHistoryEdit').style.display = 'inline-block';
+        document.getElementById('winnerName').value = currentName;
+        document.getElementById('titleDate').value = currentDate;
+        document.getElementById('mainPhotoLabel').innerText = "Изменить главное фото (оставьте пустым, чтобы не менять):";
+        document.getElementById('submitWinnerBtn').innerText = "Сохранить изменения архива";
+        document.getElementById('winnerName').focus();
+    }
+
+    function resetHistoryForm() {
+        editHistoryId = null;
+        document.getElementById('historyForm').reset();
+        document.getElementById('historyFormTitle').firstChild.textContent = "Добавить королеву в историю (Архив победительниц) ";
+        document.getElementById('cancelHistoryEdit').style.display = 'none';
+        document.getElementById('mainPhotoLabel').innerText = "Главное фото королевы:";
+        document.getElementById('submitWinnerBtn').innerText = "Добавить королеву в историю";
+    }
+
+    // ==================== СЛУЖЕБНЫЕ ТАБЛИЦЫ С КНОПКАМИ РЕДАКТИРОВАНИЯ ====================
     async function loadContestants() {
         const tbody = document.getElementById('contestantsList');
         try {
-            const response = await fetch('/api/contestants');
+            const response = await fetch('/api/contestants?nocache=' + new Date().getTime());
             const data = await response.json();
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="loading-text">Список пуст.</td></tr>';
@@ -241,7 +322,14 @@
             tbody.innerHTML = '';
             data.forEach(girl => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>\${girl.id}</td><td><strong>\${girl.name}</strong></td><td>\${girl.votes_count}</td><td><button class="btn-delete" onclick="deleteContestant(\${girl.id})">Удалить</button></td>`;
+                tr.innerHTML = `
+                    <td>${girl.id}</td>
+                    <td><strong>${girl.name}</strong></td>
+                    <td>${girl.votes_count}</td>
+                    <td>
+                        <button class="btn-edit" onclick="startEditContestant(${girl.id}, '${girl.name.replace(/'/g, "\\'")}')">Редактировать</button>
+                        <button class="btn-delete" onclick="deleteContestant(${girl.id})">Удалить</button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         } catch (e) { tbody.innerHTML = '<tr><td colspan="4" class="loading-text" style="color:red;">Ошибка данных</td></tr>'; }
@@ -250,7 +338,7 @@
     async function loadHistory() {
         const tbody = document.getElementById('historyList');
         try {
-            const response = await fetch('/api/history');
+            const response = await fetch('/api/history?nocache=' + new Date().getTime());
             const data = await response.json();
             if (data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="loading-text">Архив пуст.</td></tr>';
@@ -259,7 +347,14 @@
             tbody.innerHTML = '';
             data.forEach(winner => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td>\${winner.id}</td><td><strong>\${winner.name}</strong></td><td>\${winner.title_date}</td><td><button class="btn-delete" onclick="deleteWinner(\${winner.id})">Удалить</button></td>`;
+                tr.innerHTML = `
+                    <td>${winner.id}</td>
+                    <td><strong>${winner.name}</strong></td>
+                    <td>${winner.title_date}</td>
+                    <td>
+                        <button class="btn-edit" onclick="startEditHistory(${winner.id}, '${winner.name.replace(/'/g, "\\'")}', '${winner.title_date.replace(/'/g, "\\'")}')">Редактировать</button>
+                        <button class="btn-delete" onclick="deleteWinner(${winner.id})">Удалить</button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         } catch (e) { tbody.innerHTML = '<tr><td colspan="4" class="loading-text" style="color:red;">Ошибка данных</td></tr>'; }
@@ -267,14 +362,16 @@
 
     async function deleteContestant(id) {
         if (confirm('Удалить участницу?')) {
-            await fetch(`/api/admin/contestants/\${id}`, { method: 'DELETE' });
+            await fetch(`/api/admin/contestants/${id}`, { method: 'DELETE' });
+            if(editContestantId === id) resetContestantForm();
             loadContestants();
         }
     }
 
     async function deleteWinner(id) {
         if (confirm('Удалить из архива?')) {
-            await fetch(`/api/admin/history/\${id}`, { method: 'DELETE' });
+            await fetch(`/api/admin/history/${id}`, { method: 'DELETE' });
+            if(editHistoryId === id) resetHistoryForm();
             loadHistory();
         }
     }
