@@ -392,6 +392,7 @@ async def admin_add_history(data: HistorySchema, session_user: Optional[str] = C
         raise HTTPException(status_code=500, detail=str(err))
 
 # Роут для поштучной дозагрузки фотографий в альбом королевы
+# Роут для поштучной дозагрузки фотографий в альбом королевы
 @app.post("/api/admin/history/{history_id}/upload-photo")
 async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -402,6 +403,29 @@ async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, sessi
     user = cursor.fetchone()
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        # Очищаем строку от возможных переносов
+        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        
+        if file_url:
+            # Записываем фото в таблицу альбома
+            cursor.execute(
+                "INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", 
+                (int(history_id), str(file_url))
+            )
+            db.commit()
+            
+            # Синхронизируем с Dropbox
+            upload_db_to_dropbox()
+            
+            return {"status": "success", "message": "Фото добавлено в альбом"}
+        else:
+            return {"status": "error", "message": "Пустая строка Base64"}
+            
+    except Exception as err:
+        print(f"Ошибка сохранения фото в альбом: {str(err)}") # Лог для консоли Railway
+        raise HTTPException(status_code=500, detail=str(err))
         
     try:
         file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
