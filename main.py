@@ -469,6 +469,23 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
+@app.get("/api/admin/debug-history/{winner_id}")
+async def debug_winner_photos(winner_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT id, LENGTH(photo_url) as size FROM history_photos WHERE history_id = ?", (winner_id,))
+    rows = cursor.fetchall()
+    
+    result = []
+    for row in rows:
+        result.append({
+            "photo_table_id": row["id"],
+            "base64_length": row["size"]
+        })
+    return {
+        "total_photos_in_db": len(result),
+        "photos": result
+    }
+
 # 6. ОЧИСТКА: Удаление старого альбома перед перезаписью новых картинок
 @app.delete("/api/admin/history/{id}/photos")
 async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
