@@ -188,7 +188,7 @@
                 
                 <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
                 <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> ₽</div>
-                <button class="btn btn-sec" onclick="depositMoney()">+ Пополнить</button>
+                <button class="..." onclick="openDepositModal()">+ Пополнить</button>
                 <button class="btn btn-sec" onclick="logout()">Выйти</button>
             </div>
         </header>
@@ -318,5 +318,26 @@
 
         checkAuth();
     </script>
+
+    <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
+    <div class="deposit-modal-content" onclick="event.stopPropagation()">
+        <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
+        <h2>💎 Пополнение баланса</h2>
+        <p style="color: #718096; margin-bottom: 20px;">Выберите количество коинов для покупки:</p>
+        
+        <div class="deposit-options">
+            <button class="deposit-opt-btn" onclick="selectDepositAmount(100)">100 коинов <br><small>10 ₽</small></button>
+            <button class="deposit-opt-btn" onclick="selectDepositAmount(500)">500 коинов <br><small>50 ₽</small></button>
+            <button class="deposit-opt-btn" onclick="selectDepositAmount(1000)">1000 коинов <br><small>100 ₽</small></button>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold; color:#4a5568;">Своя сумма (в коинах):</label>
+            <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px;">
+        </div>
+
+        <button id="payBtn" class="btn-pay-submit" onclick="sendPaymentRequest()">Перейти к оплате криптой</button>
+    </div>
+</div>
 </body>
 </html>
