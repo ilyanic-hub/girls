@@ -9,7 +9,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List
-   
+from pydantic import BaseModel
+import requests
+
 app = FastAPI()
 
 app.add_middleware(
@@ -446,9 +448,7 @@ async def admin_edit_history(id: int, data: HistorySchema, session_user: Optiona
         return {"status": "success", "message": "Запись в истории обновлена!"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
-
-from pydantic import BaseModel
-import requests
+       
 
 class DepositSchema(BaseModel):
     amount: int  # Количество коинов для покупки (например, 10, 50, 100)
