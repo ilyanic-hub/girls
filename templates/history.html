@@ -252,7 +252,8 @@
                 photosDiv.innerHTML = '<p style="color: var(--text-muted)">Альбом пуст.</p>';
             } else {
                 currentAlbumPhotos.forEach((url, index) => {
-                    photosDiv.innerHTML += `<img src="${url}?t=${new Date().getTime()}" alt="Фото" onclick="openLightbox(${index})">`;
+                    // ИСПРАВЛЕНО: Убрали хвостик ?t=..., чтобы не ломать Base64 альбома
+                    photosDiv.innerHTML += `<img src="${url}" alt="Фото" onclick="openLightbox(${index})">`;
                 });
             }
             document.getElementById('albumModal').style.display = 'flex';
@@ -260,10 +261,10 @@
 
         function closeAlbum(event) { document.getElementById('albumModal').style.display = 'none'; }
 
-        function openLightbox(index) {
-            currentPhotoIndex = index;
-            updateLightboxImage();
-            document.getElementById('lightboxModal').style.display = 'flex';
+        function updateLightboxImage() {
+            let lightboxImg = document.getElementById('lightboxImage');
+            // ИСПРАВЛЕНО: Убрали хвостик ?t=... и здесь
+            lightboxImg.src = currentAlbumPhotos[currentPhotoIndex];
         }
 
         function updateLightboxImage() {
