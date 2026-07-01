@@ -473,38 +473,34 @@ async def get_balance(request: Request, db=Depends(get_db)):
 
 # 2. Создание инвойса (счета) на оплату в TryBit
 # 2. Создание инвойса (счета) на оплату в TryBit
+# 2. Создание инвойса (счета) на оплату в TryBit
 @app.post("/api/payment/create")
-async def create_payment(data: DepositSchema, request: Request, db=Depends(get_db)):
-    user_ip = request.client.host
-    
-    # --- НАСТРОЙКИ TRYBIT (ЗАПОЛНИ СВОИМИ ДАННЫМИ) ---
+async def create_payment(data: DepositSchema, request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    # Проверяем, авторизован ли пользователь. Если нет — не даем создать счет.
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт, чтобы пополнить баланс")
+        
+    # --- НАСТРОЙКИ TRYBIT ---
     TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
     TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
     # ------------------------------------------------
     
-    # Так как в доках написано "Сумма платежа в USD", давай переводить коины в доллары.
-    # Допустим, 100 коинов = 1 доллар (USD). Тогда сумма в USD = коины / 100.
+    # Переводим коины в доллары (100 коинов = 1 USD)
     total_price_usd = data.amount / 100.0  
     
-    order_id = f"deposit_{user_ip}_{int(time.time())}"
+    # ТЕПЕРЬ В ORDER_ID МЫ ПРЯЧЕМ ИМЯ ПОЛЬЗОВАТЕЛЯ (username) вместо IP
+    order_id = f"user_{session_user}_{int(time.time())}"
     
-    # !!! ОБЯЗАТЕЛЬНО ПОМЕНЯЙ ЭТОТ URL НА СВОЙ РЕАЛЬНЫЙ АДРЕС RAILWAY !!!
-    # Вместо твоя-королева.railway.app поставь актуальный домен твоего приложения
-    CALLBACK_URL = "https://твоя-королева.railway.app/api/payment/webhook"
-    
-    # Исправляем формат авторизации: строго "Token <ключ>"
     headers = {
         "Authorization": f"Token {TRYBIT_API_KEY}",
         "Content-Type": "application/json"
     }
     
-    # Собираем параметры строго по документации TryBit v2
     payload = {
-        "shop_id": TRYBIT_SHOP_ID,       # Обязательное поле!
-        "amount": total_price_usd,       # Обязательное поле (в USD)
-        "currency": "USD",               # Обязательное поле
+        "shop_id": TRYBIT_SHOP_ID,
+        "amount": total_price_usd,
+        "currency": "USD",
         "order_id": order_id,
-        # ВОТ ЭТА ЧАСТЬ: здесь мы передаем конкретные коды монет и их сетей
         "add_fields": {
             "available_currencies": ["USDT_TRC20", "USDT_BSC", "USDT_TON", "TON", "BTC"]
         }
@@ -521,8 +517,6 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
             
         if response.status_code in [200, 201, 211]:
             res_data = response.json()
-            
-            # ИСПРАВЛЕНО: забираем ссылку из result.link, как ответил сервер TryBit
             payment_url = res_data.get("result", {}).get("link")
             
             if payment_url:
@@ -535,57 +529,48 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
     except Exception as e:
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
 
-# 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
+
 # 3. WEBHOOK: Сюда TryBit пришлет секретный сигнал об успешной оплате
 @app.post("/api/payment/webhook")
 async def payment_webhook(request: Request, db=Depends(get_db)):
     try:
-        # Получаем данные от платежной системы
         data = await request.json()
-        print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===") # Лог в консоль Railway для проверки
+        print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===")
         
-        # TryBit v2 присылает статус в поле status. Обычно успешный платеж — это "success" или "completed"
         payment_status = data.get("status") 
         
         if payment_status in ["success", "completed"]:
             order_id = data.get("order_id", "") 
             
-            # Проверяем, что это наш инвойс на пополнение
-            if order_id.startswith("deposit_"):
-                # Вытаскиваем IP пользователя из order_id (строка вида: deposit_127.0.0.1_17198...)
+            # Проверяем, что ID заказа начинается с "user_"
+            if order_id.startswith("user_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
-                    user_ip = parts[1]
+                    target_username = parts[1] # Вытащили логин (например, admin)
                     
-                    # TryBit возвращает чистую сумму фиата или USD, которую мы запрашивали
-                    # Мы считали: 1 доллар (USD) = 100 коинов.
-                    # Значит, количество коинов — это сумма в USD умноженная на 100.
+                    # Считаем коины из полученной суммы USD
                     amount_usd = float(data.get("amount_usd") or data.get("amount", 0))
                     coins_to_add = int(amount_usd * 100)
                     
                     if coins_to_add > 0:
                         cursor = db.cursor()
                         
-                        # Проверяем, существует ли уже этот IP в таблице балансов
-                        cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
-                        row = cursor.fetchone()
-                        
-                        if row is not None:
-                            # Если есть, просто плюсуем коины
-                            cursor.execute("UPDATE user_balances SET balance = balance + ? WHERE user_ip = ?", (coins_to_add, user_ip))
-                        else:
-                            # Если зашел абсолютно новый IP, создаем запись сразу с коинами
-                            cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, ?)", (user_ip, coins_to_add))
-                            
+                        # ТЕПЕРЬ ОБНОВЛЯЕМ ТАБЛИЦУ USERS ДЛЯ КОНКРЕТНОГО ЛОГИНА
+                        cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (float(coins_to_add), target_username))
                         db.commit()
-                        print(f"Успешно начислено {coins_to_add} коинов для IP: {user_ip}")
                         
-                        # Синхронизируем обновленную базу с Dropbox, чтобы балансы не стерлись при перезапуске Railway!
+                        print(f"Успешно начислено {coins_to_add} руб/коинов на аккаунт: {target_username}")
+                        
+                        # Синхронизация с Dropbox
                         upload_db_to_dropbox()
                         
                         return {"status": "accepted"}
                         
         return {"status": "ignored"}
+        
+    except Exception as e:
+        print(f"Ошибка при обработке вебхука: {str(e)}")
+        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
         
     except Exception as e:
         print(f"Ошибка при обработке вебхука: {str(e)}")
