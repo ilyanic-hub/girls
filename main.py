@@ -251,7 +251,7 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
     password_hash = hash_password(password)
     try:
-        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES (?, ?, 100.0, 0)", (username, password_hash))
+        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES (?, ?, 0.0, 0)", (username, password_hash))
         db.commit()
         upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
