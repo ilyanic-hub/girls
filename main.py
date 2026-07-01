@@ -618,13 +618,13 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     # Если всё ок, начисляем 1 коин и обновляем время
     new_time_str = now.isoformat()
     cursor.execute(
-        "UPDATE users SET balance = balance + 1.0, last_bonus_date = ? WHERE username = ?", 
+        "UPDATE users SET balance = balance + 5.0, last_bonus_date = ? WHERE username = ?", 
         (new_time_str, session_user)
     )
     db.commit()
     upload_db_to_dropbox()
     
-    return {"status": "success", "message": "Вы получили 1 бесплатный коин!"}
+    return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
 @app.post("/api/payment/webhook")
 async def payment_webhook(request: Request, db=Depends(get_db)):
