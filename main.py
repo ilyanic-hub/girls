@@ -164,8 +164,8 @@ class ContestantSchema(BaseModel):
 
 class AlbumFileSchema(BaseModel):
     file_base64: str
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
+    filename: Optional[str] = ""
+    content_type: Optional[str] = ""
 
 class HistorySchema(BaseModel):
     name: str
