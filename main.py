@@ -141,6 +141,15 @@ def init_db():
             balance INTEGER DEFAULT 0
         )
     """)
+
+    # Автоматическое добавление колонки для бонуса, если её нет в старой базе из Dropbox
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
+        db.commit()
+        print("Колонка last_bonus_date успешно добавлена в существующую базу!")
+    except sqlite3.OperationalError:
+        # Если колонка уже есть, SQLite выдаст ошибку, и мы её просто игнорируем
+        pass
     
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
