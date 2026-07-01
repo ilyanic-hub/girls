@@ -3,7 +3,7 @@ import sys
 import sqlite3
 import hashlib
 import dropbox
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
