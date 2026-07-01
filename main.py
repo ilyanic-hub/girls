@@ -472,6 +472,7 @@ async def get_balance(request: Request, db=Depends(get_db)):
     return {"balance": row["balance"]}
 
 # 2. Создание инвойса (счета) на оплату в TryBit
+# 2. Создание инвойса (счета) на оплату в TryBit
 @app.post("/api/payment/create")
 async def create_payment(data: DepositSchema, request: Request, db=Depends(get_db)):
     user_ip = request.client.host
@@ -486,6 +487,9 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
     total_price_usd = data.amount / 100.0  
     
     order_id = f"deposit_{user_ip}_{int(time.time())}"
+    
+    # !!! ОБЯЗАТЕЛЬНО ПОМЕНЯЙ ЭТОТ URL НА СВОЙ РЕАЛЬНЫЙ АДРЕС RAILWAY !!!
+    # Вместо твоя-королева.railway.app поставь актуальный домен твоего приложения
     CALLBACK_URL = "https://твоя-королева.railway.app/api/payment/webhook"
     
     # Исправляем формат авторизации: строго "Token <ключ>"
@@ -500,9 +504,9 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
         "amount": total_price_usd,       # Обязательное поле (в USD)
         "currency": "USD",               # Обязательное поле
         "order_id": order_id,
-        # Передаем доступные криптовалюты, чтобы пользователю было удобно выбирать
+        # ВОТ ЭТА ЧАСТЬ: здесь мы передаем конкретные коды монет и их сетей
         "add_fields": {
-            "available_currencies": ["USDT_TRC20", "TON", "TRX", "BTC"]
+            "available_currencies": ["USDT_TRC20", "USDT_BSC", "USDT_TON", "TON", "BTC"]
         }
     }
     
@@ -518,13 +522,15 @@ async def create_payment(data: DepositSchema, request: Request, db=Depends(get_d
         if response.status_code in [200, 201, 211]:
             res_data = response.json()
             
-            # Достаем ссылку из поля 'link' внутри объекта 'result'
+            # ИСПРАВЛЕНО: забираем ссылку из result.link, как ответил сервер TryBit
             payment_url = res_data.get("result", {}).get("link")
             
             if payment_url:
                 return {"status": "success", "payment_url": payment_url}
             else:
                 return {"status": "error", "detail": f"Ссылка 'link' не найдена в result: {res_data}"}
+        else:
+            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}, Ответ: {response.text}"}
             
     except Exception as e:
         return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
