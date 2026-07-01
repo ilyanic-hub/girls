@@ -217,6 +217,7 @@
     }
 
     // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ ЗАЛА СЛАВЫ ====================
+    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ ЗАЛА СЛАВЫ ====================
     async function saveHistoryWinner(event) {
         event.preventDefault();
         const btn = document.getElementById('submitWinnerBtn');
@@ -230,7 +231,6 @@
             return;
         }
 
-        btn.innerText = "Сохранение архива...";
         btn.disabled = true;
 
         try {
@@ -239,23 +239,14 @@
                 mainBase64 = await toBase64(mainFile);
             }
 
-            const albumPayloads = [];
-            for (let i = 0; i < albumFiles.length; i++) {
-                const b64 = await toBase64(albumFiles[i]);
-                albumPayloads.push({
-                    file_base64: b64,
-                    filename: albumFiles[i].name,
-                    content_type: albumFiles[i].type
-                });
-            }
-
+            // 1. СОБИРАЕМ ТОЛЬКО ОСНОВНЫЕ ДАННЫЕ (Без тяжелого альбома!)
             const payload = {
                 name: name,
                 title_date: titleDate,
                 file_base64: mainBase64,
                 filename: mainFile ? mainFile.name : "",
                 content_type: mainFile ? mainFile.type : "",
-                album_files: albumPayloads
+                album_files: [] // Альбом отправляем отдельно ниже
             };
 
             let url = '/api/admin/history';
@@ -266,19 +257,52 @@
                 method = 'PUT';
             }
 
+            btn.innerText = "Сохранение инфо...";
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
 
+            const result = await response.json();
+
             if (response.ok) {
-                alert(editHistoryId ? 'Архив королевы обновлен!' : 'Королева добавлена в архив!');
+                // Вытаскиваем ID созданной или редактируемой королевы
+                // Если мы создавали новую, берем из ответа сервера (result.history_id)
+                // Если редактировали, ID у нас уже есть в переменной (editHistoryId)
+                const currentId = editHistoryId || result.history_id;
+
+                // 2. ПОШТУЧНАЯ ЗАГРУЗКА ФОТОГРАФИЙ В АЛЬБОМ
+                if (albumFiles.length > 0 && currentId) {
+                    
+                    // Если это режим редактирования, сначала даем команду серверу очистить старый альбом
+                    if (editHistoryId) {
+                        btn.innerText = "Очистка старых фото...";
+                        await fetch(`/api/admin/history/${currentId}/photos`, { method: 'DELETE' });
+                    }
+
+                    // Запускаем цикл по каждой фотографии и шлем их ОДНА ЗА ДРУГОЙ
+                    for (let i = 0; i < albumFiles.length; i++) {
+                        btn.innerText = `Загрузка фото ${i + 1} из ${albumFiles.length}...`;
+                        const b64 = await toBase64(albumFiles[i]);
+                        
+                        await fetch(`/api/admin/history/${currentId}/upload-photo`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                file_base64: b64,
+                                filename: albumFiles[i].name,
+                                content_type: albumFiles[i].type
+                            })
+                        });
+                    }
+                }
+
+                alert(editHistoryId ? 'Архив королевы успешно обновлен!' : 'Королева успешно добавлена в архив!');
                 resetHistoryForm();
                 loadHistory();
             } else {
-                const err = await response.json();
-                alert('Ошибка: ' + err.detail);
+                alert('Ошибка: ' + (result.detail || JSON.stringify(result)));
             }
         } catch (error) {
             alert('Сбой сети: ' + error.message);
