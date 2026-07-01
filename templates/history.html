@@ -286,7 +286,19 @@
             updateLightboxImage();
         }
 
-        function closeLightbox() { document.getElementById('lightboxModal').style.display = 'none'; }
+        function openLightbox(index) {
+            console.log("Открываю фото на весь экран, индекс:", index);
+            currentPhotoIndex = index;
+            updateLightboxImage();
+            
+            // Находим наш лайтбокс и принудительно выводим на самый передний план
+            let lightbox = document.getElementById('lightboxModal');
+            lightbox.style.display = 'flex';
+        }
+
+        function closeLightbox() { 
+            document.getElementById('lightboxModal').style.display = 'none'; 
+        }
 
         document.addEventListener('keydown', function(e) {
             if (document.getElementById('lightboxModal').style.display === 'flex') {
