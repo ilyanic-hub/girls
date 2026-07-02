@@ -698,24 +698,44 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
 @app.post("/api/payment/trybit-callback")
 async def payment_webhook(request: Request, db=Depends(get_db)):
     try:
-        data = await request.json()
+        # 1. Проверяем, что вообще приходит в запросе
+        try:
+            data = await request.json()
+        except Exception as json_err:
+            body = await request.body()
+            return JSONResponse(status_code=400, content={
+                "status": "error", 
+                "message": f"Запрос пришел не в JSON. Текст запроса: {body.decode('utf-8', errors='ignore')}"
+            })
+
         print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===")
         
-        payment_status = data.get("status") 
+        # 2. Вытаскиваем статус
+        payment_status = data.get("status") or data.get("state")
         
-        # Trybit в тестовом режиме присылает статус успешной оплаты. 
-        # Если в истории POSTBACK увидишь другое слово (например, "paid"), добавь его в этот список
-        if payment_status in ["success", "completed", "paid"]:
-            order_id = data.get("order_id", "") 
+        # 3. Вытаскиваем ID заказа (пробуем разные варианты названий полей Trybit)
+        order_id = data.get("order_id") or data.get("merchant_order_id") or data.get("id") or ""
+        order_id = str(order_id)
+        
+        # 4. Вытаскиваем сумму
+        amount = float(data.get("amount_usd") or data.get("amount") or data.get("sum") or 0)
+        
+        # Отладочный словарь, который мы вернем, если что-то пойдет не так
+        debug_info = {
+            "received_status": payment_status,
+            "received_order_id": order_id,
+            "received_amount": amount,
+            "full_data": data
+        }
+
+        # Проверяем статус (добавили побольше вариантов)
+        if payment_status in ["success", "completed", "paid", "SUCCESS", "PAID"]:
             
             if order_id.startswith("user_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
                     target_username = parts[1] 
-                    
-                    # Защита на случай, если Trybit пришлет число текстом или null
-                    amount_usd = float(data.get("amount_usd") or data.get("amount") or 0)
-                    coins_to_add = int(amount_usd * 100)
+                    coins_to_add = int(amount * 100)
                     
                     if coins_to_add > 0:
                         cursor = db.cursor()
@@ -723,18 +743,20 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
                         db.commit()
                         
                         print(f"Успешно начислено {coins_to_add} руб/коинов на аккаунт: {target_username}")
-                        upload_db_to_dropbox()
                         
-                        # Возвращаем четкий ответ, что платеж успешно обработан и зачислен
-                        return {"status": "success", "message": "Payment processed"}
+                        try:
+                            upload_db_to_dropbox()
+                        except Exception as drop_err:
+                            print(f"Ошибка Dropbox (но баланс начислен): {str(drop_err)}")
+                            
+                        return {"status": "success", "message": "Payment processed", "debug": debug_info}
+                    else:
+                        return JSONResponse(status_code=400, content={"status": "error", "message": "Сумма коинов меньше или равна 0", "debug": debug_info})
             
-            # Если это не наш формат order_id
-            return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid order_id format"})
+            return JSONResponse(status_code=400, content={"status": "error", "message": "order_id не начинается с 'user_'", "debug": debug_info})
                         
-        # Если статус платежа не "success"/"paid" (например, счет просто создан или отменен)
-        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Status is {payment_status}"})
+        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Статус платежа не подходит: {payment_status}", "debug": debug_info})
         
     except Exception as e:
-        print(f"Ошибка при обработке вебхука: {str(e)}")
-        # Если упала база данных или ошибка в коде — возвращаем 500/400, чтобы Trybit повторил попытку позже
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        print(f"Критическая ошибка вебхука: {str(e)}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": f"Исключение: {str(e)}"})
