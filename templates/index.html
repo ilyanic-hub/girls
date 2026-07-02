@@ -343,7 +343,63 @@
         // Переменные состояний авторизации: 'login', 'register', 'reset'
         let authMode = 'login'; 
         let selectedAmount = 0;
+        let balanceCheckInterval;
 
+function startCheckingBalance() {
+    // Если таймер уже запущен, не запускаем еще один
+    if (balanceCheckInterval) return;
+
+    console.log("Запущен автоматический опрос баланса...");
+    
+    balanceCheckInterval = setInterval(async () => {
+        try {
+            // Замени URL на свой эндпоинт, который возвращает инфо о текущем юзере
+            const response = await fetch('/api/user/me'); 
+            if (response.ok) {
+                const userData = await response.json();
+                
+                // Находим элемент баланса на странице (поменяй ID на свой, если он другой)
+                const balanceElement = document.getElementById('user-balance');
+                
+                if (balanceElement) {
+                    const currentBalance = parseFloat(balanceElement.innerText);
+                    const newBalance = parseFloat(userData.balance);
+                    
+                    // Если баланс изменился — обновляем интерфейс и выключаем таймер
+                    if (newBalance !== currentBalance) {
+                        balanceElement.innerText = newBalance;
+                        console.log(`Баланс успешно обновлен: ${newBalance}`);
+                        
+                        // Красивое уведомление (если используешь Swal/alert)
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Успешно!', `Баланс пополнен на ${newBalance - currentBalance} коинов!`, 'success');
+                        }
+                        
+                        clearInterval(balanceCheckInterval);
+                        balanceCheckInterval = null;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Ошибка при проверке баланса:", error);
+        }
+    }, 4000); // Проверяем каждые 4 секунды
+
+    // На всякий случай выключаем проверку через 10 минут, чтобы не спамить сервер бесконечно
+    setTimeout(() => {
+        if (balanceCheckInterval) {
+            clearInterval(balanceCheckInterval);
+            balanceCheckInterval = null;
+        }
+    }, 600000);
+}
+
+// Запускай эту функцию в момент, когда пользователь кликает по кнопке «Оплатить»
+// Пример: 
+// document.getElementById('pay-btn').addEventListener('click', startCheckingBalance);
+
+
+        
         function toggleAuthMode() {
             // Полностью сбрасываем форму через стандартный метод браузера
             const form = document.getElementById('auth-form');
