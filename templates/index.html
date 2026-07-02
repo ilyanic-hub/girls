@@ -346,6 +346,11 @@
         let selectedAmount = 0;
 
         function toggleAuthMode() {
+            // Очищаем поля при смене режима
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('secret_answer').value = '';
+
             if (authMode === 'login') {
                 authMode = 'register';
                 document.getElementById('auth-title').innerText = "Регистрация";
@@ -365,6 +370,12 @@
 
         function enableResetMode() {
             authMode = 'reset';
+            
+            // Очищаем поля при переходе в режим сброса пароля
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('secret_answer').value = '';
+
             document.getElementById('auth-title').innerText = "Восстановление";
             document.getElementById('password').placeholder = "Введите НОВЫЙ пароль";
             document.getElementById('secret_answer').placeholder = "Ваше секретное слово";
