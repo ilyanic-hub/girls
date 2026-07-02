@@ -705,13 +705,37 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
         
         if payment_status in ["success", "completed", "paid", "SUCCESS", "PAID"]:
             order_id = data.get("order_id", "") 
+            invoice_id = data.get("invoice_id", "") # Уникальный ID счета от Trybit
             
-            if order_id.startswith("user_"):
+            if order_id.startswith("user_") and invoice_id:
                 parts = order_id.split("_")
                 if len(parts) >= 2:
                     target_username = parts[1] 
                     
-                    # Ищем сумму сначала в invoice_info, если его нет — берём с верхнего уровня
+                    # --- ЗАЩИТА ОТ ПОВТОРНЫХ НАЧИСЛЕНИЙ ---
+                    cursor = db.cursor()
+                    
+                    # Создаем таблицу для истории платежей, если её еще нет в твоей БД
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS processed_payments (
+                            invoice_id TEXT PRIMARY KEY,
+                            username TEXT,
+                            amount REAL,
+                            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    db.commit()
+                    
+                    # Проверяем, есть ли уже такой invoice_id в базе
+                    cursor.execute("SELECT 1 FROM processed_payments WHERE invoice_id = ?", (invoice_id,))
+                    already_processed = cursor.fetchone()
+                    
+                    if already_processed:
+                        print(f"Предупреждение: Вебхук для счета {invoice_id} пришел повторно. Игнорируем начисление.")
+                        # Возвращаем 200 OK, чтобы Trybit успокоился и больше не присылал его
+                        return {"status": "success", "message": "Already processed"}
+                    # --------------------------------------
+
                     invoice_info = data.get("invoice_info", {})
                     amount_usd = float(
                         invoice_info.get("amount_usd") or 
@@ -720,12 +744,15 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
                         data.get("amount") or 0
                     )
                     
-                    # Считаем коины (1 USD = 100 коинов)
                     coins_to_add = int(amount_usd * 100)
                     
                     if coins_to_add > 0:
-                        cursor = db.cursor()
+                        # 1. Начисляем коины
                         cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (float(coins_to_add), target_username))
+                        
+                        # 2. Записываем invoice_id в историю, чтобы никто не получил коины дважды
+                        cursor.execute("INSERT INTO processed_payments (invoice_id, username, amount) VALUES (?, ?, ?)", (invoice_id, target_username, amount_usd))
+                        
                         db.commit()
                         
                         print(f"Успешно начислено {coins_to_add} коинов на аккаунт: {target_username}")
