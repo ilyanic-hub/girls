@@ -698,65 +698,51 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
 @app.post("/api/payment/trybit-callback")
 async def payment_webhook(request: Request, db=Depends(get_db)):
     try:
-        # 1. Проверяем, что вообще приходит в запросе
-        try:
-            data = await request.json()
-        except Exception as json_err:
-            body = await request.body()
-            return JSONResponse(status_code=400, content={
-                "status": "error", 
-                "message": f"Запрос пришел не в JSON. Текст запроса: {body.decode('utf-8', errors='ignore')}"
-            })
-
+        data = await request.json()
         print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===")
         
-        # 2. Вытаскиваем статус
-        payment_status = data.get("status") or data.get("state")
+        payment_status = data.get("status") 
         
-        # 3. Вытаскиваем ID заказа (пробуем разные варианты названий полей Trybit)
-        order_id = data.get("order_id") or data.get("merchant_order_id") or data.get("id") or ""
-        order_id = str(order_id)
-        
-        # 4. Вытаскиваем сумму
-        amount = float(data.get("amount_usd") or data.get("amount") or data.get("sum") or 0)
-        
-        # Отладочный словарь, который мы вернем, если что-то пойдет не так
-        debug_info = {
-            "received_status": payment_status,
-            "received_order_id": order_id,
-            "received_amount": amount,
-            "full_data": data
-        }
-
-        # Проверяем статус (добавили побольше вариантов)
         if payment_status in ["success", "completed", "paid", "SUCCESS", "PAID"]:
+            order_id = data.get("order_id", "") 
             
             if order_id.startswith("user_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
                     target_username = parts[1] 
-                    coins_to_add = int(amount * 100)
+                    
+                    # Ищем сумму сначала в invoice_info, если его нет — берём с верхнего уровня
+                    invoice_info = data.get("invoice_info", {})
+                    amount_usd = float(
+                        invoice_info.get("amount_usd") or 
+                        invoice_info.get("amount") or 
+                        data.get("amount_usd") or 
+                        data.get("amount") or 0
+                    )
+                    
+                    # Считаем коины (1 USD = 100 коинов)
+                    coins_to_add = int(amount_usd * 100)
                     
                     if coins_to_add > 0:
                         cursor = db.cursor()
                         cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (float(coins_to_add), target_username))
                         db.commit()
                         
-                        print(f"Успешно начислено {coins_to_add} руб/коинов на аккаунт: {target_username}")
+                        print(f"Успешно начислено {coins_to_add} коинов на аккаунт: {target_username}")
                         
                         try:
                             upload_db_to_dropbox()
                         except Exception as drop_err:
                             print(f"Ошибка Dropbox (но баланс начислен): {str(drop_err)}")
                             
-                        return {"status": "success", "message": "Payment processed", "debug": debug_info}
+                        return {"status": "success", "message": "Payment processed"}
                     else:
-                        return JSONResponse(status_code=400, content={"status": "error", "message": "Сумма коинов меньше или равна 0", "debug": debug_info})
+                        return JSONResponse(status_code=400, content={"status": "error", "message": "Сумма коинов равна 0"})
             
-            return JSONResponse(status_code=400, content={"status": "error", "message": "order_id не начинается с 'user_'", "debug": debug_info})
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Неверный формат order_id"})
                         
-        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Статус платежа не подходит: {payment_status}", "debug": debug_info})
+        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Статус {payment_status} не обрабатывается"})
         
     except Exception as e:
         print(f"Критическая ошибка вебхука: {str(e)}")
-        return JSONResponse(status_code=500, content={"status": "error", "message": f"Исключение: {str(e)}"})
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
