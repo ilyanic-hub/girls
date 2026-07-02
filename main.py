@@ -695,7 +695,7 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
-@app.post("/api/payment/webhook")
+@app.post("/api/payment/trybit-callback")
 async def payment_webhook(request: Request, db=Depends(get_db)):
     try:
         data = await request.json()
