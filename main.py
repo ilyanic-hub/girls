@@ -17,6 +17,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -702,14 +703,18 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
         
         payment_status = data.get("status") 
         
-        if payment_status in ["success", "completed"]:
+        # Trybit в тестовом режиме присылает статус успешной оплаты. 
+        # Если в истории POSTBACK увидишь другое слово (например, "paid"), добавь его в этот список
+        if payment_status in ["success", "completed", "paid"]:
             order_id = data.get("order_id", "") 
             
             if order_id.startswith("user_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
                     target_username = parts[1] 
-                    amount_usd = float(data.get("amount_usd") or data.get("amount", 0))
+                    
+                    # Защита на случай, если Trybit пришлет число текстом или null
+                    amount_usd = float(data.get("amount_usd") or data.get("amount") or 0)
                     coins_to_add = int(amount_usd * 100)
                     
                     if coins_to_add > 0:
@@ -719,10 +724,17 @@ async def payment_webhook(request: Request, db=Depends(get_db)):
                         
                         print(f"Успешно начислено {coins_to_add} руб/коинов на аккаунт: {target_username}")
                         upload_db_to_dropbox()
-                        return {"status": "accepted"}
                         
-        return {"status": "ignored"}
+                        # Возвращаем четкий ответ, что платеж успешно обработан и зачислен
+                        return {"status": "success", "message": "Payment processed"}
+            
+            # Если это не наш формат order_id
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Invalid order_id format"})
+                        
+        # Если статус платежа не "success"/"paid" (например, счет просто создан или отменен)
+        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Status is {payment_status}"})
         
     except Exception as e:
         print(f"Ошибка при обработке вебхука: {str(e)}")
-        return JSONResponse(status_code=400, content={"status": "error", "message": str(e)})
+        # Если упала база данных или ошибка в коде — возвращаем 500/400, чтобы Trybit повторил попытку позже
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
