@@ -345,10 +345,9 @@
         let selectedAmount = 0;
 
         function toggleAuthMode() {
-            // Очищаем поля при смене режима
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('secret_answer').value = '';
+            // Полностью сбрасываем форму через стандартный метод браузера
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
 
             if (authMode === 'login') {
                 authMode = 'register';
@@ -370,10 +369,9 @@
         function enableResetMode() {
             authMode = 'reset';
             
-            // Очищаем поля при переходе в режим сброса пароля
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('secret_answer').value = '';
+            // Полностью сбрасываем форму перед переходом в режим восстановления
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
 
             document.getElementById('auth-title').innerText = "Восстановление";
             document.getElementById('password').placeholder = "Введите НОВЫЙ пароль";
