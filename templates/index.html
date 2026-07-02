@@ -275,18 +275,17 @@
         <div class="auth-box">
             <h2 id="auth-title">Вход в аккаунт</h2>
             
-            <form onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
-                
-                <input type="text" name="fake_username_remembered" style="display:none;">
-                <input type="password" name="fake_password_remembered" style="display:none;">
+            <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+    <input type="text" name="fake_username_remembered" style="display:none;">
+    <input type="password" name="fake_password_remembered" style="display:none;">
 
-                <input type="text" id="username" placeholder="Логин" autocomplete="off">
-                <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
-                
-                <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                
-                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
-            </form>
+    <input type="text" id="username" placeholder="Логин" autocomplete="off">
+    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+    
+    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+    
+    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+</form>
             
             <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
             <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
