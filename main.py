@@ -17,7 +17,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -101,6 +100,7 @@ def get_db():
 def init_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     cursor = db.cursor()
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,15 +109,20 @@ def init_db():
         votes_count INTEGER DEFAULT 0
     )
     """)
+    
+    # ИСПРАВЛЕНО: Объединили создание таблицы users в один запрос, убрав дублирование
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         balance REAL DEFAULT 0.0,
-        is_admin INTEGER DEFAULT 0
+        is_admin INTEGER DEFAULT 0,
+        last_bonus_date TEXT DEFAULT NULL,
+        secret_answer TEXT DEFAULT NULL
     )
     """)
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -126,6 +131,7 @@ def init_db():
         photo_url TEXT NOT NULL
     )
     """)
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS history_photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,16 +140,7 @@ def init_db():
         FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
     )
     """)
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        balance REAL DEFAULT 0.0,
-        is_admin INTEGER DEFAULT 0,
-        last_bonus_date TEXT DEFAULT NULL  -- <-- Новое поле для отслеживания времени бонуса
-    )
-    """)
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_balances (
             user_ip TEXT PRIMARY KEY,
@@ -151,13 +148,11 @@ def init_db():
         )
     """)
 
-    # Автоматическое добавление колонки для бонуса, если её нет в старой базе из Dropbox
+    # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
         db.commit()
-        print("Колонка last_bonus_date успешно добавлена в существующую базу!")
     except sqlite3.OperationalError:
-        # Если колонка уже есть, SQLite выдаст ошибку, и мы её просто игнорируем
         pass
 
     try:
@@ -165,7 +160,7 @@ def init_db():
         db.commit()
     except sqlite3.OperationalError:
         pass
-    
+        
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
     if cursor.fetchone():
@@ -183,7 +178,7 @@ init_db()
 class UserAuthSchema(BaseModel):
     username: str
     password: str
-    secret_answer: Optional[str] = None  # <-- Добавили поле в схему
+    secret_answer: Optional[str] = None
 
 class ContestantSchema(BaseModel):
     name: str
@@ -243,7 +238,6 @@ async def get_history_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
-# БЕЗОПАСНЫЕ РОУТЫ ДЛЯ СОГЛАШЕНИЙ (Читают файлы так же, как главная)
 @app.get("/terms", response_class=HTMLResponse)
 async def get_terms():
     path = "templates/terms.html"
@@ -292,7 +286,6 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
         
     password_hash = hash_password(password)
-    # Хэшируем секретный ответ в нижнем регистре, чтобы не зависеть от больших/маленьких букв
     answer_hash = hash_password(secret_answer.lower())
     
     try:
@@ -307,7 +300,7 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
         
 @app.post("/api/login")
-@limiter.limit("5 per minute")  # <-- Защита от брутфорса
+@limiter.limit("5 per minute")
 async def api_login(request: Request, data: UserAuthSchema, response: Response, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
@@ -560,7 +553,7 @@ class ResetPasswordSchema(BaseModel):
     new_password: str
 
 @app.post("/api/reset-password")
-@limiter.limit("3 per minute")  # <-- Всего 3 попытки угадать секретное слово в минуту
+@limiter.limit("3 per minute")
 async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Depends(get_db)):
     username = data.username.strip()
     secret_answer = data.secret_answer.strip().lower()
@@ -570,30 +563,22 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
         raise HTTPException(status_code=400, detail="Новый пароль слишком короткий")
         
     cursor = db.cursor()
-    
-    # 1. Сначала ИЩЕМ пользователя в базе, чтобы проверить секретное слово
     cursor.execute("SELECT secret_answer FROM users WHERE username = ?", (username,))
     user = cursor.fetchone()
     
-    # Если пользователя нет или у него пустое секретное слово
     if not user or not user["secret_answer"]:
         raise HTTPException(status_code=404, detail="Пользователь не найден или для него не настроено восстановление")
         
-    # 2. Проверяем, совпадает ли хэш введенного секретного слова с базой
     if hash_password(secret_answer) != user["secret_answer"]:
         raise HTTPException(status_code=400, detail="Неверное секретное слово!")
         
-    # 3. Если всё правильно, хэшируем НОВЫЙ пароль и ОБНОВЛЯЕМ его в базе
     new_password_hash = hash_password(new_password)
     cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password_hash, username))
     db.commit()
     
-    # Синхронизируем обновленную базу с Dropbox
     upload_db_to_dropbox()
-    
     return {"status": "success", "message": "Пароль успешно изменен! Теперь вы можете войти."}
 
-# ================= ПЛАТЕЖИ TRYBIT =================
 @app.get("/api/balance")
 async def get_balance(request: Request, db=Depends(get_db)):
     user_ip = request.client.host
@@ -608,30 +593,32 @@ async def get_balance(request: Request, db=Depends(get_db)):
         
     return {"balance": row["balance"]}
 
-@app.post("/api/payment/create")
+
+# ================= ПЛАТЕЖИ PLISIO =================
+
+# 1. Создание счета в Plisio для конкретного пользователя
+@app.get("/api/payment/create")
 def create_plisio_invoice(user_id: int, amount_usd: float):
-    # Уникальный ID заказа, чтобы понять, кому начислять
-    order_id = f"order_{user_id}_12345" 
+    # Формируем order_id структуры "order_ИД-ПОЛЬЗОВАТЕЛЯ_РандомныйХвост"
+    order_id = f"order_{user_id}_{int(time.time())}" 
     
-    # Параметры запроса по документации Plisio
     params = {
         "api_key": PLISIO_API_TOKEN,
-        "currency": "USD",               # Фиатная валюта для расчета стоимости
-        "order_number": order_id,        # ID заказа в твоей системе
-        "amount": str(amount_usd),       # Сколько долларов заплатить
+        "currency": "USD",               
+        "order_number": order_id,        
+        "amount": str(amount_usd),       
         "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
     }
     
-    # Делаем запрос на создание инвойса
     response = requests.get("https://plisio.net/api/v1/invoices/new", params=params)
     res_data = response.json()
     
     if res_data.get("status") == "success":
-        # Ссылка на страницу оплаты, куда мы кидаем пользователя
         return {"url": res_data["data"]["invoice_url"]}
     else:
         raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
 
+# 2. Ежедневный бонус
 @app.post("/api/bonus")
 async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -649,7 +636,6 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     
     if last_bonus_str:
         last_bonus_time = datetime.fromisoformat(last_bonus_str)
-        # Проверяем, прошло ли 24 часа с момента последнего получения
         if now - last_bonus_time < timedelta(hours=24):
             time_left = timedelta(hours=24) - (now - last_bonus_time)
             hours_left = int(time_left.total_seconds() // 3600)
@@ -659,7 +645,6 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
                 detail=f"Бонус уже получен. До следующего осталось: {hours_left}ч {minutes_left}м"
             )
             
-    # Если всё ок, начисляем 1 коин и обновляем время
     new_time_str = now.isoformat()
     cursor.execute(
         "UPDATE users SET balance = balance + 5.0, last_bonus_date = ? WHERE username = ?", 
@@ -670,26 +655,40 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
+# ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
 @app.post("/api/payment/plisio-callback")
 async def plisio_callback(request: Request):
-    # Plisio присылает данные в формате x-www-form-urlencoded или JSON
-    # Проще всего прочитать форму, которую они отправляют
-    form_data = await request.form()
-    
-    # Проверяем статус платежа. Plisio присылает 'completed' при успешной оплате
-    status = form_data.get("status")
-    
-    if status == "completed":
-        order_id = form_data.get("order_number") # Достаем наш сгенерированный ID
+    try:
+        form_data = await request.form()
+        status = form_data.get("status")
         
-        # Разбираем order_id, вытаскиваем user_id
-        # Выполняем твой любимый SQL-апдейт:
-        # cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", ...)
-        
-        print(f"Оплата для {order_id} успешно получена!")
-        return "OK" # Отвечаем Plisio, что вебхук успешно обработан
-        
-    return "Ignored"
+        if status == "completed":
+            order_id = form_data.get("order_number") # Достаем "order_USERID_TIMESTAMP"
+            
+            if order_id and order_id.startswith("order_"):
+                parts = order_id.split("_")
+                if len(parts) >= 2:
+                    user_id = parts[1] # Вытаскиваем чистый user_id
+                    
+                    # Получаем сумму в USD и конвертируем её в количество коинов (например, 1 USD = 10 коинов)
+                    amount_usd = float(form_data.get("source_amount", 0.0))
+                    coins_to_add = amount_usd * 10.0 # Тут настрой свой курс обмена
+                    
+                    # Пишем изменения прямо в базу
+                    db = sqlite3.connect(DB_LOCAL_PATH)
+                    cursor = db.cursor()
+                    cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (coins_to_add, int(user_id)))
+                    db.commit()
+                    db.close()
+                    
+                    # Синхронизируем обновлённую базу с твоим Dropbox облаком
+                    upload_db_to_dropbox()
+                    
+                    print(f"Баланс пользователя ID {user_id} успешно пополнен на {coins_to_add} коинов!")
+            
+            return "OK"
+            
+        return "Ignored"
         
     except Exception as e:
         print(f"Критическая ошибка вебхука: {str(e)}")
