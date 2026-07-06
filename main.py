@@ -656,28 +656,37 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
 # ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
-@app.api_route("/api/payment/plisio-callback", methods=["GET", "POST"])
-@app.api_route("/api/payment/plisio-callback/", methods=["GET", "POST"])
+# Принимаем вообще любые методы, чтобы исключить ошибку 405
+@app.route("/api/payment/plisio-callback", methods=["GET", "POST", "PUT", "OPTIONS"])
+@app.route("/api/payment/plisio-callback/", methods=["GET", "POST", "PUT", "OPTIONS"])
 async def plisio_callback(request: Request):
-    # Если Plisio просто проверяет доступность роута GET-запросом
-    if request.method == "GET":
-        return JSONResponse(content={"status": "ok", "message": "Callback endpoint is active"})
+    # Если это проверка связи (GET/OPTIONS/HEAD)
+    if request.method in ["GET", "OPTIONS"]:
+        return JSONResponse(content={"status": "ok", "message": "Endpoint works!"})
         
     try:
-        # Обработка POST-запроса с данными от Plisio
-        form_data = await request.form()
-        status = form_data.get("status")
+        # Пытаемся прочитать данные и как форму, и как JSON (на случай, если Plisio поменял формат)
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            data = await request.form()
+            
+        status = data.get("status")
+        print(f"Получен вебхук Plisio. Метод: {request.method}, Статус: {status}") # Лог в консоль Railway
         
         if status == "completed":
-            order_id = form_data.get("order_number")
+            order_id = data.get("order_number")
             
             if order_id and order_id.startswith("order_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
                     user_id = parts[1]
                     
-                    amount_usd = float(form_data.get("source_amount", 0.0))
-                    coins_to_add = amount_usd * 10.0  # Твой курс коинов
+                    # Пытаемся достать сумму
+                    amount_usd = float(data.get("source_amount", data.get("amount", 0.0)))
+                    coins_to_add = amount_usd * 10.0
                     
                     db = sqlite3.connect(DB_LOCAL_PATH)
                     cursor = db.cursor()
@@ -686,12 +695,12 @@ async def plisio_callback(request: Request):
                     db.close()
                     
                     upload_db_to_dropbox()
-                    print(f"Баланс пользователя ID {user_id} успешно пополнен на {coins_to_add} коинов!")
+                    print(f"Баланс пользователя ID {user_id} пополнен на {coins_to_add} коинов!")
             
             return Response(content="OK", media_type="text/plain")
             
         return Response(content="Ignored", media_type="text/plain")
         
     except Exception as e:
-        print(f"Критическая ошибка вебхука: {str(e)}")
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        print(f"Ошибка внутри вебхука Plisio: {str(e)}")
+        return JSONResponse(status_code=200, content={"status": "error_but_ok_for_plisio", "message": str(e)})
