@@ -597,26 +597,51 @@ async def get_balance(request: Request, db=Depends(get_db)):
 # ================= ПЛАТЕЖИ PLISIO =================
 
 # 1. Создание счета в Plisio для конкретного пользователя
-@app.get("/api/payment/create")
-def create_plisio_invoice(user_id: int, amount_usd: float):
-    # Формируем order_id структуры "order_ИД-ПОЛЬЗОВАТЕЛЯ_РандомныйХвост"
-    order_id = f"order_{user_id}_{int(time.time())}" 
-    
-    params = {
-        "api_key": PLISIO_API_TOKEN,
-        "currency": "USD",               
-        "order_number": order_id,        
-        "amount": str(amount_usd),       
-        "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
-    }
-    
-    response = requests.get("https://plisio.net/api/v1/invoices/new", params=params)
-    res_data = response.json()
-    
-    if res_data.get("status") == "success":
-        return {"url": res_data["data"]["invoice_url"]}
-    else:
-        raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
+# Меняем @app.get на @app.post, чтобы фронтенд мог слать POST-запросы
+@app.post("/api/payment/create")
+@app.post("/api/payment/create/")
+async def create_plisio_invoice(request: Request, db=Depends(get_db)):
+    try:
+        # Пытаемся прочитать данные из POST-запроса (JSON или Form)
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
+            data = await request.json()
+        else:
+            data = await request.form()
+            
+        # Достаем параметры (поддерживаем и query, и тело запроса)
+        user_id = data.get("user_id") or request.query_params.get("user_id")
+        amount_usd = data.get("amount_usd") or request.query_params.get("amount_usd") or data.get("amount")
+        
+        if not user_id or not amount_usd:
+            raise HTTPException(status_code=400, detail="Missing user_id or amount_usd")
+            
+        # Формируем order_id
+        order_id = f"order_{user_id}_{int(time.time())}" 
+        
+        params = {
+            "api_key": PLISIO_API_TOKEN,
+            "currency": "USD",               
+            "order_number": order_id,        
+            "amount": str(amount_usd),       
+            # Проверь, чтобы этот URL совпадал с твоим доменом!
+            "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
+        }
+        
+        # Делаем асинхронный запрос к Plisio, чтобы не вешать поток
+        async with httpx.AsyncClient() as client:
+            response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
+            res_data = response.json()
+        
+        if res_data.get("status") == "success":
+            return {"url": res_data["data"]["invoice_url"]}
+        else:
+            print(f"Ошибка Plisio API: {res_data}")
+            raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
+            
+    except Exception as e:
+        print(f"Критическая ошибка при создании инвойса: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # 2. Ежедневный бонус
 @app.post("/api/bonus")
