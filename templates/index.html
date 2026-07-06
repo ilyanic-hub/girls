@@ -642,7 +642,7 @@ function startCheckingBalance() {
             // Перед редиректом даём скрипту пару секунд запуститься, 
             // либо открываем ссылку в новой вкладке (window.open), чтобы пользователь оставался на этой странице
             setTimeout(() => {
-                window.location.href = result.payment_url;
+                window.open(result.payment_url, '_blank');
             }, 1000);
 
         } else {
