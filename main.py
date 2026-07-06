@@ -260,14 +260,13 @@ async def get_refund():
 @app.get("/api/me")
 async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        return {"id": None, "username": "Гость", "balance": 0, "is_admin": 0}
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
     cursor = db.cursor()
-    # Добавили id в селект 👇
-    cursor.execute("SELECT id, username, balance, is_admin FROM users WHERE username = ?", (session_user,))
+    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if user:
         return dict(user)
-    return {"id": None, "username": "Гость", "balance": 0, "is_admin": 0}
+    return {"username": "Гость", "balance": 0, "is_admin": 0}
 
 @app.post("/api/register")
 async def api_register(data: UserAuthSchema, db=Depends(get_db)):
