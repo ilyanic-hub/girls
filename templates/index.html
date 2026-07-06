@@ -619,34 +619,43 @@ function startCheckingBalance() {
         });
 
         async function sendPaymentRequest() {
-            if (selectedAmount < 100) {
-                alert('Минимальная сумма пополнения — 100 коинов!');
-                return;
-            }
-            const payBtn = document.getElementById('payBtn');
-            payBtn.innerText = "Генерация счета...";
-            payBtn.disabled = true;
+    if (selectedAmount < 100) {
+        alert('Минимальная сумма пополнения — 100 коинов!');
+        return;
+    }
+    const payBtn = document.getElementById('payBtn');
+    payBtn.innerText = "Генерация счета...";
+    payBtn.disabled = true;
 
-            try {
-                let response = await fetch('/api/payment/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount: selectedAmount })
-                });
-                let result = await response.json();
-                if (response.ok && result.payment_url) {
-                    window.location.href = result.payment_url;
-                } else {
-                    alert('Ошибка платежной системы: ' + (result.detail || 'Не удалось создать счет'));
-                    payBtn.innerText = "Перейти к оплате криптой";
-                    payBtn.disabled = false;
-                }
-            } catch (e) {
-                alert('Сетевая ошибка: ' + e.message);
-                payBtn.innerText = "Перейти к оплате криптой";
-                payBtn.disabled = false;
-            }
+    try {
+        let response = await fetch('/api/payment/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: selectedAmount })
+        });
+        let result = await response.json();
+        if (response.ok && result.payment_url) {
+            
+            // === ВОТ СЮДА ДОБАВЛЯЕМ ВЫЗОВ ===
+            startCheckingBalance(); 
+            
+            // Перед редиректом даём скрипту пару секунд запуститься, 
+            // либо открываем ссылку в новой вкладке (window.open), чтобы пользователь оставался на этой странице
+            setTimeout(() => {
+                window.location.href = result.payment_url;
+            }, 1000);
+
+        } else {
+            alert('Ошибка платежной системы: ' + (result.detail || 'Не удалось создать счет'));
+            payBtn.innerText = "Перейти к оплате криптой";
+            payBtn.disabled = false;
         }
+    } catch (e) {
+        alert('Сетевая ошибка: ' + e.message);
+        payBtn.innerText = "Перейти к оплате криптой";
+        payBtn.disabled = false;
+    }
+}
 
         setInterval(updateTimer, 1000);
         updateTimer();
