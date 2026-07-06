@@ -110,7 +110,6 @@ def init_db():
     )
     """)
     
-    # ИСПРАВЛЕНО: Объединили создание таблицы users в один запрос, убрав дублирование
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -597,7 +596,6 @@ async def get_balance(request: Request, db=Depends(get_db)):
 # ================= ПЛАТЕЖИ PLISIO =================
 
 # 1. Создание счета в Plisio для конкретного пользователя
-# Меняем @app.get на @app.post, чтобы фронтенд мог слать POST-запросы
 @app.post("/api/payment/create")
 @app.post("/api/payment/create/")
 async def create_plisio_invoice(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -612,10 +610,13 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             try: body_data = dict(await request.form())
             except Exception: pass
 
-        # 1. Достаем сумму
-        amount_usd = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
-        if not amount_usd:
+        # 1. Достаем сумму коинов из запроса
+        coins_amount = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
+        if not coins_amount:
             raise HTTPException(status_code=400, detail="Не указана сумма перевода (amount)")
+
+        # Конвертируем коины в USD фиат: 100 коинов = 1 доллар
+        amount_usd = float(coins_amount) / 100.0
 
         # 2. Определяем пользователя по куке сессии
         if not session_user:
@@ -631,13 +632,13 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
         user_id = user_row["id"]
         order_id = f"order_{user_id}_{int(time.time())}" 
         
-        # ИСПРАВЛЕНО: Добавлен обязательный параметр order_name
+        # Передаем правильные параметры в Plisio
         params = {
             "api_key": PLISIO_API_TOKEN,
             "source_currency": "USD",       
-            "source_amount": str(amount_usd), 
+            "source_amount": f"{amount_usd:.2f}", # Форматируем до 2 знаков после запятой (например, "5.00")
             "order_number": order_id,        
-            "order_name": f"Пополнение коинов для пользователя {session_user}", # Название платежа для интерфейса Plisio
+            "order_name": f"Пополнение коинов ({coins_amount} шт.) для пользователя {session_user}",
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
@@ -695,18 +696,14 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
-# ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
-# Принимаем вообще любые методы, чтобы исключить ошибку 405
-# ИСПРАВЛЕНО: Используем правильный метод FastAPI — api_route
+# 3. Вебхук Plisio (обработчик оплаты)
 @app.api_route("/api/payment/plisio-callback", methods=["GET", "POST", "PUT", "OPTIONS"])
 @app.api_route("/api/payment/plisio-callback/", methods=["GET", "POST", "PUT", "OPTIONS"])
 async def plisio_callback(request: Request):
-    # Если это проверка связи (GET/OPTIONS/HEAD)
     if request.method in ["GET", "OPTIONS"]:
         return JSONResponse(content={"status": "ok", "message": "Endpoint works!"})
         
     try:
-        # Пытаемся прочитать данные и как форму, и как JSON
         content_type = request.headers.get("content-type", "")
         
         if "application/json" in content_type:
@@ -725,8 +722,9 @@ async def plisio_callback(request: Request):
                 if len(parts) >= 2:
                     user_id = parts[1]
                     
-                    amount_usd = float(data.get("source_amount", data.get("amount", 0.0)))
-                    coins_to_add = amount_usd * 10.0
+                    # Извлекаем сумму в долларах и переводим обратно в коины (умножаем на 100)
+                    amount_usd = float(data.get("source_amount") or data.get("amount") or 0.0)
+                    coins_to_add = amount_usd * 100.0
                     
                     db = sqlite3.connect(DB_LOCAL_PATH)
                     cursor = db.cursor()
