@@ -647,7 +647,8 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             res_data = response.json()
         
         if res_data.get("status") == "success":
-            return {"url": res_data["data"]["invoice_url"]}
+    # Меняем ключ "url" на "payment_url"
+    return {"payment_url": res_data["data"]["invoice_url"]}
         else:
             print(f"Ошибка Plisio API: {res_data}")
             raise HTTPException(status_code=400, detail="Ошибка создания счета в платежной системе")
