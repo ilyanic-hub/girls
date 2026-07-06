@@ -602,21 +602,53 @@ async def get_balance(request: Request, db=Depends(get_db)):
 @app.post("/api/payment/create/")
 async def create_plisio_invoice(request: Request, db=Depends(get_db)):
     try:
-        # Пытаемся прочитать данные из POST-запроса (JSON или Form)
+        # 1. Пытаемся собрать данные из всех возможных источников запроса
         content_type = request.headers.get("content-type", "")
-        if "application/json" in content_type:
-            data = await request.json()
-        else:
-            data = await request.form()
-            
-        # Достаем параметры (поддерживаем и query, и тело запроса)
-        user_id = data.get("user_id") or request.query_params.get("user_id")
-        amount_usd = data.get("amount_usd") or request.query_params.get("amount_usd") or data.get("amount")
+        body_data = {}
         
+        if "application/json" in content_type:
+            try:
+                body_data = await request.json()
+            except Exception:
+                pass
+        else:
+            try:
+                form_raw = await request.form()
+                body_data = dict(form_raw)
+            except Exception:
+                pass
+
+        # Логируем всё, что пришло, чтобы увидеть структуру в панеле Railway
+        print(f"--- ДЕБАГ ПЛАТЕЖА ---")
+        print(f"Content-Type: {content_type}")
+        print(f"Query params (из URL): {dict(request.query_params)}")
+        print(f"Body data (из тела): {body_data}")
+        print(f"----------------------")
+
+        # 2. Ищем user_id во всех возможных местах и вариациях полей
+        user_id = (
+            body_data.get("user_id") or 
+            body_data.get("userId") or 
+            request.query_params.get("user_id") or
+            request.query_params.get("userId")
+        )
+        
+        # 3. Ищем сумму (amount_usd или просто amount) во всех местах
+        amount_usd = (
+            body_data.get("amount_usd") or 
+            body_data.get("amount") or 
+            body_data.get("amountUsd") or
+            request.query_params.get("amount_usd") or 
+            request.query_params.get("amount")
+        )
+        
+        # Если всё равно пусто — выкидываем ошибку с подсказкой, что именно мы увидели
         if not user_id or not amount_usd:
-            raise HTTPException(status_code=400, detail="Missing user_id or amount_usd")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing user_id or amount_usd. Получено: id={user_id}, amount={amount_usd}"
+            )
             
-        # Формируем order_id
         order_id = f"order_{user_id}_{int(time.time())}" 
         
         params = {
@@ -624,11 +656,9 @@ async def create_plisio_invoice(request: Request, db=Depends(get_db)):
             "currency": "USD",               
             "order_number": order_id,        
             "amount": str(amount_usd),       
-            # Проверь, чтобы этот URL совпадал с твоим доменом!
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
-        # Делаем асинхронный запрос к Plisio, чтобы не вешать поток
         async with httpx.AsyncClient() as client:
             response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
             res_data = response.json()
@@ -639,6 +669,8 @@ async def create_plisio_invoice(request: Request, db=Depends(get_db)):
             print(f"Ошибка Plisio API: {res_data}")
             raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
             
+    except HTTPException as http_err:
+        raise http_err
     except Exception as e:
         print(f"Критическая ошибка при создании инвойса: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
