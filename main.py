@@ -612,12 +612,12 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             try: body_data = dict(await request.form())
             except Exception: pass
 
-        # 1. Достаем сумму (мы уже знаем, что она приходит как 'amount')
+        # 1. Достаем сумму
         amount_usd = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
         if not amount_usd:
             raise HTTPException(status_code=400, detail="Не указана сумма перевода (amount)")
 
-        # 2. ОПРЕДЕЛЯЕМ USER_ID АВТОМАТИЧЕСКИ ИЗ СЕССИИ
+        # 2. Определяем пользователя по куке сессии
         if not session_user:
             raise HTTPException(status_code=401, detail="Пользователь не авторизован. Войдите в аккаунт перед оплатой.")
             
@@ -629,15 +629,14 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             raise HTTPException(status_code=404, detail="Авторизованный пользователь не найден в базе данных")
             
         user_id = user_row["id"]
-
-        # 3. Формируем уникальный номер заказа для Plisio
         order_id = f"order_{user_id}_{int(time.time())}" 
         
+        # ИСПРАВЛЕНО: Переименовали currency -> source_currency для поддержки USD фиата
         params = {
             "api_key": PLISIO_API_TOKEN,
-            "currency": "USD",               
+            "source_currency": "USD",       # Указываем, что вводим сумму в долларах США
+            "source_amount": str(amount_usd), # Задаем фиатную сумму
             "order_number": order_id,        
-            "amount": str(amount_usd),       
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
