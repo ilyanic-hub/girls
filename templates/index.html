@@ -64,6 +64,104 @@
             letter-spacing: -0.5px;
         }
 
+        /* --- СТРУКТУРА СТРАНИЦЫ С МЕНЮ --- */
+        body {
+            display: flex;
+            margin: 0;
+            background-color: #f8fafc;
+        }
+
+        /* Обертка контента, сдвинутая на ширину меню (260px) */
+        .main-wrapper {
+            flex: 1;
+            margin-left: 260px; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* БОКОВОЕ МЕНЮ */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 260px;
+            height: 100vh;
+            background: var(--card-bg, #ffffff);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .sidebar-logo {
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+            text-align: center;
+        }
+
+        .sidebar-logo h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--text-main, #1a202c);
+            font-weight: 800;
+        }
+
+        .sidebar-menu {
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--text-muted, #4a5568);
+            text-decoration: none;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-link .icon {
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-link:hover {
+            background: #f1f5f9;
+            color: var(--text-main, #1a202c);
+        }
+
+        /* Активный пункт меню */
+        .sidebar-link.active {
+            background: #fee2e2; /* Нежно-розовый/красноватый оттенок под цвет кнопок */
+            color: var(--accent, #ff4a5a);
+        }
+
+        /* Выделенная кнопка покупки коинов */
+        .sidebar-link.buy-coins {
+            margin-top: 20px;
+            background: linear-gradient(135deg, #FF4B6B, #FF7B94);
+            color: white;
+        }
+        .sidebar-link.buy-coins:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Адаптивность для мобильных телефонов */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none; /* На мобилках пока скроем, позже можно сделать кнопку-гамбургер */
+            }
+            .main-wrapper {
+                margin-left: 0;
+            }
+        }
+
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ (БОЛЕЕ КОМПАКТНАЯ) --- */
         .contestants-grid {
             display: grid;
@@ -703,6 +801,7 @@ function startCheckingBalance() {
         updateTimer();
         checkAuth();
     </script>
+</div>
 </body>
 
 <footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
