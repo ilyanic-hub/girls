@@ -75,14 +75,14 @@
             margin: 0 auto;
         }
 
-        /* --- КАРТОЧКА УЧАСТНИЦЫ (АККУРАТНАЯ И УМЕНЬШЕННАЯ) --- */
+        /* --- КАРТОЧКА УЧАСТНИЦЫ (УЛЬТРАКОМПАКТНАЯ) --- */
         .contestant-card {
             background: var(--card-bg);
-            border-radius: 12px; /* Чуть уменьшили радиус для компактности */
+            border-radius: 12px;
             box-shadow: var(--shadow);
             overflow: hidden;
             text-align: center;
-            padding-bottom: 12px; /* Уменьшили нижний отступ */
+            padding-bottom: 10px; /* Минимальный отступ снизу */
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
@@ -93,34 +93,36 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
         }
 
+        /* Фото теперь пропорционально карточке (вертикальное) */
         .contestant-img {
             width: 100%;
-            height: 150px; /* Уменьшили высоту фото с 340px до 250px */
+            height: 210px; /* Уменьшили высоту, теперь фото идеально садится по ширине */
             object-fit: cover;
             object-position: center;
             border-bottom: 1px solid #edf2f7;
         }
 
+        /* Минимальные отступы для текста, чтобы убрать белое пространство */
         .contestant-info {
-            padding: 10px 8px 0 8px; /* Сжали внутренние отступы */
+            padding: 8px 6px 0 6px; 
         }
 
         .contestant-name {
-            font-size: 1.05rem; /* Сделали шрифт имени аккуратнее (был 1.25rem) */
+            font-size: 0.95rem; /* Слегка уменьшили шрифт */
             font-weight: 700;
-            margin: 0 0 4px 0;
+            margin: 0 0 2px 0; /* Минимальный зазор */
             color: var(--text-main);
-            white-space: nowrap; /* Чтобы длинные имена не ломали карточку */
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .contestant-votes {
             color: var(--text-muted);
-            font-size: 0.85rem; /* Чуть уменьшили шрифт счетчика */
-            margin-bottom: 10px; /* Уменьшили отступ до кнопки */
+            font-size: 0.8rem; /* Уменьшили шрифт голосов */
+            margin-bottom: 8px; /* Прижали кнопку ближе к тексту */
         }
-
+        
         /* --- УНИВЕРСАЛЬНЫЕ КНОПКИ --- */
         .btn {
             background: var(--accent);
@@ -164,6 +166,15 @@
         
         .btn-deposit:hover {
             background: #e2e8f0;
+        }
+
+        /* Уменьшаем кнопку ТОЛЬКО внутри карточки участницы */
+        .contestant-card .btn {
+            padding: 6px 14px;      /* Сжали кнопку по высоте и ширине (было 10px 20px) */
+            font-size: 0.8rem;      /* Уменьшили шрифт текста (было 0.95rem) */
+            border-radius: 12px;    /* Сделали закругление аккуратнее под стать новой карточке */
+            width: 90%;             /* Кнопка займет почти всю ширину, но не будет прилипать к краям */
+            margin: 0 auto;         /* Центрируем её внутри карточки */
         }
 
         /* --- ОКНО АВТОРИЗАЦИИ --- */
