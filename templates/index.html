@@ -74,47 +74,50 @@
             margin: 0 auto;
         }
 
-        /* --- КАРТОЧКА УЧАСТНИЦЫ --- */
+        /* --- КАРТОЧКА УЧАСТНИЦЫ (АККУРАТНАЯ И УМЕНЬШЕННАЯ) --- */
         .contestant-card {
             background: var(--card-bg);
-            border-radius: 16px;
+            border-radius: 12px; /* Чуть уменьшили радиус для компактности */
             box-shadow: var(--shadow);
             overflow: hidden;
             text-align: center;
-            padding-bottom: 20px;
+            padding-bottom: 12px; /* Уменьшили нижний отступ */
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
         }
 
         .contestant-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
         }
 
         .contestant-img {
             width: 100%;
-            height: 340px;
+            height: 250px; /* Уменьшили высоту фото с 340px до 250px */
             object-fit: cover;
             object-position: center;
             border-bottom: 1px solid #edf2f7;
         }
 
         .contestant-info {
-            padding: 15px 10px 0 10px;
+            padding: 10px 8px 0 8px; /* Сжали внутренние отступы */
         }
 
         .contestant-name {
-            font-size: 1.25rem;
+            font-size: 1.05rem; /* Сделали шрифт имени аккуратнее (был 1.25rem) */
             font-weight: 700;
-            margin: 0 0 8px 0;
+            margin: 0 0 4px 0;
             color: var(--text-main);
+            white-space: nowrap; /* Чтобы длинные имена не ломали карточку */
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .contestant-votes {
             color: var(--text-muted);
-            font-size: 0.95rem;
-            margin-bottom: 15px;
+            font-size: 0.85rem; /* Чуть уменьшили шрифт счетчика */
+            margin-bottom: 10px; /* Уменьшили отступ до кнопки */
         }
 
         /* --- УНИВЕРСАЛЬНЫЕ КНОПКИ --- */
