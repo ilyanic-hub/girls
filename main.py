@@ -657,6 +657,7 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
 
 # ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
 @app.post("/api/payment/plisio-callback")
+@app.post("/api/payment/plisio-callback/") # Добавлен роут со слэшем
 async def plisio_callback(request: Request):
     try:
         form_data = await request.form()
