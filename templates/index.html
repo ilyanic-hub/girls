@@ -448,7 +448,7 @@
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
                     <div>
                         <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
-                        <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
+                        <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">Загрузка...</div>
                     </div>
                     <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
                         🎁 Ежедневный бонус
@@ -503,10 +503,48 @@
             <p style="font-size: 0.8rem; color: #a0aec0; margin-top: 10px;">© 2026 PHOTO RATING. Все права защищены.</p>
         </footer>
 
-    </div> <script>
+    </div> 
+    
+    <script>
         let authMode = 'login'; 
         let selectedAmount = 0;
         let balanceCheckInterval;
+        let contestDeadline = null;
+
+        // --- БЕЗОПАСНЫЙ СИНХРОННЫЙ ТАЙМЕР С БЭКЕНДА ---
+        async function fetchContestStatus() {
+            try {
+                let response = await fetch('/api/contest-status');
+                let data = await response.json();
+                contestDeadline = new Date(data.deadline_iso);
+                
+                updateTimer();
+                setInterval(updateTimer, 1000);
+            } catch (error) {
+                console.error("Ошибка синхронизации времени:", error);
+                document.getElementById("countdown-timer").innerText = "Ошибка сети";
+            }
+        }
+
+        function updateTimer() {
+            if (!contestDeadline) return;
+
+            const now = new Date();
+            const diff = contestDeadline - now;
+
+            if (diff <= 0) {
+                document.getElementById("countdown-timer").innerText = "Раунд завершен!";
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            document.getElementById("countdown-timer").innerText = 
+                `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+        }
 
         function startCheckingBalance() {
             if (balanceCheckInterval) return;
@@ -514,7 +552,8 @@
             
             balanceCheckInterval = setInterval(async () => {
                 try {
-                    const response = await fetch('/api/user/me'); 
+                    // Исправлено: запрашиваем верный эндпоинт авторизованного юзера
+                    const response = await fetch('/api/me'); 
                     if (response.ok) {
                         const userData = await response.json();
                         const balanceElement = document.getElementById('user-balance');
@@ -636,7 +675,6 @@
                 if (authMode === 'register' || authMode === 'reset') { 
                     alert("Успешно! Теперь вы можете войти."); 
                     authMode = 'login'; 
-                    // Сбрасываем отображение полей под логин
                     document.getElementById('auth-title').innerText = "Вход в аккаунт";
                     document.getElementById('password').placeholder = "Пароль";
                     document.getElementById('secret_answer').style.display = 'none';
@@ -722,27 +760,6 @@
             }
         }
 
-        function updateTimer() {
-            const now = new Date();
-            const nextDeadline = new Date();
-            nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
-            nextDeadline.setHours(23, 59, 59, 999);
-            
-            const diff = nextDeadline - now;
-            if (diff <= 0) {
-                document.getElementById("countdown-timer").innerText = "Раунд завершен!";
-                return;
-            }
-            
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            
-            document.getElementById("countdown-timer").innerText = 
-                `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
-        }
-
         function openDepositModal() {
             document.getElementById('depositModal').style.display = 'flex';
             selectedAmount = 0;
@@ -802,8 +819,8 @@
             }
         }
 
-        setInterval(updateTimer, 1000);
-        updateTimer();
+        // Запуск процессов
+        fetchContestStatus();
         checkAuth();
     </script>
 </body>
