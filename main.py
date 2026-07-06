@@ -631,12 +631,13 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
         user_id = user_row["id"]
         order_id = f"order_{user_id}_{int(time.time())}" 
         
-        # ИСПРАВЛЕНО: Переименовали currency -> source_currency для поддержки USD фиата
+        # ИСПРАВЛЕНО: Добавлен обязательный параметр order_name
         params = {
             "api_key": PLISIO_API_TOKEN,
-            "source_currency": "USD",       # Указываем, что вводим сумму в долларах США
-            "source_amount": str(amount_usd), # Задаем фиатную сумму
+            "source_currency": "USD",       
+            "source_amount": str(amount_usd), 
             "order_number": order_id,        
+            "order_name": f"Пополнение коинов для пользователя {session_user}", # Название платежа для интерфейса Plisio
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
