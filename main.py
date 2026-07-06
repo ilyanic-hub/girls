@@ -600,55 +600,37 @@ async def get_balance(request: Request, db=Depends(get_db)):
 # Меняем @app.get на @app.post, чтобы фронтенд мог слать POST-запросы
 @app.post("/api/payment/create")
 @app.post("/api/payment/create/")
-async def create_plisio_invoice(request: Request, db=Depends(get_db)):
+async def create_plisio_invoice(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     try:
-        # 1. Пытаемся собрать данные из всех возможных источников запроса
         content_type = request.headers.get("content-type", "")
         body_data = {}
         
         if "application/json" in content_type:
-            try:
-                body_data = await request.json()
-            except Exception:
-                pass
+            try: body_data = await request.json()
+            except Exception: pass
         else:
-            try:
-                form_raw = await request.form()
-                body_data = dict(form_raw)
-            except Exception:
-                pass
+            try: body_data = dict(await request.form())
+            except Exception: pass
 
-        # Логируем всё, что пришло, чтобы увидеть структуру в панеле Railway
-        print(f"--- ДЕБАГ ПЛАТЕЖА ---")
-        print(f"Content-Type: {content_type}")
-        print(f"Query params (из URL): {dict(request.query_params)}")
-        print(f"Body data (из тела): {body_data}")
-        print(f"----------------------")
+        # 1. Достаем сумму (мы уже знаем, что она приходит как 'amount')
+        amount_usd = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
+        if not amount_usd:
+            raise HTTPException(status_code=400, detail="Не указана сумма перевода (amount)")
 
-        # 2. Ищем user_id во всех возможных местах и вариациях полей
-        user_id = (
-            body_data.get("user_id") or 
-            body_data.get("userId") or 
-            request.query_params.get("user_id") or
-            request.query_params.get("userId")
-        )
-        
-        # 3. Ищем сумму (amount_usd или просто amount) во всех местах
-        amount_usd = (
-            body_data.get("amount_usd") or 
-            body_data.get("amount") or 
-            body_data.get("amountUsd") or
-            request.query_params.get("amount_usd") or 
-            request.query_params.get("amount")
-        )
-        
-        # Если всё равно пусто — выкидываем ошибку с подсказкой, что именно мы увидели
-        if not user_id or not amount_usd:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Missing user_id or amount_usd. Получено: id={user_id}, amount={amount_usd}"
-            )
+        # 2. ОПРЕДЕЛЯЕМ USER_ID АВТОМАТИЧЕСКИ ИЗ СЕССИИ
+        if not session_user:
+            raise HTTPException(status_code=401, detail="Пользователь не авторизован. Войдите в аккаунт перед оплатой.")
             
+        cursor = db.cursor()
+        cursor.execute("SELECT id FROM users WHERE username = ?", (session_user,))
+        user_row = cursor.fetchone()
+        
+        if not user_row:
+            raise HTTPException(status_code=404, detail="Авторизованный пользователь не найден в базе данных")
+            
+        user_id = user_row["id"]
+
+        # 3. Формируем уникальный номер заказа для Plisio
         order_id = f"order_{user_id}_{int(time.time())}" 
         
         params = {
@@ -659,6 +641,7 @@ async def create_plisio_invoice(request: Request, db=Depends(get_db)):
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
+        # Отправляем запрос в Plisio
         async with httpx.AsyncClient() as client:
             response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
             res_data = response.json()
@@ -667,7 +650,7 @@ async def create_plisio_invoice(request: Request, db=Depends(get_db)):
             return {"url": res_data["data"]["invoice_url"]}
         else:
             print(f"Ошибка Plisio API: {res_data}")
-            raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
+            raise HTTPException(status_code=400, detail="Ошибка создания счета в платежной системе")
             
     except HTTPException as http_err:
         raise http_err
