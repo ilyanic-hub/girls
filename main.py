@@ -656,40 +656,41 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
 # ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
-@app.post("/api/payment/plisio-callback")
-@app.post("/api/payment/plisio-callback/") # Добавлен роут со слэшем
+@app.api_route("/api/payment/plisio-callback", methods=["GET", "POST"])
+@app.api_route("/api/payment/plisio-callback/", methods=["GET", "POST"])
 async def plisio_callback(request: Request):
+    # Если Plisio просто проверяет доступность роута GET-запросом
+    if request.method == "GET":
+        return JSONResponse(content={"status": "ok", "message": "Callback endpoint is active"})
+        
     try:
+        # Обработка POST-запроса с данными от Plisio
         form_data = await request.form()
         status = form_data.get("status")
         
         if status == "completed":
-            order_id = form_data.get("order_number") # Достаем "order_USERID_TIMESTAMP"
+            order_id = form_data.get("order_number")
             
             if order_id and order_id.startswith("order_"):
                 parts = order_id.split("_")
                 if len(parts) >= 2:
-                    user_id = parts[1] # Вытаскиваем чистый user_id
+                    user_id = parts[1]
                     
-                    # Получаем сумму в USD и конвертируем её в количество коинов (например, 1 USD = 10 коинов)
                     amount_usd = float(form_data.get("source_amount", 0.0))
-                    coins_to_add = amount_usd * 10.0 # Тут настрой свой курс обмена
+                    coins_to_add = amount_usd * 10.0  # Твой курс коинов
                     
-                    # Пишем изменения прямо в базу
                     db = sqlite3.connect(DB_LOCAL_PATH)
                     cursor = db.cursor()
                     cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (coins_to_add, int(user_id)))
                     db.commit()
                     db.close()
                     
-                    # Синхронизируем обновлённую базу с твоим Dropbox облаком
                     upload_db_to_dropbox()
-                    
                     print(f"Баланс пользователя ID {user_id} успешно пополнен на {coins_to_add} коинов!")
             
-            return "OK"
+            return Response(content="OK", media_type="text/plain")
             
-        return "Ignored"
+        return Response(content="Ignored", media_type="text/plain")
         
     except Exception as e:
         print(f"Критическая ошибка вебхука: {str(e)}")
