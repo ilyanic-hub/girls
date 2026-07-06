@@ -40,6 +40,8 @@ DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kB
 DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
 DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
 
+PLISIO_API_TOKEN = "u1JWmqyQBwnA6kuvp1PbOl5UKvt4a2i9oIk5CzD5GfiyThtj9RcYPsg2nroOgzsu"
+
 DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
@@ -607,55 +609,28 @@ async def get_balance(request: Request, db=Depends(get_db)):
     return {"balance": row["balance"]}
 
 @app.post("/api/payment/create")
-async def create_payment(data: DepositSchema, request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт, чтобы пополнить баланс")
-        
-    TRYBIT_API_KEY = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1dWlkIjoiTVRBM01EY3kiLCJ0eXBlIjoicHJvamVjdCIsInYiOiJiYmY5ODQ2YjM0YmUxYmJjOTUzYmE0OWJkNjA2YjhmYWQ4Nzc5NWUxNmVmZGRjYWExNDM2NWQ5NzRjNWZkYjNlIiwiZXhwIjo4ODE4MjMwNjY2OH0.ayDjkheCSfTy9m0BxrDA-i9jp3deXrIXp208Vp66Crw"
-    TRYBIT_SHOP_ID = "7Z8Q5qj8f3PDS5iz"
+def create_plisio_invoice(user_id: int, amount_usd: float):
+    # Уникальный ID заказа, чтобы понять, кому начислять
+    order_id = f"order_{user_id}_12345" 
     
-    total_price_usd = data.amount / 100.0  
-    order_id = f"user_{session_user}_{int(time.time())}"
-    CALLBACK_URL = "https://girls-production.up.railway.app/api/payment/webhook"
-    
-    headers = {
-        "Authorization": f"Token {TRYBIT_API_KEY}",
-        "Content-Type": "application/json"
+    # Параметры запроса по документации Plisio
+    params = {
+        "api_key": PLISIO_API_TOKEN,
+        "currency": "USD",               # Фиатная валюта для расчета стоимости
+        "order_number": order_id,        # ID заказа в твоей системе
+        "amount": str(amount_usd),       # Сколько долларов заплатить
+        "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
     }
     
-    payload = {
-        "shop_id": TRYBIT_SHOP_ID,
-        "amount": total_price_usd,
-        "currency": "USD",
-        "order_id": order_id,
-        "callback_url": CALLBACK_URL,  
-        "add_fields": {
-            "available_currencies": ["USDT_TRC20", "USDT_BSC", "USDT_TON", "TON", "BTC"]
-        }
-    }
+    # Делаем запрос на создание инвойса
+    response = requests.get("https://plisio.net/api/v1/invoices/new", params=params)
+    res_data = response.json()
     
-    try:
-        async with httpx.AsyncClient(verify=False) as client:
-            response = await client.post(
-                "https://api.trybit.com/v2/invoice/create",
-                json=payload,
-                headers=headers,
-                timeout=20.0
-            )
-            
-        if response.status_code in [200, 201, 211]:
-            res_data = response.json()
-            payment_url = res_data.get("result", {}).get("link")
-            
-            if payment_url:
-                return {"status": "success", "payment_url": payment_url}
-            else:
-                return {"status": "error", "detail": f"Ссылка 'link' не найдена в result: {res_data}"}
-        else:
-            return {"status": "error", "detail": f"Ошибка TryBit API: Код {response.status_code}, Ответ: {response.text}"}
-            
-    except Exception as e:
-        return {"status": "error", "detail": f"Сетевая ошибка: {type(e).__name__} - {str(e)}"}
+    if res_data.get("status") == "success":
+        # Ссылка на страницу оплаты, куда мы кидаем пользователя
+        return {"url": res_data["data"]["invoice_url"]}
+    else:
+        raise HTTPException(status_code=400, detail="Ошибка создания счета в Plisio")
 
 @app.post("/api/bonus")
 async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -695,80 +670,26 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
     
     return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
 
-@app.post("/api/payment/trybit-callback")
-async def payment_webhook(request: Request, db=Depends(get_db)):
-    try:
-        data = await request.json()
-        print(f"=== ПОЛУЧЕН ВЕБХУК ОТ TRYBIT: {data} ===")
+@app.post("/api/payment/plisio-callback")
+async def plisio_callback(request: Request):
+    # Plisio присылает данные в формате x-www-form-urlencoded или JSON
+    # Проще всего прочитать форму, которую они отправляют
+    form_data = await request.form()
+    
+    # Проверяем статус платежа. Plisio присылает 'completed' при успешной оплате
+    status = form_data.get("status")
+    
+    if status == "completed":
+        order_id = form_data.get("order_number") # Достаем наш сгенерированный ID
         
-        payment_status = data.get("status") 
+        # Разбираем order_id, вытаскиваем user_id
+        # Выполняем твой любимый SQL-апдейт:
+        # cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", ...)
         
-        if payment_status in ["success", "completed", "paid", "SUCCESS", "PAID"]:
-            order_id = data.get("order_id", "") 
-            invoice_id = data.get("invoice_id", "") # Уникальный ID счета от Trybit
-            
-            if order_id.startswith("user_") and invoice_id:
-                parts = order_id.split("_")
-                if len(parts) >= 2:
-                    target_username = parts[1] 
-                    
-                    # --- ЗАЩИТА ОТ ПОВТОРНЫХ НАЧИСЛЕНИЙ ---
-                    cursor = db.cursor()
-                    
-                    # Создаем таблицу для истории платежей, если её еще нет в твоей БД
-                    cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS processed_payments (
-                            invoice_id TEXT PRIMARY KEY,
-                            username TEXT,
-                            amount REAL,
-                            date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        )
-                    """)
-                    db.commit()
-                    
-                    # Проверяем, есть ли уже такой invoice_id в базе
-                    cursor.execute("SELECT 1 FROM processed_payments WHERE invoice_id = ?", (invoice_id,))
-                    already_processed = cursor.fetchone()
-                    
-                    if already_processed:
-                        print(f"Предупреждение: Вебхук для счета {invoice_id} пришел повторно. Игнорируем начисление.")
-                        # Возвращаем 200 OK, чтобы Trybit успокоился и больше не присылал его
-                        return {"status": "success", "message": "Already processed"}
-                    # --------------------------------------
-
-                    invoice_info = data.get("invoice_info", {})
-                    amount_usd = float(
-                        invoice_info.get("amount_usd") or 
-                        invoice_info.get("amount") or 
-                        data.get("amount_usd") or 
-                        data.get("amount") or 0
-                    )
-                    
-                    coins_to_add = int(amount_usd * 100)
-                    
-                    if coins_to_add > 0:
-                        # 1. Начисляем коины
-                        cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (float(coins_to_add), target_username))
-                        
-                        # 2. Записываем invoice_id в историю, чтобы никто не получил коины дважды
-                        cursor.execute("INSERT INTO processed_payments (invoice_id, username, amount) VALUES (?, ?, ?)", (invoice_id, target_username, amount_usd))
-                        
-                        db.commit()
-                        
-                        print(f"Успешно начислено {coins_to_add} коинов на аккаунт: {target_username}")
-                        
-                        try:
-                            upload_db_to_dropbox()
-                        except Exception as drop_err:
-                            print(f"Ошибка Dropbox (но баланс начислен): {str(drop_err)}")
-                            
-                        return {"status": "success", "message": "Payment processed"}
-                    else:
-                        return JSONResponse(status_code=400, content={"status": "error", "message": "Сумма коинов равна 0"})
-            
-            return JSONResponse(status_code=400, content={"status": "error", "message": "Неверный формат order_id"})
-                        
-        return JSONResponse(status_code=400, content={"status": "ignored", "message": f"Статус {payment_status} не обрабатывается"})
+        print(f"Оплата для {order_id} успешно получена!")
+        return "OK" # Отвечаем Plisio, что вебхук успешно обработан
+        
+    return "Ignored"
         
     except Exception as e:
         print(f"Критическая ошибка вебхука: {str(e)}")
