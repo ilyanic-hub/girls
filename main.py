@@ -682,15 +682,16 @@ async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depen
 
 # ИСПРАВЛЕНО: Добавлен отсутствующий try:, настроен автоматический апдейт баланса по id пользователя
 # Принимаем вообще любые методы, чтобы исключить ошибку 405
-@app.route("/api/payment/plisio-callback", methods=["GET", "POST", "PUT", "OPTIONS"])
-@app.route("/api/payment/plisio-callback/", methods=["GET", "POST", "PUT", "OPTIONS"])
+# ИСПРАВЛЕНО: Используем правильный метод FastAPI — api_route
+@app.api_route("/api/payment/plisio-callback", methods=["GET", "POST", "PUT", "OPTIONS"])
+@app.api_route("/api/payment/plisio-callback/", methods=["GET", "POST", "PUT", "OPTIONS"])
 async def plisio_callback(request: Request):
     # Если это проверка связи (GET/OPTIONS/HEAD)
     if request.method in ["GET", "OPTIONS"]:
         return JSONResponse(content={"status": "ok", "message": "Endpoint works!"})
         
     try:
-        # Пытаемся прочитать данные и как форму, и как JSON (на случай, если Plisio поменял формат)
+        # Пытаемся прочитать данные и как форму, и как JSON
         content_type = request.headers.get("content-type", "")
         
         if "application/json" in content_type:
@@ -699,7 +700,7 @@ async def plisio_callback(request: Request):
             data = await request.form()
             
         status = data.get("status")
-        print(f"Получен вебхук Plisio. Метод: {request.method}, Статус: {status}") # Лог в консоль Railway
+        print(f"Получен вебхук Plisio. Метод: {request.method}, Статус: {status}")
         
         if status == "completed":
             order_id = data.get("order_number")
@@ -709,7 +710,6 @@ async def plisio_callback(request: Request):
                 if len(parts) >= 2:
                     user_id = parts[1]
                     
-                    # Пытаемся достать сумму
                     amount_usd = float(data.get("source_amount", data.get("amount", 0.0)))
                     coins_to_add = amount_usd * 10.0
                     
