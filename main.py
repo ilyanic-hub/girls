@@ -16,6 +16,7 @@ import requests
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import pytz
 
 app = FastAPI()
 limiter = Limiter(key_func=get_remote_address)
@@ -591,6 +592,24 @@ async def get_balance(request: Request, db=Depends(get_db)):
         return {"balance": 0}
         
     return {"balance": row["balance"]}
+
+# ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
+@app.get("/api/contest-status")
+async def get_contest_status():
+    try:
+        # Устанавливаем часовой пояс (например, Москва/Киев)
+        tz = pytz.timezone("Europe/Kiev") 
+        
+        # Задай здесь дату и время окончания текущего раунда конкурса: Год, Месяц, День, Час, Минута
+        deadline = datetime(2026, 7, 20, 23, 59, 0)
+        deadline_localized = tz.localize(deadline)
+        
+        return {
+            "status": "active",
+            "deadline_iso": deadline_localized.isoformat()
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Ошибка таймера: {str(e)}"})
 
 
 # ================= ПЛАТЕЖИ PLISIO =================
