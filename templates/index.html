@@ -1,744 +1,696 @@
-import os
-import sys
-import sqlite3
-import hashlib
-import dropbox
-import time
-import httpx
-from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from typing import Optional, List
-import requests
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
-app = FastAPI()
-limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 PHOTO RATING</title>
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    <style>
+        :root {
+            --bg-color: #f5f7fb;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --accent: #ff4757;
+            --accent-hover: #e84118;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
 
-# Возвращаем твой исходный статический маунт папки templates
-if os.path.exists("templates"):
-    app.mount("/templates", StaticFiles(directory="templates"), name="templates")
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+        }
 
-# ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
-DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
-DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
+        .heart-particle {
+            position: fixed;
+            font-size: 24px;
+            pointer-events: none;
+            z-index: 9999;
+            animation: flyUpAndFade 0.8s ease-out forwards;
+        }
 
-PLISIO_API_TOKEN = "u1JWmqyQBwnA6kuvp1PbOl5UKvt4a2i9oIk5CzD5GfiyThtj9RcYPsg2nroOgzsu"
+        @keyframes flyUpAndFade {
+            0% {
+                transform: translate(0, 0) scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0.4) rotate(var(--r));
+                opacity: 0;
+            }
+        }
 
-DB_LOCAL_PATH = "database.db"
-DB_DROPBOX_PATH = "/database.db"
+        /* --- ШАПКА САЙТА --- */
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
 
-def get_dropbox_client():
-    try:
-        return dropbox.Dropbox(
-            oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
-            app_key=DROPBOX_APP_KEY,
-            app_secret=DROPBOX_APP_SECRET
-        )
-    except Exception as e:
-        print(f"Ошибка инициализации Dropbox: {e}")
-        return None
+        header .logo {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--accent);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
 
-def download_db_from_dropbox():
-    dbx = get_dropbox_client()
-    if not dbx:
-        print("Dropbox клиент не готов.")
-        return
-    try:
-        print("Скачивание базы данных из Dropbox...")
-        metadata, res = dbx.files_download(path=DB_DROPBOX_PATH)
-        with open(DB_LOCAL_PATH, "wb") as f:
-            f.write(res.content)
-        print("База данных успешно скачана!")
-    except dropbox.exceptions.AuthError as auth_err:
-        print(f"Ошибка авторизации Dropbox! Проверь ключи: {auth_err}")
-    except dropbox.exceptions.ApiError as api_err:
-        print("Файл базы данных еще не создан в Dropbox. Создаем новую локальную базу.")
-    except Exception as e:
-        print(f"Не удалось скачать базу (другая ошибка): {e}")
+        /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ (БОЛЕЕ КОМПАКТНАЯ) --- */
+        .contestants-grid {
+            display: grid;
+            /* Уменьшили минимальную ширину карточки с 260px до 190px */
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 16px;       /* Уменьшили зазоры между карточками (было 25px) */
+            padding: 16px;   /* Уменьшили внутренние отступы сетки (было 30px) */
+            max-width: 1200px;
+            margin: 0 auto;
+        }
 
-def upload_db_to_dropbox():
-    dbx = get_dropbox_client()
-    if not dbx or not os.path.exists(DB_LOCAL_PATH):
-        return
-    try:
-        print("Синхронизация базы данных с Dropbox...")
-        with open(DB_LOCAL_PATH, "rb") as f:
-            db_bytes = f.read()
-        dbx.files_upload(db_bytes, path=DB_DROPBOX_PATH, mode=dropbox.files.WriteMode.overwrite)
-        print("База данных успешно сохранена в Dropbox!")
-    except Exception as e:
-        print(f"Ошибка загрузки базы в Dropbox: {e}")
+        /* --- КАРТОЧКА УЧАСТНИЦЫ (УЛЬТРАКОМПАКТНАЯ) --- */
+        .contestant-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            text-align: center;
+            padding-bottom: 10px; /* Минимальный отступ снизу */
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
 
-# Синхронизируем базу при старте
-download_db_from_dropbox()
+        .contestant-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+        }
 
-def get_db():
-    db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
-    db.row_factory = sqlite3.Row
-    try:
-        yield db
-    finally:
-        db.close()
+        /* Фото теперь пропорционально карточке (вертикальное) */
+        .contestant-img {
+            width: 100%;
+            height: 270px; /* Уменьшили высоту, теперь фото идеально садится по ширине */
+            object-fit: cover;
+            object-position: center;
+            border-bottom: 1px solid #edf2f7;
+        }
 
-def init_db():
-    db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
-    cursor = db.cursor()
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS contestants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        photo_url TEXT NOT NULL,
-        votes_count INTEGER DEFAULT 0
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        balance REAL DEFAULT 0.0,
-        is_admin INTEGER DEFAULT 0,
-        last_bonus_date TEXT DEFAULT NULL,
-        secret_answer TEXT DEFAULT NULL
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        title_date TEXT NOT NULL,
-        photo_url TEXT NOT NULL
-    )
-    """)
-    
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS history_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        history_id INTEGER NOT NULL,
-        photo_url TEXT NOT NULL,
-        FOREIGN KEY (history_id) REFERENCES history(id) ON DELETE CASCADE
-    )
-    """)
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS user_balances (
-            user_ip TEXT PRIMARY KEY,
-            balance INTEGER DEFAULT 0
-        )
-    """)
+        /* Минимальные отступы для текста, чтобы убрать белое пространство */
+        .contestant-info {
+            padding: 8px 6px 0 6px; 
+        }
 
-    # Накатываем альтеры на случай старых баз
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
-        db.commit()
-    except sqlite3.OperationalError:
-        pass
+        .contestant-name {
+            font-size: 0.95rem; /* Слегка уменьшили шрифт */
+            font-weight: 700;
+            margin: 0 0 2px 0; /* Минимальный зазор */
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN secret_answer TEXT DEFAULT NULL")
-        db.commit()
-    except sqlite3.OperationalError:
-        pass
-        
-    admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
-    cursor.execute("SELECT id FROM users WHERE username = 'admin'")
-    if cursor.fetchone():
-        cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
-    else:
-        cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
-        
-    db.commit()
-    db.close()
-    upload_db_to_dropbox()
-
-init_db()
-
-# ================= СХЕМЫ ДАННЫХ =================
-class UserAuthSchema(BaseModel):
-    username: str
-    password: str
-    secret_answer: Optional[str] = None
-
-class ContestantSchema(BaseModel):
-    name: str
-    file_base64: str
-
-class AlbumFileSchema(BaseModel):
-    file_base64: str
-    filename: Optional[str] = ""
-    content_type: Optional[str] = ""
-
-class HistorySchema(BaseModel):
-    name: str
-    title_date: str
-    file_base64: str
-    filename: Optional[str] = None
-    content_type: Optional[str] = None
-    album_files: Optional[List[AlbumFileSchema]] = None
-
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
-# ================= РОУТЫ СТРАНИЦ =================
-@app.get("/", response_class=HTMLResponse)
-async def get_main_page():
-    path_to_html = "templates/index.html"
-    if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-@app.get("/admin", response_class=HTMLResponse)
-@app.get("/admin/", response_class=HTMLResponse)
-async def get_admin_page(session_user: Optional[str] = Cookie(None)):
-    if not session_user:
-        return RedirectResponse(url="/", status_code=303)
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    db.close()
-    if not user or not user["is_admin"]:
-        return RedirectResponse(url="/", status_code=303)
-    path_to_html = "templates/admin.html"
-    if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл admin.html не найден!</h1>", status_code=404)
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-@app.get("/history", response_class=HTMLResponse)
-@app.get("/history/", response_class=HTMLResponse)
-async def get_history_page():
-    path_to_html = "templates/history.html"
-    if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл history.html не найден!</h1>", status_code=404)
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
-
-@app.get("/terms", response_class=HTMLResponse)
-async def get_terms():
-    path = "templates/terms.html"
-    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл terms.html не найден!</h1>", status_code=404)
-    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
-
-@app.get("/privacy", response_class=HTMLResponse)
-async def get_privacy():
-    path = "templates/privacy.html"
-    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл privacy.html не найден!</h1>", status_code=404)
-    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
-
-@app.get("/refund", response_class=HTMLResponse)
-async def get_refund():
-    path = "templates/refund.html"
-    if not os.path.exists(path): return HTMLResponse(content="<h1>Файл refund.html не найден!</h1>", status_code=404)
-    with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
-
-
-# ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
-@app.get("/api/me")
-async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        return {"username": "Гость", "balance": 0, "is_admin": 0}
-    cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if user:
-        return dict(user)
-    return {"username": "Гость", "balance": 0, "is_admin": 0}
-
-@app.post("/api/register")
-async def api_register(data: UserAuthSchema, db=Depends(get_db)):
-    username = data.username.strip()
-    password = data.password.strip()
-    secret_answer = data.secret_answer.strip() if data.secret_answer else ""
-    
-    if len(username) < 3 or len(password) < 4:
-        raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
-    if not secret_answer:
-        raise HTTPException(status_code=400, detail="Укажите секретное слово для восстановления")
-        
-    cursor = db.cursor()
-    cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-    if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Пользователь уже существует")
-        
-    password_hash = hash_password(password)
-    answer_hash = hash_password(secret_answer.lower())
-    
-    try:
-        cursor.execute(
-            "INSERT INTO users (username, password, balance, is_admin, secret_answer) VALUES (?, ?, 0.0, 0, ?)", 
-            (username, password_hash, answer_hash)
-        )
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success", "message": "Регистрация успешна!"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-        
-@app.post("/api/login")
-@limiter.limit("5 per minute")
-async def api_login(request: Request, data: UserAuthSchema, response: Response, db=Depends(get_db)):
-    username = data.username.strip()
-    password = data.password.strip()
-    
-    cursor = db.cursor()
-    cursor.execute("SELECT password, is_admin FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    
-    if not user or hash_password(password) != user["password"]:
-        raise HTTPException(status_code=400, detail="Неверное имя пользователя или пароль")
-        
-    response.set_cookie(key="session_user", value=username, max_age=86400, httponly=True)
-    return {"status": "success", "message": "Вход выполнен успешно!", "is_admin": user["is_admin"]}
-
-@app.post("/api/logout")
-async def api_logout(response: Response):
-    response.delete_cookie(key="session_user", path="/")
-    return {"status": "success", "message": "Вы вышли"}
-
-@app.post("/api/deposit")
-async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    amount = float(amount_data.get("amount", 100.0))
-    cursor = db.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (amount, session_user))
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success", "balance_added": amount}
-
-
-# ================= РАБОТА С УЧАСТНИЦАМИ =================
-@app.get("/api/contestants")
-async def get_contestants(db=Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM contestants")
-    return [dict(row) for row in cursor.fetchall()]
-
-@app.post("/api/admin/contestants")
-async def admin_add_contestant(data: ContestantSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-    cursor.execute("INSERT INTO contestants (name, photo_url, votes_count) VALUES (?, ?, 0)", (data.name, inline_photo_url))
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success"}
-
-@app.post("/api/vote")
-async def api_vote(contestant_id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт")
-    cursor = db.cursor()
-    cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if user and user["balance"] >= 10:
-        cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = ?", (session_user,))
-        cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success"}
-    raise HTTPException(status_code=400, detail="Недостаточно средств")
-
-@app.delete("/api/admin/contestants/{id}")
-async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    cursor.execute("DELETE FROM contestants WHERE id = ?", (id,))
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success"}
-
-@app.put("/api/admin/contestants/{id}")
-async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    
-    inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-    
-    if len(inline_photo_url) < 50: 
-        cursor.execute("UPDATE contestants SET name = ? WHERE id = ?", (data.name, id))
-    else:
-        cursor.execute("UPDATE contestants SET name = ?, photo_url = ? WHERE id = ?", (data.name, inline_photo_url, id))
-        
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success", "message": "Участница успешно изменена!"}
-
-
-# ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
-@app.get("/api/history")
-async def get_api_history(db=Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM history ORDER BY id DESC")
-    return [dict(row) for row in cursor.fetchall()]
-
-@app.post("/api/admin/history")
-@app.post("/api/admin/history/")
-async def admin_add_history(data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    try:
-        inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        cursor.execute("INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)", (data.name, data.title_date, inline_photo_url))
-        inserted_id = cursor.lastrowid
-
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success", "history_id": inserted_id, "message": "Основная запись создана!"}
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
-
-@app.post("/api/admin/history/{history_id}/upload-photo")
-async def admin_upload_album_photo(history_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
-    try:
-        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        
-        if file_url:
-            cursor.execute(
-                "INSERT INTO history_photos (history_id, photo_url) VALUES (?, ?)", 
-                (int(history_id), str(file_url))
-            )
-            db.commit()
-            upload_db_to_dropbox()
-            return {"status": "success", "message": "Фото успешно добавлено в альбом!"}
-        else:
-            return {"status": "error", "message": "Пустая строка Base64"}
-            
-    except Exception as err:
-        print(f"Ошибка сохранения фото в альбом: {str(err)}")
-        raise HTTPException(status_code=500, detail=str(err))
-
-@app.get("/api/history/{winner_id}/photos")
-async def get_winner_photos(winner_id: int, db=Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT photo_url FROM history_photos WHERE history_id = ?", (winner_id,))
-    rows = cursor.fetchall()
-    return [row["photo_url"] for row in rows]
-
-@app.delete("/api/admin/history/{id}")
-async def delete_history_item(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    
-    cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
-    cursor.execute("DELETE FROM history WHERE id = ?", (id,))
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success"}
-
-@app.put("/api/admin/history/{id}")
-async def admin_edit_history(id: int, data: HistorySchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-    
-    try:
-        inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        cursor.execute("UPDATE history SET name = ?, title_date = ? WHERE id = ?", (data.name, data.title_date, id))
-        
-        if len(inline_photo_url) > 50:
-            cursor.execute("UPDATE history SET photo_url = ? WHERE id = ?", (inline_photo_url, id))
-            
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success", "history_id": id, "message": "Основная информация обновлена!"}
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
-
-@app.get("/api/admin/debug-history/{winner_id}")
-async def debug_winner_photos(winner_id: int, db=Depends(get_db)):
-    cursor = db.cursor()
-    cursor.execute("SELECT id, LENGTH(photo_url) as size FROM history_photos WHERE history_id = ?", (winner_id,))
-    rows = cursor.fetchall()
-    
-    result = []
-    for row in rows:
-        result.append({
-            "photo_table_id": row["id"],
-            "base64_length": row["size"]
-        })
-    return {
-        "total_photos_in_db": len(result),
-        "photos": result
-    }
-
-@app.delete("/api/admin/history/{id}/photos")
-async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    cursor = db.cursor()
-    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403, detail="Доступ запрещен")
-        
-    try:
-        cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success", "message": "Старый альбом очищен!"}
-    except Exception as err:
-        raise HTTPException(status_code=500, detail=str(err))
-
-
-class DepositSchema(BaseModel):
-    amount: int  
-
-class ResetPasswordSchema(BaseModel):
-    username: str
-    secret_answer: str
-    new_password: str
-
-@app.post("/api/reset-password")
-@limiter.limit("3 per minute")
-async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Depends(get_db)):
-    username = data.username.strip()
-    secret_answer = data.secret_answer.strip().lower()
-    new_password = data.new_password.strip()
-    
-    if len(new_password) < 4:
-        raise HTTPException(status_code=400, detail="Новый пароль слишком короткий")
-        
-    cursor = db.cursor()
-    cursor.execute("SELECT secret_answer FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    
-    if not user or not user["secret_answer"]:
-        raise HTTPException(status_code=404, detail="Пользователь не найден или для него не настроено восстановление")
-        
-    if hash_password(secret_answer) != user["secret_answer"]:
-        raise HTTPException(status_code=400, detail="Неверное секретное слово!")
-        
-    new_password_hash = hash_password(new_password)
-    cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password_hash, username))
-    db.commit()
-    
-    upload_db_to_dropbox()
-    return {"status": "success", "message": "Пароль успешно изменен! Теперь вы можете войти."}
-
-@app.get("/api/balance")
-async def get_balance(request: Request, db=Depends(get_db)):
-    user_ip = request.client.host
-    cursor = db.cursor()
-    cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
-    row = cursor.fetchone()
-    
-    if not row:
-        cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, 0)", (user_ip,))
-        db.commit()
-        return {"balance": 0}
-        
-    return {"balance": row["balance"]}
-
-
-# ================= ПЛАТЕЖИ PLISIO =================
-
-# 1. Создание счета в Plisio для конкретного пользователя
-@app.post("/api/payment/create")
-@app.post("/api/payment/create/")
-async def create_plisio_invoice(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    try:
-        content_type = request.headers.get("content-type", "")
-        body_data = {}
-        
-        if "application/json" in content_type:
-            try: body_data = await request.json()
-            except Exception: pass
-        else:
-            try: body_data = dict(await request.form())
-            except Exception: pass
-
-        # 1. Достаем сумму коинов из запроса
-        coins_amount = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
-        if not coins_amount:
-            raise HTTPException(status_code=400, detail="Не указана сумма перевода (amount)")
-
-        # Конвертируем коины в USD фиат: 100 коинов = 1 доллар
-        amount_usd = float(coins_amount) / 100.0
-
-        # 2. Определяем пользователя по куке сессии
-        if not session_user:
-            raise HTTPException(status_code=401, detail="Пользователь не авторизован. Войдите в аккаунт перед оплатой.")
-            
-        cursor = db.cursor()
-        cursor.execute("SELECT id FROM users WHERE username = ?", (session_user,))
-        user_row = cursor.fetchone()
-        
-        if not user_row:
-            raise HTTPException(status_code=404, detail="Авторизованный пользователь не найден в базе данных")
-            
-        user_id = user_row["id"]
-        order_id = f"order_{user_id}_{int(time.time())}" 
-        
-        # Передаем правильные параметры в Plisio
-        params = {
-            "api_key": PLISIO_API_TOKEN,
-            "source_currency": "USD",       
-            "source_amount": f"{amount_usd:.2f}", # Форматируем до 2 знаков после запятой (например, "5.00")
-            "order_number": order_id,        
-            "order_name": f"Пополнение коинов ({coins_amount} шт.) для пользователя {session_user}",
-            "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
+        .contestant-votes {
+            color: var(--text-muted);
+            font-size: 0.8rem; /* Уменьшили шрифт голосов */
+            margin-bottom: 8px; /* Прижали кнопку ближе к тексту */
         }
         
-        # Отправляем запрос в Plisio
-        async with httpx.AsyncClient() as client:
-            response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
-            res_data = response.json()
-        
-        if res_data.get("status") == "success":
-            return {"payment_url": res_data["data"]["invoice_url"]}
-        else:
-            print(f"Ошибка Plisio API: {res_data}")
-            raise HTTPException(status_code=400, detail="Ошибка создания счета в платежной системе")
-            
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as e:
-        print(f"Критическая ошибка при создании инвойса: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        /* --- УНИВЕРСАЛЬНЫЕ КНОПКИ --- */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: background 0.2s, transform 0.1s;
+        }
 
-# 2. Ежедневный бонус
-@app.post("/api/bonus")
-async def claim_daily_bonus(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт, чтобы получить бонус")
-        
-    cursor = db.cursor()
-    cursor.execute("SELECT balance, last_bonus_date FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-        
-    now = datetime.now()
-    last_bonus_str = user["last_bonus_date"]
-    
-    if last_bonus_str:
-        last_bonus_time = datetime.fromisoformat(last_bonus_str)
-        if now - last_bonus_time < timedelta(hours=24):
-            time_left = timedelta(hours=24) - (now - last_bonus_time)
-            hours_left = int(time_left.total_seconds() // 3600)
-            minutes_left = int((time_left.total_seconds() % 3600) // 60)
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Бонус уже получен. До следующего осталось: {hours_left}ч {minutes_left}м"
-            )
-            
-    new_time_str = now.isoformat()
-    cursor.execute(
-        "UPDATE users SET balance = balance + 5.0, last_bonus_date = ? WHERE username = ?", 
-        (new_time_str, session_user)
-    )
-    db.commit()
-    upload_db_to_dropbox()
-    
-    return {"status": "success", "message": "Вы получили 5 бесплатных коинов!"}
+        .btn:hover {
+            background: var(--accent-hover);
+        }
 
-# 3. Вебхук Plisio (обработчик оплаты)
-@app.api_route("/api/payment/plisio-callback", methods=["GET", "POST", "PUT", "OPTIONS"])
-@app.api_route("/api/payment/plisio-callback/", methods=["GET", "POST", "PUT", "OPTIONS"])
-async def plisio_callback(request: Request):
-    if request.method in ["GET", "OPTIONS"]:
-        return JSONResponse(content={"status": "ok", "message": "Endpoint works!"})
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-sec {
+            background: #edf2f7;
+            color: var(--text-main);
+        }
+
+        .btn-sec:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-deposit {
+            background: #f1f5f9;
+            color: #1e293b;
+            border: 2px solid #0f172a;
+            padding: 8px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
         
-    try:
-        content_type = request.headers.get("content-type", "")
-        
-        if "application/json" in content_type:
-            data = await request.json()
-        else:
-            data = await request.form()
+        .btn-deposit:hover {
+            background: #e2e8f0;
+        }
+
+        /* Уменьшаем кнопку ТОЛЬКО внутри карточки участницы */
+        .contestant-card .btn {
+            padding: 6px 14px;      /* Сжали кнопку по высоте и ширине (было 10px 20px) */
+            font-size: 0.8rem;      /* Уменьшили шрифт текста (было 0.95rem) */
+            border-radius: 12px;    /* Сделали закругление аккуратнее под стать новой карточке */
+            width: 90%;             /* Кнопка займет почти всю ширину, но не будет прилипать к краям */
+            margin: 0 auto;         /* Центрируем её внутри карточки */
+        }
+
+        /* --- ОКНО АВТОРИЗАЦИИ --- */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .auth-box {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .auth-box h2 {
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .auth-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+            background: #f7fafc;
+        }
+
+        .auth-box input:focus {
+            border-color: var(--accent);
+            background: #fff;
+        }
+
+        /* --- МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ --- */
+        .deposit-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+        .deposit-modal-content {
+            background: #fff;
+            padding: 30px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .deposit-close {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px; font-weight: bold; color: #a0aec0;
+            cursor: pointer;
+        }
+        .deposit-close:hover { color: #4a5568; }
+        .deposit-options {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .deposit-opt-btn {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            padding: 12px 5px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .deposit-opt-btn:hover {
+            border-color: #ff4757;
+            background: #fff5f5;
+        }
+        .deposit-opt-btn.active {
+            border-color: #ff4757;
+            background: #ff4757;
+            color: white;
+        }
+        .deposit-opt-btn.active small { color: #ffe3e3; }
+        .btn-pay-submit {
+            background: #2ed573;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+        .btn-pay-submit:hover { background: #26af5f; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-page" class="auth-container" style="display: none;">
+        <div class="auth-box">
+            <h2 id="auth-title">Вход в аккаунт</h2>
             
-        status = data.get("status")
-        print(f"Получен вебхук Plisio. Метод: {request.method}, Статус: {status}")
-        
-        if status == "completed":
-            order_id = data.get("order_number")
+            <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+    <input type="text" name="fake_username_remembered" style="display:none;">
+    <input type="password" name="fake_password_remembered" style="display:none;">
+
+    <input type="text" id="username" placeholder="Логин" autocomplete="off">
+    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+    
+    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+    
+    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+</form>
             
-            if order_id and order_id.startswith("order_"):
-                parts = order_id.split("_")
-                if len(parts) >= 2:
-                    user_id = parts[1]
+            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
+            <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
+        </div>
+    </div>
+
+    <div id="main-page" style="display: none;">
+        <header>
+            <a href="/" class="logo">🔥 PHOTO RATING</a>
+            
+            <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
+                <div>
+                    <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
+                    <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
+                </div>
+                <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
+                    🎁 Ежедневный бонус
+                </button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
+                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
+                <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+                <button class="btn btn-sec" onclick="logout()">Выйти</button>
+            </div>
+        </header>
+        
+        <main class="contestants-grid" id="gallery"></main>
+    </div>
+
+    <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
+        <div class="deposit-modal-content" onclick="event.stopPropagation()">
+            <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
+            <h2>💎 Пополнение баланса</h2>
+            <p style="color: #718096; margin-bottom: 20px;">Выберите количество коинов для покупки:</p>
+            
+            <div class="deposit-options">
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(100)">100 коинов <br><small>$1</small></button>
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(500)">500 коинов <br><small>$5</small></button>
+                <button class="deposit-opt-btn" onclick="selectDepositAmount(1000)">1000 коинов <br><small>$10</small></button>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold; color:#4a5568;">Своя сумма (в коинах):</label>
+                <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px;">
+            </div>
+
+            <button id="payBtn" class="btn-pay-submit" onclick="sendPaymentRequest()">Перейти к оплате криптой</button>
+        </div>
+    </div>
+
+    <script>
+        // Переменные состояний авторизации: 'login', 'register', 'reset'
+        let authMode = 'login'; 
+        let selectedAmount = 0;
+        let balanceCheckInterval;
+
+function startCheckingBalance() {
+    // Если таймер уже запущен, не запускаем еще один
+    if (balanceCheckInterval) return;
+
+    console.log("Запущен автоматический опрос баланса...");
+    
+    balanceCheckInterval = setInterval(async () => {
+        try {
+            // Замени URL на свой эндпоинт, который возвращает инфо о текущем юзере
+            const response = await fetch('/api/user/me'); 
+            if (response.ok) {
+                const userData = await response.json();
+                
+                // Находим элемент баланса на странице (поменяй ID на свой, если он другой)
+                const balanceElement = document.getElementById('user-balance');
+                
+                if (balanceElement) {
+                    const currentBalance = parseFloat(balanceElement.innerText);
+                    const newBalance = parseFloat(userData.balance);
                     
-                    # Извлекаем сумму в долларах и переводим обратно в коины (умножаем на 100)
-                    amount_usd = float(data.get("source_amount") or data.get("amount") or 0.0)
-                    coins_to_add = amount_usd * 100.0
-                    
-                    db = sqlite3.connect(DB_LOCAL_PATH)
-                    cursor = db.cursor()
-                    cursor.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (coins_to_add, int(user_id)))
-                    db.commit()
-                    db.close()
-                    
-                    upload_db_to_dropbox()
-                    print(f"Баланс пользователя ID {user_id} пополнен на {coins_to_add} коинов!")
-            
-            return Response(content="OK", media_type="text/plain")
-            
-        return Response(content="Ignored", media_type="text/plain")
+                    // Если баланс изменился — обновляем интерфейс и выключаем таймер
+                    if (newBalance !== currentBalance) {
+                        balanceElement.innerText = newBalance;
+                        console.log(`Баланс успешно обновлен: ${newBalance}`);
+                        
+                        // Красивое уведомление (если используешь Swal/alert)
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire('Успешно!', `Баланс пополнен на ${newBalance - currentBalance} коинов!`, 'success');
+                        }
+                        
+                        clearInterval(balanceCheckInterval);
+                        balanceCheckInterval = null;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Ошибка при проверке баланса:", error);
+        }
+    }, 4000); // Проверяем каждые 4 секунды
+
+    // На всякий случай выключаем проверку через 10 минут, чтобы не спамить сервер бесконечно
+    setTimeout(() => {
+        if (balanceCheckInterval) {
+            clearInterval(balanceCheckInterval);
+            balanceCheckInterval = null;
+        }
+    }, 600000);
+}
+
+// Запускай эту функцию в момент, когда пользователь кликает по кнопке «Оплатить»
+// Пример: 
+// document.getElementById('pay-btn').addEventListener('click', startCheckingBalance);
+
+
         
-    except Exception as e:
-        print(f"Ошибка внутри вебхука Plisio: {str(e)}")
-        return JSONResponse(status_code=200, content={"status": "error_but_ok_for_plisio", "message": str(e)})
+        function toggleAuthMode() {
+            // Полностью сбрасываем форму через стандартный метод браузера
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
+
+            if (authMode === 'login') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
+        }
+
+        function enableResetMode() {
+            authMode = 'reset';
+            
+            // Полностью сбрасываем форму перед переходом в режим восстановления
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
+
+            document.getElementById('auth-title').innerText = "Восстановление";
+            document.getElementById('password').placeholder = "Введите НОВЫЙ пароль";
+            document.getElementById('secret_answer').placeholder = "Ваше секретное слово";
+            document.getElementById('secret_answer').style.display = 'block';
+            document.getElementById('auth-toggle-text').innerText = "Вспомнили данные? Назад ко входу";
+            document.getElementById('auth-reset-text').style.display = 'none';
+        }
+
+        async function checkAuth() {
+            let res = await fetch('/api/me');
+            if (res.ok) {
+                let user = await res.json();
+                if (!user.username || user.username === "Гость") {
+                    document.getElementById('main-page').style.display = 'none';
+                    document.getElementById('auth-page').style.display = 'flex';
+                    return;
+                }
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-page').style.display = 'block';
+                document.getElementById('user-name').innerText = user.username;
+                document.getElementById('user-balance').innerText = user.balance;
+                
+                if(user.is_admin === 1) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                } else {
+                    document.getElementById('admin-link').style.display = 'none';
+                }
+                loadContestants();
+            } else {
+                document.getElementById('main-page').style.display = 'none';
+                document.getElementById('auth-page').style.display = 'flex';
+            }
+        }
+
+        async function submitAuth() {
+            let u = document.getElementById('username').value;
+            let p = document.getElementById('password').value;
+            let s = document.getElementById('secret_answer').value;
+
+            let url = '/api/login';
+            let bodyData = { username: u, password: p };
+
+            if (authMode === 'register') {
+                url = '/api/register';
+                bodyData.secret_answer = s;
+            } else if (authMode === 'reset') {
+                url = '/api/reset-password';
+                bodyData = { username: u, secret_answer: s, new_password: p };
+            }
+
+            let res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(bodyData)
+            });
+            let data = await res.json();
+            
+            if (res.ok) {
+                if (authMode === 'register') { 
+                    alert("Регистрация успешна! Теперь вы можете войти."); 
+                    authMode = 'register'; toggleAuthMode(); 
+                } else if (authMode === 'reset') {
+                    alert("Пароль успешно сброшен! Войдите под новым паролем.");
+                    authMode = 'reset'; toggleAuthMode();
+                } else { 
+                    window.location.reload(); 
+                }
+            } else { 
+                alert("Ошибка: " + data.detail); 
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', {method: 'POST'});
+            window.location.href = '/';
+        }
+
+        async function loadContestants() {
+            let res = await fetch('/api/contestants');
+            let list = await res.json();
+            let g = document.getElementById('gallery');
+            g.innerHTML = '';
+            
+            list.forEach(girl => {
+                g.innerHTML += `
+                    <div class="contestant-card">
+                        <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
+                        <div class="contestant-info">
+                            <div class="contestant-name">${girl.name}</div>
+                            <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
+                            <button class="btn" onclick="vote(${girl.id}, event)">Проголосовать (10 коинов)</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        async function vote(id, event) {
+            if (event) spawnHearts(event); 
+            let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
+            if (res.ok) { 
+                checkAuth(); 
+            } else { 
+                let d = await res.json(); 
+                alert(d.detail || "Ошибка при голосовании"); 
+            }
+        }
+
+        function spawnHearts(event) {
+            const heartCount = 6;
+            for (let i = 0; i < heartCount; i++) {
+                const heart = document.createElement('div');
+                heart.classList.add('heart-particle');
+                heart.innerText = '❤️';
+                heart.style.left = event.clientX + 'px';
+                heart.style.top = event.clientY + 'px';
+                
+                const x = (Math.random() - 0.5) * 160;
+                const y = (Math.random() - 0.8) * 160;
+                const r = (Math.random() - 0.5) * 90;
+                
+                heart.style.setProperty('--x', `${x}px`);
+                heart.style.setProperty('--y', `${y}px`);
+                heart.style.setProperty('--r', `${r}deg`);
+                
+                document.body.appendChild(heart);
+                setTimeout(() => { heart.remove(); }, 800);
+            }
+        }
+
+        async function getDailyBonus() {
+            try {
+                const response = await fetch('/api/bonus', { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    alert("🎉 Ура! " + result.message);
+                    checkAuth();
+                } else {
+                    alert("❌ " + (result.detail || "Ошибка получения бонуса"));
+                }
+            } catch (error) {
+                alert("Сетевая ошибка при получении бонуса");
+            }
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const nextDeadline = new Date();
+            nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
+            nextDeadline.setHours(23, 59, 59, 999);
+            
+            const diff = nextDeadline - now;
+            if (diff <= 0) {
+                document.getElementById("countdown-timer").innerText = "Раунд завершен!";
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            document.getElementById("countdown-timer").innerText = 
+                `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+        }
+
+        /* ОКНО ПОПОЛНЕНИЯ БАЛАНСА */
+        function openDepositModal() {
+            document.getElementById('depositModal').style.display = 'flex';
+            selectedAmount = 0;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+        }
+
+        function closeDepositModal() {
+            document.getElementById('depositModal').style.display = 'none';
+        }
+
+        function selectDepositAmount(amount) {
+            selectedAmount = amount;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        document.getElementById('customAmount').addEventListener('input', function() {
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+            selectedAmount = parseInt(this.value) || 0;
+        });
+
+        async function sendPaymentRequest() {
+    if (selectedAmount < 100) {
+        alert('Минимальная сумма пополнения — 100 коинов!');
+        return;
+    }
+    const payBtn = document.getElementById('payBtn');
+    payBtn.innerText = "Генерация счета...";
+    payBtn.disabled = true;
+
+    try {
+        let response = await fetch('/api/payment/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: selectedAmount })
+        });
+        let result = await response.json();
+        if (response.ok && result.payment_url) {
+            
+            // === ВОТ СЮДА ДОБАВЛЯЕМ ВЫЗОВ ===
+            startCheckingBalance(); 
+            
+            // Перед редиректом даём скрипту пару секунд запуститься, 
+            // либо открываем ссылку в новой вкладке (window.open), чтобы пользователь оставался на этой странице
+            setTimeout(() => {
+                window.open(result.payment_url, '_blank');
+            }, 1000);
+
+        } else {
+            alert('Ошибка платежной системы: ' + (result.detail || 'Не удалось создать счет'));
+            payBtn.innerText = "Перейти к оплате криптой";
+            payBtn.disabled = false;
+        }
+    } catch (e) {
+        alert('Сетевая ошибка: ' + e.message);
+        payBtn.innerText = "Перейти к оплате криптой";
+        payBtn.disabled = false;
+    }
+}
+
+        setInterval(updateTimer, 1000);
+        updateTimer();
+        checkAuth();
+    </script>
+</body>
+
+<footer style="text-align: center; margin-top: 60px; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
+    <div style="margin-bottom: 20px; font-size: 0.95rem;">
+        <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">Служба поддержки пользователей:</strong>
+        <p style="margin: 5px 0;">📧 Email: <a href="mailto:photo.rating.girls@gmail.com" style="color: var(--accent); text-decoration: none; font-weight: bold;">photo.rating.girls@gmail.com</a></p>
+        <p style="margin: 5px 0;">💬 Telegram: <a href="https://t.me/photo_rating_support" target="_blank" style="color: #0088cc; text-decoration: none; font-weight: bold;">@photo_rating_support</a></p>
+    </div>
+    <hr style="border: 0; border-top: 1px solid #edf2f7; max-width: 400px; margin: 15px auto;">
+    <p style="margin-top: 15px;">
+        <a href="/terms" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Пользовательское соглашение</a> | 
+        <a href="/privacy" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Политика конфиденциальности</a> | 
+        <a href="/refund" target="_blank" style="color: var(--text-muted); text-decoration: none; margin: 0 10px;">Политика возвратов</a>
+    </p>
+    <p style="font-size: 0.8rem; color: #a0aec0; margin-top: 10px;">© 2026 PHOTO RATING. Все права защищены.</p>
+</footer>
+</html>
