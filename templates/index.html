@@ -104,12 +104,14 @@
         }
 
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
+        /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
         .contestants-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            /* Изменили minmax с 260px на 180px, чтобы на больших экранах умещалось 5-6 карточек */
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 20px;
             padding: 20px;
-            max-width: 1200px;
+            max-width: 1400px; /* Немного увеличили общую ширину, чтобы им было просторнее */
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
