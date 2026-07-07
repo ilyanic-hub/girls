@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Информация для моделей | PHOTO-RATING</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f0f12;
+            --card-bg: #16161f;
+            --accent-color: #ff4a71;
+            --accent-gradient: linear-gradient(135deg, #ff4a71, #ff7b93);
+            --text-main: #ffffff;
+            --text-muted: #a0a0b0;
+            --border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .header-block {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .icon-header {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: inline-block;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        p {
+            color: #d1d1e0;
+            margin-bottom: 20px;
+            font-size: 1.05rem;
+        }
+
+        h2 {
+            font-size: 1.4rem;
+            color: var(--text-main);
+            margin: 30px 0 15px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Карточки преимуществ */
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 600px) {
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 25px;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: 16px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 42, 113, 0.3);
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .feature-card p {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 0;
+        }
+
+        /* Список требований */
+        .requirements-list {
+            list-style: none;
+        }
+
+        .requirements-list li {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 12px;
+            color: #d1d1e0;
+            font-size: 1rem;
+        }
+
+        .requirements-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            top: 0;
+            color: var(--accent-color);
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* Блок призыва к действию */
+        .cta-block {
+            margin-top: 40px;
+            background: linear-gradient(135deg, rgba(255, 74, 113, 0.1), rgba(255, 123, 147, 0.05));
+            border: 1px solid rgba(255, 74, 113, 0.2);
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .cta-block p {
+            margin-bottom: 15px;
+        }
+
+        .btn-back {
+            display: inline-block;
+            margin-top: 25px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+        }
+
+        .btn-back:hover {
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-block">
+        <span class="icon-header">📸</span>
+        <h1>Информация для моделей</h1>
+        <div class="subtitle">Стань новой звездой главного онлайн-конкурса красоты</div>
+    </div>
+
+    <p>Ты профессиональная модель или только начинаешь свой путь в индустрии? <strong>PHOTO-RATING</strong> — это идеальная площадка для того, чтобы заявить о себе, собрать преданную аудиторию и получить мощный толчок для развития своего личного бренда.</p>
+    
+    <p>Наш проект привлекает тысячи зрителей со всего мира, готовых поддерживать новые лица коинами платформы в реальном времени. Победительницы раундов получают не только признание, но и уникальные условия для продвижения.</p>
+
+    <h2>💎 Что дает участие?</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <h3>Глобальный охват</h3>
+            <p>Твое портфолио увидят пользователи со всего мира, голосующие за тебя.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Зал славы</h3>
+            <p>Победив в раунде, ты навсегда вписываешь свое имя в историю проекта.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Целевой трафик</h3>
+            <p>Мы помогаем привлекать лояльную аудиторию на твои личные соцсети.</p>
+        </div>
+        <div class="feature-card">
+            <h3>Честный рейтинг</h3>
+            <p>Никаких накруток — всё решает прямая активность и поддержка комьюнити.</p>
+        </div>
+    </div>
+
+    <h2>📐 Требования к контенту</h2>
+    <p>Мы высоко ценим эстетику, визуальный минимализм и кинематографическое качество. Чтобы анкета успешно прошла модерацию, фотографии должны соответствовать критериям:</p>
+    <ul class="requirements-list">
+        <li><strong>Высокое разрешение:</strong> Вертикальные снимки в превосходном качестве (вплоть до 4K).</li>
+        <li><strong>Профессиональный стиль:</strong> Красивая работа со светом, эстетика в деталях и мягкое размытие заднего плана (shallow depth of field).</li>
+        <li><strong>Оригинальность:</strong> На фотографиях должна быть именно ты. Использование чужих или сгенерированных нейросетями лиц строго запрещено.</li>
+    </ul>
+
+    <div class="cta-block">
+        <h2>🚀 Как подать заявку?</h2>
+        <p>В данный момент добавление новых участниц в текущий раунд осуществляется через администрацию платформы.</p>
+        <p>Подготовь свое имя (или псевдоним), а также главную вертикальную фотографию для карточки и свяжись с нами для быстрой модерации.</p>
+    </div>
+
+    <div style="text-align: center;">
+        <a href="/" class="btn-back">← Вернуться на главную страницу</a>
+    </div>
+</div>
+
+</body>
+</html>
