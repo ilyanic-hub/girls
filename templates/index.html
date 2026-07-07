@@ -512,6 +512,20 @@
                 document.getElementById('user-name').innerText = user.username;
                 document.getElementById('user-balance').innerText = user.balance;
                 
+                // Проверяем и выводим аватарку пользователя
+                let avatarUrl = user.avatar_url || user.avatar;
+                let avatarImg = document.getElementById('user-avatar-img');
+                let avatarDefault = document.getElementById('user-avatar-default');
+                
+                if (avatarUrl) {
+                    avatarImg.src = avatarUrl;
+                    avatarImg.style.display = 'block';
+                    avatarDefault.style.display = 'none';
+                } else {
+                    avatarImg.style.display = 'none';
+                    avatarDefault.style.display = 'block';
+                }
+                
                 if(user.is_admin === 1) {
                     document.getElementById('admin-link').style.display = 'inline';
                 } else {
