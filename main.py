@@ -6,7 +6,7 @@ import dropbox
 import time
 import httpx
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,8 +19,12 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 
 app = FastAPI()
+router = APIRouter()
 
-os.makedirs("static/avatars", exist_ok=True)
+# Папка, куда будут сохраняться аватарки
+UPLOAD_DIR = "static/avatars"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -33,30 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Возвращаем твой исходный статический маунт папки templates
+# Монтирование статических файлов
 if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 1. Сначала импорты (у вас они есть)
-# ...
 
-# 2. Функция зависимости (должна быть выше роутов)
-def get_current_user(session_user: Optional[str] = Cookie(None)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    return {"username": session_user}
-
-# 3. Эндпоинт
-@app.post("/api/user/upload-avatar")
-async def upload_avatar(
-    file: UploadFile = File(...), 
-    user: dict = Depends(get_current_user) # Depends вызывается ТОЛЬКО здесь
-):
-    # Код обработки файла
-    return {"status": "success"}
-
-    
 # ================= НАСТРОЙКА DROPBOX =================
 DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
 DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
@@ -113,7 +99,7 @@ def upload_db_to_dropbox():
 download_db_from_dropbox()
 
 
-    
+# ================= РАБОТА С БАЗОЙ ДАННЫХ =================
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     db.row_factory = sqlite3.Row
@@ -143,7 +129,8 @@ def init_db():
         balance REAL DEFAULT 0.0,
         is_admin INTEGER DEFAULT 0,
         last_bonus_date TEXT DEFAULT NULL,
-        secret_answer TEXT DEFAULT NULL
+        secret_answer TEXT DEFAULT NULL,
+        avatar TEXT DEFAULT NULL
     )
     """)
     
@@ -174,27 +161,30 @@ def init_db():
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS comments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    contestant_id INTEGER NOT NULL,
-    username TEXT NOT NULL,
-    text TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
-)
-""")
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contestant_id INTEGER NOT NULL,
+        username TEXT NOT NULL,
+        text TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
+    )
+    """)
 
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
         db.commit()
-    except sqlite3.OperationalError:
-        pass
+    except sqlite3.OperationalError: pass
 
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN secret_answer TEXT DEFAULT NULL")
         db.commit()
-    except sqlite3.OperationalError:
-        pass
+    except sqlite3.OperationalError: pass
+
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL")
+        db.commit()
+    except sqlite3.OperationalError: pass
         
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
@@ -208,6 +198,7 @@ def init_db():
     upload_db_to_dropbox()
 
 init_db()
+
 
 # ================= СХЕМЫ ДАННЫХ =================
 class UserAuthSchema(BaseModel):
@@ -235,20 +226,58 @@ class HistorySchema(BaseModel):
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Добавьте эту функцию в ваш main.py
+
+# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
 def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         raise HTTPException(status_code=401, detail="Не авторизован")
     
     cursor = db.cursor()
-    # Ищем пользователя, чтобы получить его реальный ID из базы
     cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     
     if not user:
         raise HTTPException(status_code=401, detail="Пользователь не найден")
     
-    return user # Теперь это объект, у которого есть user['id']
+    return user
+
+
+# ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
+@app.post("/api/user/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...), 
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
+    
+    username = user["username"]
+    file_extension = os.path.splitext(file.filename)[1]
+    if not file_extension:
+        file_extension = ".jpg"
+        
+    filename = f"avatar_{username}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            buffer.write(await file.read())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении файла: {str(e)}")
+    
+    avatar_url = f"/static/avatars/{filename}"
+    
+    try:
+        cursor = db.cursor()
+        cursor.execute("UPDATE users SET avatar = ? WHERE username = ?", (avatar_url, username))
+        db.commit()
+        upload_db_to_dropbox()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при обновлении базы данных: {str(e)}")
+    
+    return {"status": "success", "avatar_url": avatar_url}
+
 
 # ================= РОУТЫ СТРАНИЦ =================
 @app.get("/", response_class=HTMLResponse)
@@ -262,7 +291,7 @@ async def get_main_page():
 @app.get("/top", response_class=HTMLResponse)
 @app.get("/top/", response_class=HTMLResponse)
 async def get_top_page():
-    path_to_html = "templates/top.html"  # Убедись, что твой файл лежит в папке templates и называется именно так
+    path_to_html = "templates/top.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл top.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
@@ -271,7 +300,7 @@ async def get_top_page():
 @app.get("/models", response_class=HTMLResponse)
 @app.get("/models/", response_class=HTMLResponse)
 async def get_models_page():
-    path_to_html = "templates/models.html"  # Убедись, что файл в папке templates называется именно так
+    path_to_html = "templates/models.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл models.html не найден!</h1>", status_code=404)
     with open(path_to_html, "r", encoding="utf-8") as f:
@@ -332,6 +361,8 @@ async def get_refund():
     if not os.path.exists(path): return HTMLResponse(content="<h1>Файл refund.html не найден!</h1>", status_code=404)
     with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
 
+
+# ================= КОММЕНТАРИИ =================
 @app.get("/api/contestants/{contestant_id}/comments")
 async def get_comments(contestant_id: int, db=Depends(get_db)):
     cursor = db.cursor()
@@ -361,13 +392,13 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 @app.get("/api/me")
 async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        return {"username": "Гость", "balance": 0, "is_admin": 0}
+        return {"username": "Гость", "balance": 0, "is_admin": 0, "avatar": None}
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
+    cursor.execute("SELECT username, balance, is_admin, avatar FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if user:
         return dict(user)
-    return {"username": "Гость", "balance": 0, "is_admin": 0}
+    return {"username": "Гость", "balance": 0, "is_admin": 0, "avatar": None}
 
 @app.post("/api/register")
 async def api_register(data: UserAuthSchema, db=Depends(get_db)):
@@ -436,7 +467,6 @@ async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(No
 @app.get("/api/contestants")
 async def get_contestants(db=Depends(get_db)):
     cursor = db.cursor()
-    # Запрос считает количество комментариев для каждой участницы
     cursor.execute("""
         SELECT c.*, COUNT(cm.id) AS comments_count 
         FROM contestants c
@@ -509,7 +539,6 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "message": "Участница успешно изменена!"}
-
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
@@ -700,14 +729,12 @@ async def get_balance(request: Request, db=Depends(get_db)):
         
     return {"balance": row["balance"]}
 
+
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
 @app.get("/api/contest-status")
 async def get_contest_status():
     try:
-        # Устанавливаем часовой пояс (например, Москва/Киев)
         tz = pytz.timezone("Europe/Kiev") 
-        
-        # Задай здесь дату и время окончания текущего раунда конкурса: Год, Месяц, День, Час, Минута
         deadline = datetime(2026, 7, 20, 23, 59, 0)
         deadline_localized = tz.localize(deadline)
         
@@ -720,8 +747,6 @@ async def get_contest_status():
 
 
 # ================= ПЛАТЕЖИ PLISIO =================
-
-# 1. Создание счета в Plisio для конкретного пользователя
 @app.post("/api/payment/create")
 @app.post("/api/payment/create/")
 async def create_plisio_invoice(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -736,15 +761,12 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             try: body_data = dict(await request.form())
             except Exception: pass
 
-        # 1. Достаем сумму коинов из запроса
         coins_amount = body_data.get("amount") or body_data.get("amount_usd") or request.query_params.get("amount")
         if not coins_amount:
             raise HTTPException(status_code=400, detail="Не указана сумма перевода (amount)")
 
-        # Конвертируем коины в USD фиат: 100 коинов = 1 доллар
         amount_usd = float(coins_amount) / 100.0
 
-        # 2. Определяем пользователя по куке сессии
         if not session_user:
             raise HTTPException(status_code=401, detail="Пользователь не авторизован. Войдите в аккаунт перед оплатой.")
             
@@ -758,17 +780,15 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
         user_id = user_row["id"]
         order_id = f"order_{user_id}_{int(time.time())}" 
         
-        # Передаем правильные параметры в Plisio
         params = {
             "api_key": PLISIO_API_TOKEN,
             "source_currency": "USD",       
-            "source_amount": f"{amount_usd:.2f}", # Форматируем до 2 знаков после запятой (например, "5.00")
+            "source_amount": f"{amount_usd:.2f}",
             "order_number": order_id,        
             "order_name": f"Пополнение коинов ({coins_amount} шт.) для пользователя {session_user}",
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
-        # Отправляем запрос в Plisio
         async with httpx.AsyncClient() as client:
             response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
             res_data = response.json()
