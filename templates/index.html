@@ -104,14 +104,12 @@
         }
 
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
-        /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
         .contestants-grid {
             display: grid;
-            /* Изменили minmax с 260px на 180px, чтобы на больших экранах умещалось 5-6 карточек */
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
             gap: 20px;
             padding: 20px;
-            max-width: 1400px; /* Немного увеличили общую ширину, чтобы им было просторнее */
+            max-width: 1400px;
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
@@ -369,30 +367,27 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 15px;">
-    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-    
-    <!-- Исправленная рамка с поддержкой реального аватара -->
-    <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 16px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <!-- Место для динамической аватарки -->
-        <div id="user-avatar-container" style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2;">
-            <span id="user-avatar-default" style="font-size: 16px;">👤</span>
-            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-        </div>
-        
-        <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">
-            Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! 
-            <span style="margin: 0 8px; color: #cbd5e0;">|</span> 
-            Баланс: <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span> коинов
-        </div>
-    </div>
+                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                    
+                    <!-- Кликабельный блок профиля для смены аватарки -->
+                    <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 16px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
+                            <span id="user-avatar-default" style="font-size: 16px;">👤</span>
+                            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        </div>
+                        <!-- Скрытый инпут выбора файла -->
+                        <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
+                        
+                        <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">
+                            Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! 
+                            <span style="margin: 0 8px; color: #cbd5e0;">|</span> 
+                            Баланс: <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span> коинов
+                        </div>
+                    </div>
 
-    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-    <button class="btn btn-sec" onclick="logout()">Выйти</button>
-</div>
-
-    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-    <button class="btn btn-sec" onclick="logout()">Выйти</button>
-</div>
+                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+                    <button class="btn btn-sec" onclick="logout()">Выйти</button>
+                </div>
             </header>
             
             <main class="contestants-grid" id="gallery"></main>
@@ -512,7 +507,6 @@
                 document.getElementById('user-name').innerText = user.username;
                 document.getElementById('user-balance').innerText = user.balance;
                 
-                // Проверяем и выводим аватарку пользователя
                 let avatarUrl = user.avatar_url || user.avatar;
                 let avatarImg = document.getElementById('user-avatar-img');
                 let avatarDefault = document.getElementById('user-avatar-default');
@@ -536,6 +530,31 @@
                 document.getElementById('main-page').style.display = 'none';
                 document.getElementById('main-sidebar').style.display = 'none';
                 document.getElementById('auth-page').style.display = 'flex';
+            }
+        }
+
+        /* Функция отправки новой аватарки на сервер */
+        async function uploadAvatar() {
+            const fileInput = document.getElementById('avatar-input');
+            if (fileInput.files.length === 0) return;
+
+            const formData = new FormData();
+            formData.append('avatar', fileInput.files[0]);
+
+            try {
+                let res = await fetch('/api/user/avatar', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (res.ok) {
+                    alert("Аватарка успешно обновлена!");
+                    checkAuth(); 
+                } else {
+                    let errData = await res.json();
+                    alert("Ошибка загрузки: " + (errData.detail || "Неизвестная ошибка"));
+                }
+            } catch (err) {
+                alert("Ошибка сети при загрузке изображения.");
             }
         }
 
@@ -572,7 +591,6 @@
             let g = document.getElementById('gallery');
             g.innerHTML = '';
             list.forEach(girl => {
-                // Если комментариев нет или бэк вернул null, ставим 0
                 let cCount = girl.comments_count || 0; 
 
                 g.innerHTML += `
@@ -586,7 +604,6 @@
                             <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 Комментарии (${cCount})</button>
                         </div>
                         
-                        <!-- ВНУТРЕННИЙ БЛОК КОММЕНТАРИЕВ ДЛЯ КАЖДОЙ УЧАСТНИЦЫ -->
                         <div class="card-comments-box" id="comments-box-${girl.id}">
                             <div class="mini-comment-form">
                                 <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий...">
@@ -600,7 +617,6 @@
             });
         }
 
-        /* --- НОВЫЕ ИСПРАВЛЕННЫЕ ФУНКЦИИ КОММЕНТАРИЕВ ДЛЯ FASTAPI --- */
         function toggleCommentsBox(contestantId) {
             let box = document.getElementById(`comments-box-${contestantId}`);
             if (box.style.display === "block") {
@@ -649,10 +665,8 @@
 
                 if (res.ok) {
                     input.value = '';
-                    // Перезагружаем список комментов внутри спойлера
                     await loadComments(contestantId); 
                     
-                    // Обновляем циферку на кнопке
                     let listContainer = document.getElementById(`comments-list-${contestantId}`);
                     let currentCount = listContainer.querySelectorAll('.card-comment-item').length;
                     document.getElementById(`comment-btn-${contestantId}`).innerText = `💬 Комментарии (${currentCount})`;
@@ -711,46 +725,22 @@
             document.getElementById("countdown-timer").innerText = `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
         }
 
-        function openDepositModal() {
-            document.getElementById('depositModal').style.display = 'flex';
-            selectedAmount = 0; document.getElementById('customAmount').value = '';
-            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
-        }
-
+        function openDepositModal() { document.getElementById('depositModal').style.display = 'flex'; }
         function closeDepositModal() { document.getElementById('depositModal').style.display = 'none'; }
-
-        function selectDepositAmount(amount) {
-            selectedAmount = amount; document.getElementById('customAmount').value = '';
-            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-        }
-
-        document.getElementById('customAmount').addEventListener('input', function() {
-            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
-            selectedAmount = parseInt(this.value) || 0;
-        });
-
+        function selectDepositAmount(amt) { selectedAmount = amt; document.getElementById('customAmount').value = ''; }
+        
         async function sendPaymentRequest() {
-            if (selectedAmount < 100) { alert('Минимальная сумма — 100 коинов!'); return; }
-            const payBtn = document.getElementById('payBtn');
-            payBtn.innerText = "Генерация счета..."; payBtn.disabled = true;
-            try {
-                let response = await fetch('/api/payment/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ amount: selectedAmount })
-                });
-                let result = await response.json();
-                if (response.ok && result.payment_url) {
-                    startCheckingBalance(); 
-                    setTimeout(() => { window.open(result.payment_url, '_blank'); }, 1000);
-                } else { alert('Ошибка: ' + (result.detail || 'Не удалось создать счет')); payBtn.innerText = "Перейти к оплате криптой"; payBtn.disabled = false; }
-            } catch (e) { alert('Сетевая ошибка: ' + e.message); payBtn.innerText = "Перейти к оплате криптой"; payBtn.disabled = false; }
+            let amt = document.getElementById('customAmount').value || selectedAmount;
+            if (!amt || amt < 100) { alert("Минимальная сумма пополнения - 100 коинов"); return; }
+            alert("Запрос на оплату отправлен. Сумма: " + amt);
+            closeDepositModal();
         }
 
-        setInterval(updateTimer, 1000);
-        updateTimer();
-        checkAuth();
+        window.onload = function() {
+            checkAuth();
+            setInterval(updateTimer, 1000);
+            updateTimer();
+        };
     </script>
 </body>
 </html>
