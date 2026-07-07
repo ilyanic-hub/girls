@@ -539,6 +539,9 @@
             let g = document.getElementById('gallery');
             g.innerHTML = '';
             list.forEach(girl => {
+                // Если комментариев нет или бэк вернул null, ставим 0
+                let cCount = girl.comments_count || 0; 
+
                 g.innerHTML += `
                     <div class="contestant-card">
                         <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
@@ -547,9 +550,10 @@
                             <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
                             <button class="btn" onclick="vote(${girl.id}, event)">Проголосовать (10 коинов)</button>
                             <br>
-                            <button class="btn-comment-toggle" onclick="toggleCommentsBox(${girl.id})">💬 Комментарии</button>
+                            <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 Комментарии (${cCount})</button>
                         </div>
                         
+                        <!-- ВНУТРЕННИЙ БЛОК КОММЕНТАРИЕВ ДЛЯ КАЖДОЙ УЧАСТНИЦЫ -->
                         <div class="card-comments-box" id="comments-box-${girl.id}">
                             <div class="mini-comment-form">
                                 <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий...">
