@@ -210,6 +210,15 @@ async def get_main_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+@app.get("/top", response_class=HTMLResponse)
+@app.get("/top/", response_class=HTMLResponse)
+async def get_top_page():
+    path_to_html = "templates/top.html"  # Убедись, что твой файл лежит в папке templates и называется именно так
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл top.html не найден!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
 async def get_admin_page(session_user: Optional[str] = Cookie(None)):
