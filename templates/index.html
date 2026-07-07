@@ -476,10 +476,24 @@
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
                     <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-                    <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
-                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                    <button class="btn btn-sec" onclick="logout()">Выйти</button>
-                </div>
+                    <div class="user-profile-badge">
+    <div class="user-badge-info">
+        <!-- Аватарка пользователя (можно подставить путь к реальной или оставить заглушку) -->
+        <img src="https://via.placeholder.com/40" alt="Avatar" class="user-badge-avatar" id="user-avatar">
+        <div class="user-badge-text">
+            <div class="user-badge-name">Привет, <span id="user-name">Ева</span>!</div>
+            <div class="user-badge-balance">
+                <span class="coin-icon">🪙</span> 
+                <span id="user-balance">2,130</span> коинов
+            </div>
+        </div>
+    </div>
+    <div class="user-badge-actions">
+        <a href="/admin" id="admin-link" class="btn-badge-admin" style="display:none;">Админ ➡️</a>
+        <button class="btn-badge-deposit" onclick="openDepositModal()">+ Пополнить</button>
+        <button class="btn-badge-logout" onclick="logout()">Выйти</button>
+    </div>
+</div>
             </header>
             
             <main class="contestants-grid" id="gallery"></main>
