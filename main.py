@@ -38,32 +38,24 @@ if os.path.exists("templates"):
     app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# 1. Сначала импорты (у вас они есть)
+# ...
+
+# 2. Функция зависимости (должна быть выше роутов)
+def get_current_user(session_user: Optional[str] = Cookie(None)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    return {"username": session_user}
+
+# 3. Эндпоинт
 @app.post("/api/user/upload-avatar")
 async def upload_avatar(
     file: UploadFile = File(...), 
-    user = Depends(get_current_user) # Твоя функция проверки авторизации/куки/токена
+    user: dict = Depends(get_current_user) # Depends вызывается ТОЛЬКО здесь
 ):
-    # Проверяем формат файла
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Можно загружать только изображения")
-    
-    # Формируем имя файла (например, avatar_user1.png)
-    file_extension = os.path.splitext(file.filename)[1]
-    avatar_name = f"avatar_{user.id}{file_extension}"
-    avatar_path = f"static/avatars/{avatar_name}"
-    
-    # Сохраняем файл на сервер
-    with open(avatar_path, "wb") as buffer:
-        buffer.write(await file.read())
-    
-    # Обновляем путь в базе данных
-    avatar_url = f"/{avatar_path}"
-    # Пример для SQLAlchemy (подставь свою логику обновления БД):
-    # db_user = db.query(User).filter(User.id == user.id).first()
-    # db_user.avatar = avatar_url
-    # db.commit()
-    
-    return {"success": True, "avatar_url": avatar_url}
+    # Код обработки файла
+    return {"status": "success"}
+
     
 # ================= НАСТРОЙКА DROPBOX =================
 DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
