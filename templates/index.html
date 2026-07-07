@@ -503,9 +503,24 @@
             
             <h1 class="main-promo-title">Кого разденем?</h1>
             <style>
-.accent-text {
-    color: white;
-    text-shadow: 0 0 10px rgba(0,0,0,0.9); /* Очень мощная тень для контраста */
+                .accent-text {
+    /* Основной цвет текста */
+    color: #ffffff; 
+    
+    /* 1. Четкая обводка (text-stroke) */
+    -webkit-text-stroke: 2px #000000; /* Толщина 2px, цвет черный */
+    text-stroke: 2px #000000;
+    
+    /* 2. Тень для объема (text-shadow) */
+    /* Добавляем несколько слоев тени, чтобы контур казался еще плотнее */
+    text-shadow: 2px 2px 0 #000, 
+                 -2px -2px 0 #000, 
+                 2px -2px 0 #000, 
+                 -2px 2px 0 #000;
+    
+    /* 3. Жирный шрифт */
+    font-weight: 900; 
+    letter-spacing: 1px;
 }
 </style>
 
