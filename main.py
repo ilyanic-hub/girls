@@ -120,6 +120,21 @@ def upload_db_to_dropbox():
 # Синхронизируем базу при старте
 download_db_from_dropbox()
 
+# Добавьте эту функцию в ваш main.py
+def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    # Ищем пользователя, чтобы получить его реальный ID из базы
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    
+    return user # Теперь это объект, у которого есть user['id']
+    
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     db.row_factory = sqlite3.Row
@@ -460,6 +475,7 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "message": "Участница успешно изменена!"}
+
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
