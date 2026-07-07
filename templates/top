@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 ТОП УЧАСТНИЦ — PHOTO RATING</title>
+
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #2d3748;
+            --text-muted: #718096;
+            --accent: #ff4757;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+        }
+
+        /* --- СТРУКТУРА СТРАНИЦЫ С МЕНЮ --- */
+        .main-wrapper {
+            flex: 1;
+            margin-left: 260px; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* БОКОВОЕ МЕНЮ */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 260px;
+            height: 100vh;
+            background: var(--card-bg);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .sidebar-logo {
+            padding: 24px;
+            border-bottom: 1px solid #edf2f7;
+            text-align: center;
+        }
+
+        .sidebar-logo h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--text-main);
+            font-weight: 800;
+        }
+
+        .sidebar-menu {
+            padding: 20px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-link .icon {
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-link:hover {
+            background: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .sidebar-link.active {
+            background: #fee2e2; 
+            color: var(--accent);
+        }
+
+        .sidebar-link.buy-coins {
+            margin-top: 20px;
+            background: linear-gradient(135deg, #FF4B6B, #FF7B94);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main-wrapper { margin-left: 0; }
+        }
+
+        /* --- ШАПКА --- */
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 850;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- КОНТЕНТ ЛИДЕРБОРДА --- */
+        .content-container {
+            max-width: 900px;
+            width: 100%;
+            margin: 30px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        .leaderboard-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            padding: 10px 0;
+            overflow: hidden;
+        }
+
+        .leaderboard-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 24px;
+            border-bottom: 1px solid #edf2f7;
+            transition: background 0.2s;
+        }
+
+        .leaderboard-row:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard-row:hover {
+            background: #f8fafc;
+        }
+
+        /* Место в рейтинге */
+        .rank {
+            font-size: 1.2rem;
+            font-weight: 800;
+            width: 45px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .rank-1 { color: #ffd700; font-size: 1.6rem; } /* Золото */
+        .rank-2 { color: #c0c0c0; font-size: 1.5rem; } /* Серебро */
+        .rank-3 { color: #cd7f32; font-size: 1.4rem; } /* Бронза */
+
+        /* Фото модели */
+        .avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 20px;
+            border: 2px solid #edf2f7;
+        }
+
+        .leaderboard-row:nth-child(1) .avatar { border-color: #ffd700; }
+        .leaderboard-row:nth-child(2) .avatar { border-color: #c0c0c0; }
+        .leaderboard-row:nth-child(3) .avatar { border-color: #cd7f32; }
+
+        /* Имя */
+        .model-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            flex: 1;
+            color: var(--text-main);
+        }
+
+        /* Количество голосов */
+        .votes-badge {
+            background: #fff5f5;
+            color: var(--accent);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            border: 1px solid #fee2e2;
+        }
+
+        /* --- ФУТЕР --- */
+        .site-footer {
+            text-align: center; 
+            margin-top: auto;
+            padding: 30px 20px; 
+            color: var(--text-muted); 
+            font-size: 0.9rem; 
+            border-top: 1px solid #edf2f7; 
+            background: #ffffff;
+        }
+        .site-footer a { color: var(--text-muted); text-decoration: none; }
+        .site-footer a:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <!-- БОКОВОЕ МЕНЮ -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <h2>Photo Rating</h2>
+        </div>
+        <nav class="sidebar-menu">
+            <a href="/" class="sidebar-link">
+                <span class="icon">🏠</span> Главная
+            </a>
+            <a href="/models" class="sidebar-link">
+                <span class="icon">📸</span> Моделям
+            </a>
+            <a href="/about" class="sidebar-link">
+                <span class="icon">ℹ️</span> О проекте
+            </a>
+            <a href="/top" class="sidebar-link active">
+                <span class="icon">👑</span> Топ Участниц
+            </a>
+            <a href="/deposit" class="sidebar-link buy-coins">
+                <span class="icon">💎</span> Купить коины
+            </a>
+        </nav>
+    </aside>
+
+    <div class="main-wrapper">
+        <header>
+            <h1 class="page-title">👑 Топ Участниц Текущего Раунда</h1>
+            <div style="font-size: 0.9rem; color: var(--text-muted); font-weight: bold;" id="live-indicator">
+                🔴 Обновляется в реальном времени
+            </div>
+        </header>
+
+        <div class="content-container">
+            <div class="leaderboard-card" id="leaderboard">
+                <!-- Сюда JS подгрузит строки с моделями -->
+                <p style="text-align: center; color: var(--text-muted); padding: 20px;">Загрузка рейтинга лидирующих моделей...</p>
+            </div>
+        </div>
+
+        <footer class="site-footer">
+            <p>© 2026 PHOTO RATING. Все права защищены.</p>
+        </footer>
+    </div>
+
+    <script>
+        async function loadTopModels() {
+            try {
+                // Запрашиваем тот же эндпоинт со списком участниц
+                let res = await fetch('/api/contestants');
+                if (!res.ok) return;
+                
+                let models = await res.json();
+                
+                // Сортируем массив моделей по количеству голосов от большего к меньшему
+                models.sort((a, b) => b.votes_count - a.votes_count);
+                
+                let container = document.getElementById('leaderboard');
+                container.innerHTML = '';
+                
+                if (models.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">В текущем раунде пока нет участниц.</p>';
+                    return;
+                }
+
+                models.forEach((girl, index) => {
+                    let rank = index + 1;
+                    let rankClass = 'rank';
+                    let rankDisplay = rank;
+
+                    // Присваиваем красивые иконки кубков/медалей для топ-3
+                    if (rank === 1) { rankClass += ' rank-1'; rankDisplay = '🥇'; }
+                    else if (rank === 2) { rankClass += ' rank-2'; rankDisplay = '🥈'; }
+                    else if (rank === 3) { rankClass += ' rank-3'; rankDisplay = '🥉'; }
+
+                    container.innerHTML += `
+                        <div class="leaderboard-row">
+                            <div class="${rankClass}">${rankDisplay}</div>
+                            <img src="${girl.photo_url}" class="avatar" onerror="this.src='https://placehold.co/100x100/2c2c35/ffffff?text=${girl.name}'">
+                            <div class="model-name">${girl.name}</div>
+                            <div class="votes-badge">${girl.votes_count} голосов</div>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error("Ошибка при получении топа:", error);
+            }
+        }
+
+        // Загружаем данные сразу при открытии страницы
+        loadTopModels();
+        // Раз в 10 секунд обновляем топ автоматически
+        setInterval(loadTopModels, 10000);
+    </script>
+</body>
+</html>
