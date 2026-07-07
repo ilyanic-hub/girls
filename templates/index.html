@@ -412,9 +412,9 @@
             <a href="/top" class="sidebar-link">
                 <span class="icon">👑</span> Топ Участниц
             </a>
-            <a href="/deposit" class="sidebar-link buy-coins">
-                <span class="icon">💎</span> Купить коины
-            </a>
+            <a href="#" class="sidebar-link buy-coins" onclick="openDepositModal(); return false;">
+    <span class="icon">💎</span> Купить коины
+</a>
         </nav>
     </aside>
 
@@ -846,9 +846,16 @@
 
     // БЕЗОПАСНЫЙ СТАРТ: Запускаем функции только после полной загрузки страницы
     window.addEventListener('DOMContentLoaded', () => {
-        fetchContestStatus();
-        checkAuth();
-    });
+    fetchContestStatus();
+    checkAuth();
+
+    // Если в адресе есть #deposit, сразу открываем окно оплаты
+    if (window.location.hash === '#deposit') {
+        openDepositModal();
+        // Убираем хэш из адресной строки, чтобы при обновлении страницы окно опять не вылезало
+        history.replaceState(null, null, ' ');
+    }
+});
 </script>
 </body>
 </html>
