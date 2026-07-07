@@ -172,6 +172,17 @@ def init_db():
         )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    contestant_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (contestant_id) REFERENCES contestants(id) ON DELETE CASCADE
+)
+""")
+
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
@@ -320,6 +331,30 @@ async def get_refund():
     path = "templates/refund.html"
     if not os.path.exists(path): return HTMLResponse(content="<h1>Файл refund.html не найден!</h1>", status_code=404)
     with open(path, "r", encoding="utf-8") as f: return HTMLResponse(content=f.read())
+
+@app.get("/api/contestants/{contestant_id}/comments")
+async def get_comments(contestant_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM comments WHERE contestant_id = ? ORDER BY id DESC", (contestant_id,))
+    return [dict(row) for row in cursor.fetchall()]
+
+@app.post("/api/contestants/{contestant_id}/comments")
+async def add_comment(contestant_id: int, data: dict, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Нужно войти в аккаунт")
+    
+    text = data.get("text", "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Комментарий не может быть пустым")
+    
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO comments (contestant_id, username, text) VALUES (?, ?, ?)",
+        (contestant_id, session_user, text)
+    )
+    db.commit()
+    upload_db_to_dropbox()
+    return {"status": "success"}
 
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
