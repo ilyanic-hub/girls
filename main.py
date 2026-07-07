@@ -436,7 +436,13 @@ async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(No
 @app.get("/api/contestants")
 async def get_contestants(db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT * FROM contestants")
+    # Запрос считает количество комментариев для каждой участницы
+    cursor.execute("""
+        SELECT c.*, COUNT(cm.id) AS comments_count 
+        FROM contestants c
+        LEFT JOIN comments cm ON c.id = cm.contestant_id
+        GROUP BY c.id
+    """)
     return [dict(row) for row in cursor.fetchall()]
 
 @app.post("/api/admin/contestants")
