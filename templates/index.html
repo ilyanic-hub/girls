@@ -153,6 +153,27 @@
             }
         }
 
+        /* --- СТИЛИ ЗАГОЛОВКА ПРОМО --- */
+        .main-promo-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            font-family: 'Comic Sans MS', 'Inter', sans-serif;
+            text-align: center;
+            color: #ffffff; /* Белый цвет для темного фона страницы */
+            text-shadow: 0 0 15px rgba(255, 71, 87, 0.6); /* Красивое неоновое свечение */
+            margin: 35px 0 15px 0;
+            letter-spacing: -1px;
+            display: block;
+            width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .main-promo-title {
+                font-size: 2.2rem;
+                margin: 20px 0;
+            }
+        }
+
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
         .contestants-grid {
             display: grid;
@@ -413,8 +434,8 @@
                 <span class="icon">👑</span> Топ Участниц
             </a>
             <a href="#" class="sidebar-link buy-coins" onclick="openDepositModal(); return false;">
-    <span class="icon">💎</span> Купить коины
-</a>
+                <span class="icon">💎</span> Купить коины
+            </a>
         </nav>
     </aside>
 
@@ -456,31 +477,32 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 15px;">
-    <!-- Ссылки слева -->
-    <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px; white-space: nowrap;">🏆 Зал славы</a>
-    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px; white-space: nowrap;">Админ-панель ➡️</a></span>
-    
-    <!-- Компактная рамка профиля строго в одну линию -->
-    <div style="display: flex; align-items: center; gap: 12px; background-color: #1a1924; border: 2px solid #ff4a71; border-radius: 12px; padding: 6px 16px; box-shadow: 0 0 10px rgba(255, 74, 113, 0.2); color: #ffffff;">
-        <!-- Аватарка -->
-        <img src="https://via.placeholder.com/30" alt="Avatar" id="user-avatar" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: block;">
-        
-        <!-- Текст (Привет и Баланс) в одну строку -->
-        <div style="font-size: 0.95rem; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
-            <span>Привет, <b id="user-name" style="color: var(--accent);">Гость</b>!</span>
-            <span style="color: rgba(255,255,255,0.4);">|</span>
-            <span>Баланс: <span id="user-balance" style="font-weight: bold;">0</span> коинов</span>
-        </div>
-        
-        <!-- Кнопки управления -->
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="btn-deposit" onclick="openDepositModal()" style="background: linear-gradient(135deg, #ff4a71, #ff7b93); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">+ Пополнить</button>
-            <button class="btn btn-sec" onclick="logout()" style="background: transparent; color: #a0a0b0; border: 1px solid rgba(255, 255, 255, 0.15); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">Выйти</button>
-        </div>
-    </div>
-</div>
+                    <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px; white-space: nowrap;">🏆 Зал славы</a>
+                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px; white-space: nowrap;">Админ-панель ➡️</a></span>
+                    
+                    <div style="display: flex; align-items: center; gap: 12px; background-color: #ffffff; border: 2px solid #e0e0e6; border-radius: 12px; padding: 6px 16px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); color: #222222;">
+                        
+                        <div style="position: relative; cursor: pointer;" onclick="document.getElementById('avatar-input').click();" title="Сменить аватар">
+                            <img src="https://via.placeholder.com/30" alt="Avatar" id="user-avatar" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: block; border: 1px solid #ccc;">
+                            <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="uploadAvatar(this)">
+                        </div>
+                        
+                        <div style="font-size: 0.95rem; white-space: nowrap; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #222222;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>!</span>
+                            <span style="color: rgba(0,0,0,0.15);">|</span>
+                            <span style="color: #555555;">Баланс: <span id="user-balance" style="font-weight: bold; color: #222222;">0</span> коинов</span>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <button class="btn-deposit" onclick="openDepositModal()" style="background: linear-gradient(135deg, #ff4a71, #ff7b93); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">+ Пополнить</button>
+                            <button class="btn btn-sec" onclick="logout()" style="background: #f4f4f6; color: #555555; border: 1px solid #dcdce0; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; white-space: nowrap;">Выйти</button>
+                        </div>
+                    </div>
+                </div>
             </header>
             
+            <h1 class="main-promo-title">Кого разденем?</h1>
+
             <main class="contestants-grid" id="gallery"></main>
         </div>
 
@@ -528,6 +550,34 @@
     let balanceCheckInterval = null;
     let contestDeadline = null;
 
+    // --- ФУНКЦИЯ ДЛЯ ЗАГРУЗКИ ИЗМЕНЕННОЙ АВАТАРКИ НА СЕРВЕР ---
+    async function uploadAvatar(inputElement) {
+        const file = inputElement.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("/api/user/upload-avatar", {
+                method: "POST",
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById("user-avatar").src = data.avatar_url;
+                alert("Аватар успешно обновлен!");
+            } else {
+                const errorData = await response.json();
+                alert("Ошибка загрузки: " + (errorData.detail || "Что-то пошло не так"));
+            }
+        } catch (error) {
+            console.error("Ошибка сети:", error);
+            alert("Ошибка соединения с сервером при загрузке аватара.");
+        }
+    }
+
     // --- БЕЗОПАСНЫЙ ТАЙМЕР С БЭКЕНДА ---
     async function fetchContestStatus() {
         try {
@@ -573,11 +623,11 @@
         if (balanceCheckInterval) return;
         console.log("Запущен автоматический опрос баланса...");
         
-        let attempts = 0; // Ограничим количество запросов, чтобы не вешать сеть
+        let attempts = 0; 
         
         balanceCheckInterval = setInterval(async () => {
             attempts++;
-            if (attempts > 30) { // Если за 2 минуты баланс не пришел, выключаем опрос
+            if (attempts > 30) { 
                 stopCheckingBalance();
                 return;
             }
@@ -660,6 +710,11 @@
                 document.getElementById('main-page').style.display = 'block';
                 document.getElementById('user-name').innerText = user.username;
                 document.getElementById('user-balance').innerText = user.balance;
+                
+                // Подгружаем аватарку пользователя, если она установлена
+                if (user.avatar_url) {
+                    document.getElementById('user-avatar').src = user.avatar_url;
+                }
                 
                 if(user.is_admin === 1) {
                     document.getElementById('admin-link').style.display = 'inline';
@@ -838,41 +893,30 @@
         payBtn.disabled = true;
 
         try {
-            let response = await fetch('/api/payment/create', {
+            let response = await fetch('/api/payme', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ amount: selectedAmount })
             });
-            let result = await response.json();
-            if (response.ok && result.payment_url) {
-                startCheckingBalance(); 
-                setTimeout(() => {
-                    window.open(result.payment_url, '_blank');
-                }, 1000);
+            let data = await response.json();
+            if (response.ok && data.url) {
+                window.location.href = data.url;
             } else {
-                alert('Ошибка платежной системы: ' + (result.detail || 'Не удалось создать счет'));
-                payBtn.innerText = "Перейти к оплате криптой";
-                payBtn.disabled = false;
+                alert("Ошибка генерации: " + (data.detail || "Не удалось создать счет."));
             }
         } catch (e) {
-            alert('Сетевая ошибка: ' + e.message);
+            alert("Ошибка связи с платежным шлюзом.");
+        } finally {
             payBtn.innerText = "Перейти к оплате криптой";
             payBtn.disabled = false;
         }
     }
 
-    // БЕЗОПАСНЫЙ СТАРТ: Запускаем функции только после полной загрузки страницы
-    window.addEventListener('DOMContentLoaded', () => {
-    fetchContestStatus();
-    checkAuth();
-
-    // Если в адресе есть #deposit, сразу открываем окно оплаты
-    if (window.location.hash === '#deposit') {
-        openDepositModal();
-        // Убираем хэш из адресной строки, чтобы при обновлении страницы окно опять не вылезало
-        history.replaceState(null, null, ' ');
-    }
-});
-</script>
+    // Инициализация авторизации и таймера при загрузке страницы
+    window.onload = function() {
+        checkAuth();
+        fetchContestStatus();
+    };
+    </script>
 </body>
 </html>
