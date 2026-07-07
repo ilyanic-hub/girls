@@ -616,7 +616,13 @@
 
                 if (res.ok) {
                     input.value = '';
-                    loadComments(contestantId); // Сразу обновляем список комментариев именно этой девушки
+                    // Перезагружаем список комментов внутри спойлера
+                    await loadComments(contestantId); 
+                    
+                    // Обновляем циферку на кнопке
+                    let listContainer = document.getElementById(`comments-list-${contestantId}`);
+                    let currentCount = listContainer.querySelectorAll('.card-comment-item').length;
+                    document.getElementById(`comment-btn-${contestantId}`).innerText = `💬 Комментарии (${currentCount})`;
                 } else {
                     let data = await res.json();
                     alert("Ошибка: " + (data.detail || "Не удалось отправить"));
