@@ -455,13 +455,33 @@
                     </button>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none; margin-right: 15px;">🏆 Зал славы</a>
-                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-                    <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
-                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                    <button class="btn btn-sec" onclick="logout()">Выйти</button>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">
+    <!-- Левая часть панели: ссылки на Зал славы и Админку -->
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <a href="/history" style="color: #b8860b; font-weight: bold; text-decoration: none;">🏆 Зал славы</a>
+        <span id="admin-link" style="display:none;">
+            <a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none;">Админ-панель ➡️</a>
+        </span>
+    </div>
+
+    <!-- Правая часть панели: красивая рамка профиля -->
+    <div class="user-profile-badge">
+        <div class="user-badge-info">
+            <img src="https://via.placeholder.com/40" alt="Avatar" class="user-badge-avatar" id="user-avatar">
+            <div class="user-badge-text">
+                <div class="user-badge-name">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>!</div>
+                <div class="user-badge-balance">
+                    <span class="coin-icon">🪙</span> 
+                    <span id="user-balance">0</span> коинов
                 </div>
+            </div>
+        </div>
+        <div class="user-badge-actions">
+            <button class="btn-badge-deposit" onclick="openDepositModal()">+ Пополнить</button>
+            <button class="btn-badge-logout" onclick="logout()">Выйти</button>
+        </div>
+    </div>
+</div>
             </header>
             
             <main class="contestants-grid" id="gallery"></main>
