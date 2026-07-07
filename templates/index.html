@@ -106,9 +106,9 @@
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
         .contestants-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-            gap: 16px;
-            padding: 16px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+            padding: 20px;
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
@@ -122,7 +122,7 @@
             box-shadow: var(--shadow);
             overflow: hidden;
             text-align: center;
-            padding-bottom: 10px;
+            padding-bottom: 15px;
             transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             flex-direction: column;
@@ -135,18 +135,18 @@
 
         .contestant-img {
             width: 100%;
-            height: 270px;
+            height: 320px;
             object-fit: cover;
             object-position: center;
             border-bottom: 1px solid #edf2f7;
         }
 
-        .contestant-info { padding: 8px 6px 0 6px; }
+        .contestant-info { padding: 12px 10px 0 10px; }
 
         .contestant-name {
-            font-size: 0.95rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            margin: 0 0 2px 0;
+            margin: 0 0 4px 0;
             color: var(--text-main);
             white-space: nowrap;
             overflow: hidden;
@@ -155,8 +155,8 @@
 
         .contestant-votes {
             color: var(--text-muted);
-            font-size: 0.8rem;
-            margin-bottom: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
         }
         
         /* --- КНОПКИ --- */
@@ -177,6 +177,24 @@
         .btn-sec { background: #edf2f7; color: var(--text-main); }
         .btn-sec:hover { background: #e2e8f0; }
 
+        .btn-comment-toggle {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .btn-comment-toggle:hover {
+            background: #f7fafc;
+            color: var(--text-main);
+            border-color: #cbd5e0;
+        }
+
         .btn-deposit {
             background: #f1f5f9;
             color: #1e293b;
@@ -190,35 +208,63 @@
         .btn-deposit:hover { background: #e2e8f0; }
 
         .contestant-card .btn {
-            padding: 6px 14px;
-            font-size: 0.8rem;
+            padding: 8px 16px;
+            font-size: 0.85rem;
             border-radius: 12px;
             width: 90%;
             margin: 0 auto;
         }
 
-        /* --- СТИЛИ ДЛЯ КОММЕНТАРИЕВ (НОВОЕ) --- */
-        .comments-section {
-            background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: var(--shadow);
-            padding: 25px;
-            margin: 30px auto;
-            max-width: 1200px;
-            width: 100%;
-            box-sizing: border-box;
+        /* --- БЛОК КОММЕНТАРИЕВ ВНУТРИ КАРТОЧКИ --- */
+        .card-comments-box {
+            display: none;
+            border-top: 1px solid #edf2f7;
+            margin-top: 12px;
+            padding: 12px;
+            text-align: left;
+            background: #f8fafc;
         }
-        .comments-section h3 { margin-top: 0; font-size: 1.2rem; font-weight: 800; }
-        .comment-form { display: flex; gap: 10px; margin-bottom: 20px; }
-        .comment-input {
-            flex-grow: 1; padding: 12px; border: 1px solid #cbd5e0;
-            border-radius: 10px; font-size: 0.95rem; outline: none;
+        .mini-comment-form {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
         }
-        .comment-input:focus { border-color: var(--accent); }
-        .comments-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; }
-        .comment-item { background: #f7fafc; padding: 12px 16px; border-radius: 10px; border-left: 4px solid var(--accent); }
-        .comment-author { font-weight: bold; font-size: 0.9rem; color: var(--text-main); margin-bottom: 4px; }
-        .comment-text { font-size: 0.95rem; color: #4a5568; margin: 0; }
+        .mini-comment-input {
+            flex-grow: 1;
+            padding: 6px 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .mini-comment-input:focus { border-color: var(--accent); }
+        .mini-comment-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .card-comments-list {
+            max-height: 150px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .card-comment-item {
+            background: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+            font-size: 0.85rem;
+            border-left: 3px solid var(--accent);
+        }
+        .card-comment-author { font-weight: bold; color: var(--text-main); font-size: 0.8rem; }
+        .card-comment-text { margin: 2px 0 0 0; color: #4a5568; }
 
         /* --- ОКНО АВТОРИЗАЦИИ --- */
         .auth-container {
@@ -278,7 +324,6 @@
 </head>
 <body>
 
-    <!-- БОКОВОЕ МЕНЮ -->
     <aside class="sidebar" id="main-sidebar" style="display: none;">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
@@ -289,10 +334,8 @@
         </nav>
     </aside>
 
-    <!-- ОСНОВНАЯ ОБЛАСТЬ -->
     <div class="main-wrapper">
 
-        <!-- СТРАНИЦА АВТОРИЗАЦИИ -->
         <div id="auth-page" class="auth-container" style="display: none;">
             <div class="auth-box">
                 <h2 id="auth-title">Вход в аккаунт</h2>
@@ -311,7 +354,6 @@
             </div>
         </div>
 
-        <!-- ГЛАВНАЯ СТРАНИЦА С КОНТЕНТОМ -->
         <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
             <header>
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
@@ -334,23 +376,6 @@
             
             <main class="contestants-grid" id="gallery"></main>
 
-            <!-- НОВЫЙ БЛОК: ОБЩИЙ ЧАТ / КОММЕНТАРИИ -->
-            <section class="comments-section">
-                <h3>💬 Обсуждение / Чат</h3>
-                <div class="comment-form">
-                    <input type="text" id="commentText" class="comment-input" placeholder="Напишите комментарий...">
-                    <button class="btn" onclick="sendComment()">Отправить</button>
-                </div>
-                <div class="comments-list" id="commentsContainer">
-                    <!-- Сюда JS будет добавлять комменты -->
-                    <div class="comment-item">
-                        <div class="comment-author">Система</div>
-                        <p class="comment-text">Комментариев пока нет. Будьте первым!</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- ПОДВАЛ САЙТА -->
             <footer style="text-align: center; margin-top: auto; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
                 <div style="margin-bottom: 20px; font-size: 0.95rem;">
                     <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">Служба поддержки пользователей:</strong>
@@ -368,7 +393,6 @@
         </div>
     </div>
 
-    <!-- МОДАЛКА ПОПОЛНЕНИЯ БАЛАНСА -->
     <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
         <div class="deposit-modal-content" onclick="event.stopPropagation()">
             <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
@@ -473,7 +497,6 @@
                     document.getElementById('admin-link').style.display = 'none';
                 }
                 loadContestants();
-                loadComments(); // Загружаем комментарии после входа
             } else {
                 document.getElementById('main-page').style.display = 'none';
                 document.getElementById('main-sidebar').style.display = 'none';
@@ -521,43 +544,65 @@
                             <div class="contestant-name">${girl.name}</div>
                             <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
                             <button class="btn" onclick="vote(${girl.id}, event)">Проголосовать (10 коинов)</button>
+                            <br>
+                            <button class="btn-comment-toggle" onclick="toggleCommentsBox(${girl.id})">💬 Комментарии</button>
+                        </div>
+                        
+                        <div class="card-comments-box" id="comments-box-${girl.id}">
+                            <div class="mini-comment-form">
+                                <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий...">
+                                <button class="mini-comment-btn" onclick="sendComment(${girl.id})">ОК</button>
+                            </div>
+                            <div class="card-comments-list" id="comments-list-${girl.id}">
+                                <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
+                            </div>
                         </div>
                     </div>`;
             });
         }
 
-        /* --- ФУНКЦИИ КОММЕНТАРИЕВ (ОБРАТИ ВНИМАНИЕ НА URL ЭНДПОИНТОВ!) --- */
-        async function loadComments() {
+        /* --- НОВЫЕ ИСПРАВЛЕННЫЕ ФУНКЦИИ КОММЕНТАРИЕВ ДЛЯ FASTAPI --- */
+        function toggleCommentsBox(contestantId) {
+            let box = document.getElementById(`comments-box-${contestantId}`);
+            if (box.style.display === "block") {
+                box.style.display = "none";
+            } else {
+                box.style.display = "block";
+                loadComments(contestantId);
+            }
+        }
+
+        async function loadComments(contestantId) {
             try {
-                let res = await fetch('/api/comments'); // Твой эндпоинт на бэкенде для получения комментов
+                let res = await fetch(`/api/contestants/${contestantId}/comments`);
                 if (res.ok) {
                     let comments = await res.json();
-                    let container = document.getElementById('commentsContainer');
-                    container.innerHTML = '';
-                    
+                    let listContainer = document.getElementById(`comments-list-${contestantId}`);
+                    listContainer.innerHTML = '';
+
                     if (comments.length === 0) {
-                        container.innerHTML = '<div class="comment-item"><p class="comment-text">Комментариев пока нет.</p></div>';
+                        listContainer.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted)">Комментариев пока нет.</span>';
                         return;
                     }
 
                     comments.forEach(c => {
-                        container.innerHTML += `
-                            <div class="comment-item">
-                                <div class="comment-author">${c.username || 'Аноним'}</div>
-                                <p class="comment-text">${c.text}</p>
+                        listContainer.innerHTML += `
+                            <div class="card-comment-item">
+                                <div class="card-comment-author">${c.username}</div>
+                                <p class="card-comment-text">${c.text}</p>
                             </div>`;
                     });
                 }
-            } catch (err) { console.error("Не удалось загрузить комментарии", err); }
+            } catch (err) { console.error("Ошибка загрузки комментариев:", err); }
         }
 
-        async function sendComment() {
-            let input = document.getElementById('commentText');
+        async function sendComment(contestantId) {
+            let input = document.getElementById(`comment-input-${contestantId}`);
             let text = input.value.trim();
             if (!text) return;
 
             try {
-                let res = await fetch('/api/comments', { // Твой эндпоинт на отправку комментов
+                let res = await fetch(`/api/contestants/${contestantId}/comments`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ text: text })
@@ -565,7 +610,7 @@
 
                 if (res.ok) {
                     input.value = '';
-                    loadComments(); // Перезагружаем список
+                    loadComments(contestantId); // Сразу обновляем список комментариев именно этой девушки
                 } else {
                     let data = await res.json();
                     alert("Ошибка: " + (data.detail || "Не удалось отправить"));
