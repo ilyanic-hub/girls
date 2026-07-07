@@ -369,11 +369,24 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 15px;">
-                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
-                    <div style="font-size: 1rem;">Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! Баланс: <span id="user-balance" style="font-weight:bold;">0</span> коинов</div>
-                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                    <button class="btn btn-sec" onclick="logout()">Выйти</button>
-                </div>
+    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+    
+    <!-- Красивая рамка вокруг аватарки и баланса -->
+    <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 16px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <!-- Круглая аватарка (иконка) пользователя -->
+        <div style="width: 32px; height: 32px; background: #fff0f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); font-size: 16px;">
+            👤
+        </div>
+        <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">
+            Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! 
+            <span style="margin: 0 8px; color: #cbd5e0;">|</span> 
+            Баланс: <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span> коинов
+        </div>
+    </div>
+
+    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+    <button class="btn btn-sec" onclick="logout()">Выйти</button>
+</div>
             </header>
             
             <main class="contestants-grid" id="gallery"></main>
