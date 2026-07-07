@@ -243,9 +243,11 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
+# ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
 @app.post("/api/user/avatar")
 async def upload_avatar(
-    file: UploadFile = File(...), 
+    request: Request, # добавили для отладки, если снова будет 422
+    file: UploadFile = File(...),  # Строго строчными буквами, как на фронтенде
     user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
