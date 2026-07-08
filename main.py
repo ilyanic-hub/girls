@@ -288,17 +288,46 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
+from fastapi import Request
+from fastapi.responses import HTMLResponse
+
 @app.get("/models", response_class=HTMLResponse)
 async def get_adult_page(request: Request):
+    # Наша база данных моделей. Чтобы добавить новую девушку, просто допиши еще один блок {} снизу!
+    adult_models = [
+        {
+            "name": "Алина", 
+            "age": 21, 
+            "status": "🔥 Доступно фото и видео", 
+            "photo": "/static/avatars/default.jpg"
+        },
+        {
+            "name": "Катя", 
+            "age": 24, 
+            "status": "💬 Приватные чаты", 
+            "photo": "/static/avatars/default.jpg"
+        },
+        {
+            "name": "Маша", 
+            "age": 19, 
+            "status": "✨ Эксклюзивный контент", 
+            "photo": "/static/avatars/default.jpg"
+        }
+        # Сюда можно дописывать новых моделей по аналогии через запятую
+    ]
+    
     try:
-        # Для новых версий FastAPI обязательно пишем context={"request": request}
+        # Передаем список моделей под именем "models" прямо в HTML-шаблон
         return templates.TemplateResponse(
             request=request, 
             name="18plus.html", 
-            context={"request": request}
+            context={"request": request, "models": adult_models}
         )
     except Exception as e:
-        return HTMLResponse(content=f"<h1>Ошибка шаблона: {str(e)}</h1>", status_code=200)
+        return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=200)
+
+
+
     
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
