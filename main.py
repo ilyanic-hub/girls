@@ -291,9 +291,13 @@ async def upload_avatar(
 @app.get("/models", response_class=HTMLResponse)
 async def get_adult_page(request: Request):
     try:
-        return templates.TemplateResponse("18plus.html", {"request": request})
+        # Для новых версий FastAPI обязательно пишем context={"request": request}
+        return templates.TemplateResponse(
+            request=request, 
+            name="18plus.html", 
+            context={"request": request}
+        )
     except Exception as e:
-        # Если файла нет или имя не совпадает, этот текст спасет сервер от падения 500
         return HTMLResponse(content=f"<h1>Ошибка шаблона: {str(e)}</h1>", status_code=200)
     
 @app.get("/", response_class=HTMLResponse)
