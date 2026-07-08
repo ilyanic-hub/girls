@@ -372,25 +372,31 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
     name = payload.get("name")
     age = payload.get("age")
     status = payload.get("status")
-    
-    # Проверяем, передано ли новое фото (base64)
     file_base64 = payload.get("file_base64")
-    if file_base64:
-        # Здесь логика сохранения фото (как при создании), получаем новый photo_url
-        # Для примера запишем новый URL, если ты используешь Imgur или локальное хранилище:
-        photo_url = payload.get("photo_url") # или функция сохранения
-        cursor.execute(
-            "UPDATE adult_models SET name=?, age=?, status=?, photo_url=? WHERE id=?",
-            (name, age, status, photo_url, model_id)
-        )
-    else:
-        cursor.execute(
-            "UPDATE adult_models SET name=?, age=?, status=? WHERE id=?",
-            (name, age, status, model_id)
-        )
     
-    db.commit()
-    return {"status": "success", "message": "Данные модели успешно обновлены"}
+    try:
+        if file_base64 and file_base64.strip():
+            # 1. Сюда нужно подставить твою функцию сохранения фото.
+            # Например, если у тебя есть функция upload_to_imgur(file_base64), используй её.
+            # Пока запишем сохранение самого base64 или вызов твоей функции:
+            photo_url = file_base64  # Меняешь на вызов своей функции загрузки, если нужно
+            
+            cursor.execute(
+                "UPDATE adult_models SET name=?, age=?, status=?, photo_url=? WHERE id=?",
+                (name, age, status, photo_url, model_id)
+            )
+        else:
+            # Если файл не передали, обновляем только текстовые поля, не трогая старую аватарку
+            cursor.execute(
+                "UPDATE adult_models SET name=?, age=?, status=? WHERE id=?",
+                (name, age, status, model_id)
+            )
+        
+        db.commit()
+        return {"status": "success", "message": "Данные модели успешно обновлены"}
+        
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка базы данных: {str(e)}"}
 
 @app.delete("/api/admin/adult-models/{model_id}")
 async def delete_adult_model(model_id: int, db=Depends(get_db)):
