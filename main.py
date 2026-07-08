@@ -331,6 +331,17 @@ async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
 
+# Этот роут будет отдавать фотографии альбома для обычной страницы сайта
+@app.get("/api/adult-models/{model_id}/photos")
+async def get_adult_model_photos_public(model_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
+
 @app.delete("/api/admin/adult-photos/{photo_id}")
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
