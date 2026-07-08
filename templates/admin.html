@@ -92,6 +92,17 @@
         </form>
     </div>
 
+    <div class="admin-section" style="background: #1e1e1e; padding: 20px; border-radius: 12px; margin-top: 30px; color: #fff;">
+    <h2>Добавить модель в раздел 18+</h2>
+    <div style="display: flex; flex-direction: column; gap: 10px; max-width: 400px;">
+        <input type="text" id="adultName" placeholder="Имя модели" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
+        <input type="number" id="adultAge" placeholder="Возраст" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
+        <input type="text" id="adultStatus" placeholder="Статус (например: 🔥 Фото и видео)" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
+        <input type="file" id="adultPhotoFile" accept="image/*" style="color: #ccc;">
+        <button onclick="uploadAdultModel()" style="padding: 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Сохранить модель</button>
+    </div>
+</div>
+
     <div class="admin-section">
         <h2>Текущие участницы на сайте</h2>
         <table>
@@ -332,6 +343,48 @@
         document.getElementById('mainPhotoLabel').innerText = "Главное фото королевы:";
         document.getElementById('submitWinnerBtn').innerText = "Добавить королеву в историю";
     }
+
+    function uploadAdultModel() {
+    const name = document.getElementById('adultName').value.strip ? document.getElementById('adultName').value.strip() : document.getElementById('adultName').value;
+    const age = parseInt(document.getElementById('adultAge').value);
+    const status = document.getElementById('adultStatus').value;
+    const fileInput = document.getElementById('adultPhotoFile');
+    
+    if (!name || !age || !status || fileInput.files.length === 0) {
+        alert("Заполните все поля и выберите фото!");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    
+    reader.onloadend = function() {
+        const base64String = reader.result; // Получаем Base64 фото
+        
+        fetch('/api/admin/adult-models', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                age: age,
+                status: status,
+                file_base64: base64String
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert("Модель успешно добавлена!");
+                location.reload();
+            } else {
+                alert("Ошибка: " + data.detail);
+            }
+        })
+        .catch(err => console.error("Ошибка отправки:", err));
+    };
+    
+    reader.readAsDataURL(file);
+}
 
     // ==================== СЛУЖЕБНЫЕ ТАБЛИЦЫ С КНОПКАМИ РЕДАКТИРОВАНИЯ ====================
     async function loadContestants() {
