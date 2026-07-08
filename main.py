@@ -20,10 +20,6 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 
 app = FastAPI()
-@app.get("/18plus", response_class=HTMLResponse)
-async def get_adult_page(request: Request):
-    # Бэкенд прочитает файл models.html из папки templates и отдаст его браузеру
-    return templates.TemplateResponse("models.html", {"request": request})
 router = APIRouter()
 
 # Папка, куда будут сохраняться аватарки
@@ -100,7 +96,7 @@ def upload_db_to_dropbox():
     except Exception as e:
         print(f"Ошибка загрузки базы в Dropbox: {e}")
 
-# Синхронизируем базу при старте
+# Сначала СКАЧИВАЕМ базу, чтобы не затереть данные!
 download_db_from_dropbox()
 
 
@@ -219,7 +215,7 @@ def init_db():
         
     db.commit()
     db.close()
-    upload_db_to_dropbox()
+    # upload_db_to_dropbox() <-- ТУТ ЭТО УДАЛЕНО, чтобы пустая база не летела в облако!
 
 init_db()
 
@@ -254,7 +250,7 @@ class AdultModelSchema(BaseModel):
     name: str
     age: int
     status: str
-    file_base64: str  # Принимаем фото в Base64, как у обычных конкурсанток
+    file_base64: str
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
@@ -273,11 +269,10 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
-# ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
 @app.post("/api/user/avatar")
 async def upload_avatar(
-    request: Request, # добавили для отладки, если снова будет 422
-    file: UploadFile = File(...),  # Строго строчными буквами, как на фронтенде
+    request: Request,
+    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
@@ -311,38 +306,8 @@ async def upload_avatar(
     return {"status": "success", "avatar_url": avatar_url}
 
 
+# ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 
-# ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
-
-
-@app.get("/models", response_class=HTMLResponse)
-async def get_adult_page(request: Request, db=Depends(get_db)):
-    try:
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM adult_models ORDER BY id DESC")
-        rows = cursor.fetchall()
-        
-        # Переводим строки SQLite в обычный список словарей Python
-        models_list = [dict(row) for row in rows]
-        
-        # Если база пока пустая, подкинем дефолтных моделей, чтобы страница не была голой
-        if not models_list:
-            models_list = [
-                {"name": "Алина", "age": 21, "status": "🔥 Фото и видео", "photo_url": "/static/avatars/default.jpg"},
-                {"name": "Катя", "age": 24, "status": "💬 Приватные чаты", "photo_url": "/static/avatars/default.jpg"}
-            ]
-
-        return templates.TemplateResponse(
-            request=request, 
-            name="18plus.html", 
-            context={"request": request, "models": models_list}
-        )
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=500)
-
-
-
-    
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
     path_to_html = "templates/index.html"
@@ -360,14 +325,29 @@ async def get_top_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+# ЕДИНСТВЕННЫЙ И ПРАВИЛЬНЫЙ РОУТ ДЛЯ СТРАНИЦЫ МModels 18+ (старые дубли удалены ниже)
 @app.get("/models", response_class=HTMLResponse)
 @app.get("/models/", response_class=HTMLResponse)
-async def get_models_page():
-    path_to_html = "templates/models.html"
-    if not os.path.exists(path_to_html):
-        return HTMLResponse(content="<h1>Файл models.html не найден!</h1>", status_code=404)
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+async def get_adult_page(request: Request, db=Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM adult_models ORDER BY id DESC")
+        rows = cursor.fetchall()
+        models_list = [dict(row) for row in rows]
+        
+        if not models_list:
+            models_list = [
+                {"name": "Алина", "age": 21, "status": "🔥 Фото и видео", "photo_url": "/static/avatars/default.jpg"},
+                {"name": "Катя", "age": 24, "status": "💬 Приватные чаты", "photo_url": "/static/avatars/default.jpg"}
+            ]
+
+        return templates.TemplateResponse(
+            request=request, 
+            name="18plus.html", 
+            context={"request": request, "models": models_list}
+        )
+    except Exception as e:
+        return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=500)
 
 @app.get("/about", response_class=HTMLResponse)
 @app.get("/about/", response_class=HTMLResponse)
@@ -520,12 +500,10 @@ async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(No
         raise HTTPException(status_code=401, detail="Не авторизован")
     amount = float(amount_data.get("amount", 100.0))
     cursor = db.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (amount, session_user))
+    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (session_user))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "balance_added": amount}
-
-
 
 
 # ================= РАБОТА С УЧАСТНИЦАМИ =================
@@ -624,7 +602,7 @@ async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[s
         (data.name, data.age, data.status, inline_photo_url)
     )
     db.commit()
-    upload_db_to_dropbox()  # Синхронизация с Dropbox
+    upload_db_to_dropbox()
     return {"status": "success", "message": "Модель успешно добавлена!"}
 
 # 2. Удаление модели 18+ через админку
@@ -641,10 +619,10 @@ async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None)
     
     cursor.execute("DELETE FROM adult_models WHERE id = ?", (id,))
     db.commit()
-    upload_db_to_dropbox()  # Синхронизация с Dropbox
+    upload_db_to_dropbox()
     return {"status": "success", "message": "Модель удалена"}
 
-# 1. Загрузка фото в альбом конкретной модели
+# 3. Загрузка фото в альбом конкретной модели
 @app.post("/api/admin/adult-models/{model_id}/upload-photo")
 async def admin_upload_adult_model_photo(model_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -671,13 +649,20 @@ async def admin_upload_adult_model_photo(model_id: int, data: AlbumFileSchema, s
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-# 2. Получение всех фотографий из альбома конкретной модели (для фронтенда)
+# 4. Получение всех фотографий из альбома конкретной модели
 @app.get("/api/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     cursor.execute("SELECT photo_url FROM adult_model_photos WHERE model_id = ?", (model_id,))
     rows = cursor.fetchall()
     return [row["photo_url"] for row in rows]
+
+# Эндпоинт для отображения списка моделей в админке
+@app.get("/api/admin/get-adult-models-list")
+async def get_adult_models_list_for_admin(db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
+    return [dict(row) for row in cursor.fetchall()]
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
@@ -814,7 +799,7 @@ async def admin_clear_history_photos(id: int, session_user: Optional[str] = Cook
         cursor.execute("DELETE FROM history_photos WHERE history_id = ?", (id,))
         db.commit()
         upload_db_to_dropbox()
-        return {"status": "success", "message": "Старый альбом очищен!"}
+        return {"status": "success", "message": "Альбом успешно очищен"}
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
