@@ -185,6 +185,15 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS adult_model_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_id INTEGER NOT NULL,
+        photo_url TEXT NOT NULL,
+        FOREIGN KEY (model_id) REFERENCES adult_models(id) ON DELETE CASCADE
+    )
+    """)
+
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
@@ -634,6 +643,41 @@ async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None)
     db.commit()
     upload_db_to_dropbox()  # Синхронизация с Dropbox
     return {"status": "success", "message": "Модель удалена"}
+
+# 1. Загрузка фото в альбом конкретной модели
+@app.post("/api/admin/adult-models/{model_id}/upload-photo")
+async def admin_upload_adult_model_photo(model_id: int, data: AlbumFileSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+        
+    try:
+        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        if file_url:
+            cursor.execute(
+                "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                (int(model_id), str(file_url))
+            )
+            db.commit()
+            upload_db_to_dropbox()
+            return {"status": "success", "message": "Фото успешно добавлено в альбом модели!"}
+        else:
+            return {"status": "error", "message": "Пустая строка Base64"}
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=str(err))
+
+# 2. Получение всех фотографий из альбома конкретной модели (для фронтенда)
+@app.get("/api/adult-models/{model_id}/photos")
+async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT photo_url FROM adult_model_photos WHERE model_id = ?", (model_id,))
+    rows = cursor.fetchall()
+    return [row["photo_url"] for row in rows]
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
