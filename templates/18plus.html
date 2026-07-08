@@ -104,14 +104,16 @@
         
         <!-- Сетка с карточками моделей -->
         <div class="grid">
-            <!-- Карточка 1 -->
+            {% for model in models %}
             <div class="card">
-                <img src="/static/avatars/default.jpg" alt="Модель">
+                <img src="{{ model.photo }}" alt="Модель {{ model.name }}">
                 <div class="card-info">
-                    <p class="card-name">Алина, 21</p>
-                    <p class="card-meta">🔥 Доступно фото и видео</p>
+                    <p class="card-name">{{ model.name }}, {{ model.age }}</p>
+                    <p class="card-meta">{{ model.status }}</p>
                 </div>
             </div>
+            {% endfor %}
+        </div>
             
             <!-- Карточка 2 -->
             <div class="card">
