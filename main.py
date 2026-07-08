@@ -6,7 +6,7 @@ import dropbox
 import time
 import httpx
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
