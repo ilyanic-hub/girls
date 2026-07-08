@@ -404,19 +404,25 @@ async def get_adult_models_list_for_admin(db=Depends(get_db)):
 }
 
     // Функция загрузки списка моделей для управления их альбомами
+// Функция загрузки списка моделей для управления их альбомами
 function loadAdultModelsForAlbums() {
-    // В FastAPI мы возвращаем HTML на /models, но давай сделаем быстрый фетч 
-    // Мы можем вытащить моделей, сделав запрос на специальный эндпоинт, либо использовать хак.
-    // Для этого давай создадим простую функцию получения списка (добавим эндпоинт ниже)
     fetch('/api/admin/get-adult-models-list') 
         .then(res => res.json())
         .then(models => {
             const container = document.getElementById('adultModelsAlbumsList');
+            if (!container) return;
             container.innerHTML = '';
             
             models.forEach(model => {
                 const div = document.createElement('div');
-                div.style = "background: #2b2b2b; padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 20px;";
+                div.style.background = "#2b2b2b";
+                div.style.padding = "15px";
+                div.style.borderRadius = "8px";
+                div.style.display = "flex";
+                div.style.alignItems = "center";
+                div.style.justify = "space-between";
+                div.style.gap = "20px";
+                
                 div.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <img src="${model.photo_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
@@ -434,13 +440,14 @@ function loadAdultModelsForAlbums() {
                 `;
                 container.appendChild(div);
             });
-        });
+        })
+        .catch(err => console.error("Ошибка загрузки моделей:", err));
 }
 
 // Функция отправки фото в альбом на бэкенд
 function uploadPhotoToAdultAlbum(modelId) {
-    const fileInput = document.getElementById(`albumFile_${modelId}`);
-    if (fileInput.files.length === 0) {
+    const fileInput = document.getElementById("albumFile_" + modelId);
+    if (!fileInput || fileInput.files.length === 0) {
         alert("Выберите файл для загрузки!");
         return;
     }
@@ -451,7 +458,7 @@ function uploadPhotoToAdultAlbum(modelId) {
     reader.onloadend = function() {
         const base64String = reader.result;
         
-        fetch(`/api/admin/adult-models/${modelId}/upload-photo`, {
+        fetch("/api/admin/adult-models/" + modelId + "/upload-photo", {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ file_base64: base64String })
@@ -460,7 +467,7 @@ function uploadPhotoToAdultAlbum(modelId) {
         .then(data => {
             if (data.status === 'success') {
                 alert("Фото успешно добавлено в альбом модели!");
-                fileInput.value = ''; // Сбрасываем поле выбора файла
+                fileInput.value = ''; 
             } else {
                 alert("Ошибка: " + data.message);
             }
