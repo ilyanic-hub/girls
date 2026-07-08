@@ -470,6 +470,39 @@ function uploadPhotoToAdultAlbum(modelId) {
     
     reader.readAsDataURL(file);
 }
+
+    let editAdultModelId = null;
+
+// Функция заполнения формы для редактирования контента 18+
+function startEditAdultModel(id, name, age, status) {
+    editAdultModelId = id;
+    
+    // Предполагается, что у тебя есть поля ввода для создания контента 18+, заполняем их:
+    const nameInput = document.getElementById('adultModelName');
+    const ageInput = document.getElementById('adultModelAge');
+    const statusInput = document.getElementById('adultModelStatus');
+    const formTitle = document.getElementById('adultFormTitle');
+    const submitBtn = document.getElementById('submitAdultBtn');
+    
+    if(nameInput) nameInput.value = name;
+    if(ageInput) ageInput.value = age;
+    if(statusInput) statusInput.value = status;
+    if(formTitle) formTitle.innerText = "Редактировать модель 18+";
+    if(submitBtn) submitBtn.innerText = "Сохранить изменения";
+}
+
+// Функция удаления модели
+function deleteAdultModel(id) {
+    if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) return;
+    
+    fetch("/api/admin/adult-models/" + id, { method: "DELETE" })
+        .then(res => res.json())
+        .then(data => {
+            alert("Модель удалена");
+            loadAdultModelsForAlbums(); // перезагружаем список
+        })
+        .catch(err => console.error(err));
+}
     // ==================== СЛУЖЕБНЫЕ ТАБЛИЦЫ С КНОПКАМИ РЕДАКТИРОВАНИЯ ====================
     async function loadContestants() {
         const tbody = document.getElementById('contestantsList');
