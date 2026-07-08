@@ -28,7 +28,7 @@ router = APIRouter()
 # Папка, куда будут сохраняться аватарки
 UPLOAD_DIR = "static/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-
+templates = Jinja2Templates(directory="templates")
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
