@@ -1,127 +1,138 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Контент 18+</title>
-        <style>
-            body {
-                background-color: #121212;
-                color: #ffffff;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                margin: 0;
-                padding: 20px;
-                text-align: center;
-            }
-            .container {
-                max-width: 1200px;
-                margin: 0 auto;
-            }
-            h1 {
-                color: #ff4757;
-                font-size: 36px;
-                margin-bottom: 10px;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-            }
-            .warning-badge {
-                background: #ff4757;
-                color: #fff;
-                padding: 5px 15px;
-                border-radius: 20px;
-                font-weight: bold;
-                display: inline-block;
-                margin-bottom: 30px;
-            }
-            .grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-                gap: 25px;
-                margin-top: 20px;
-            }
-            .card {
-                background: #1e1e1e;
-                border: 1px solid #2f3542;
-                border-radius: 12px;
-                overflow: hidden;
-                transition: transform 0.3s, border-color 0.3s;
-            }
-            .card:hover {
-                transform: translateY(-5px);
-                border-color: #ff4757;
-            }
-            .card img {
-                width: 100%;
-                height: 300px;
-                object-fit: cover;
-                filter: blur(8px); /* Легкое размытие по умолчанию для интриги */
-                transition: filter 0.3s;
-            }
-            .card:hover img {
-                filter: blur(0px); /* Размытие пропадает при наведении */
-            }
-            .card-info {
-                padding: 15px;
-                text-align: left;
-            }
-            .card-name {
-                font-size: 20px;
-                font-weight: bold;
-                margin: 0 0 5px 0;
-            }
-            .card-meta {
-                color: #a4b0be;
-                font-size: 14px;
-            }
-            .back-btn {
-                display: inline-block;
-                margin-top: 40px;
-                color: #a4b0be;
-                text-decoration: none;
-                border: 1px solid #57606f;
-                padding: 10px 20px;
-                border-radius: 6px;
-                transition: 0.2s;
-            }
-            .back-btn:hover {
-                background: #ff4757;
-                color: white;
-                border-color: #ff4757;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Горячий контент</h1>
-            <div class="warning-badge">Только для взрослых 18+</div>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Страница 18+</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-top: 40px;
+        }
+        h1 {
+            color: #ff4757;
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .warning-badge {
+            background: #ff4757;
+            color: #fff;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 40px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 20px;
+        }
+        .card {
+            background: #1e1e1e;
+            border: 1px solid #2f3542;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #ff4757;
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.2);
+        }
+        .card img {
+            width: 100%;
+            height: 320px;
+            object-fit: cover;
+            filter: blur(10px);
+            transition: filter 0.4s;
+        }
+        .card:hover img {
+            filter: blur(0px);
+        }
+        .card-info {
+            padding: 20px;
+            text-align: left;
+            border-top: 1px solid #2f3542;
+        }
+        .card-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin: 0 0 8px 0;
+            color: #fff;
+        }
+        .card-meta {
+            color: #a4b0be;
+            font-size: 14px;
+            margin: 0;
+        }
+        .back-btn {
+            display: inline-block;
+            margin-top: 50px;
+            color: #a4b0be;
+            text-decoration: none;
+            border: 1px solid #57606f;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .back-btn:hover {
+            background: #ff4757;
+            color: white;
+            border-color: #ff4757;
+            box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Горячий контент</h1>
+        <div class="warning-badge">Только для взрослых 18+</div>
+        
+        <!-- Сетка с карточками моделей -->
+        <div class="grid">
+            <!-- Карточка 1 -->
+            <div class="card">
+                <img src="/static/avatars/default.jpg" alt="Модель">
+                <div class="card-info">
+                    <p class="card-name">Алина, 21</p>
+                    <p class="card-meta">🔥 Доступно фото и видео</p>
+                </div>
+            </div>
             
-            <div class="grid">
-                <div class="card">
-                    <img src="/static/avatars/default.jpg" alt="Модель">
-                    <div class="card-info">
-                        <p class="card-name">Алина, 21</p>
-                        <p class="card-meta">Доступно фото/видео</p>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <img src="/static/avatars/default.jpg" alt="Модель">
-                    <div class="card-info">
-                        <p class="card-name">Катя, 24</p>
-                        <p class="card-meta">Приватные чаты</p>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <img src="/static/avatars/default.jpg" alt="Модель">
-                    <div class="card-info">
-                        <p class="card-name">Маша, 19</p>
-                        <p class="card-meta">Эксклюзив</p>
-                    </div>
+            <!-- Карточка 2 -->
+            <div class="card">
+                <img src="/static/avatars/default.jpg" alt="Модель">
+                <div class="card-info">
+                    <p class="card-name">Катя, 24</p>
+                    <p class="card-meta">💬 Приватные чаты</p>
                 </div>
             </div>
 
-            <a href="/" class="back-btn">← Вернуться на главную</a>
+            <!-- Карточка 3 -->
+            <div class="card">
+                <img src="/static/avatars/default.jpg" alt="Модель">
+                <div class="card-info">
+                    <p class="card-name">Маша, 19</p>
+                    <p class="card-meta">✨ Эксклюзивный контент</p>
+                </div>
+            </div>
         </div>
-    </body>
-    </html>
+
+        <a href="/" class="back-btn">← Вернуться на главную</a>
+    </div>
+</body>
+</html>
