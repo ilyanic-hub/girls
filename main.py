@@ -464,6 +464,8 @@ async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(No
     upload_db_to_dropbox()
     return {"status": "success", "balance_added": amount}
 
+<h1 class="main-title">Кого разденем?</h1>
+
 
 # ================= РАБОТА С УЧАСТНИЦАМИ =================
 @app.get("/api/contestants")
