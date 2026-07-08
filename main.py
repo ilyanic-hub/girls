@@ -308,7 +308,7 @@ async def upload_avatar(
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 @app.get("/api/admin/get-adult-models-list")
-    async def get_adult_models_list_for_admin(db=Depends(get_db)):
+async def get_adult_models_list_for_admin(db=Depends(get_db)):
         cursor = db.cursor()
         cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
         rows = cursor.fetchall()
