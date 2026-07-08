@@ -30,7 +30,7 @@
         h2 { font-size: 18px; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); color: var(--accent-color); }
         .form-group { margin-bottom: 15px; }
         label { display: block; font-size: 14px; margin-bottom: 5px; color: var(--text-muted); }
-        input[type="text"], input[type="file"] { width: 100%; padding: 10px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-color); font-size: 14px; }
+        input[type="text"], input[type="number"], input[type="file"] { width: 100%; padding: 10px; background-color: var(--bg-color); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-color); font-size: 14px; }
         .btn-submit { background-color: var(--accent-color); color: var(--bg-color); border: none; padding: 12px 20px; font-weight: bold; border-radius: 4px; cursor: pointer; width: 100%; transition: 0.3s; }
         .btn-submit:hover { background-color: var(--accent-hover); }
         
@@ -93,25 +93,24 @@
     </div>
 
     <div class="admin-section" style="background: #1e1e1e; padding: 20px; border-radius: 12px; margin-top: 30px; color: #fff;">
-    <h2>Добавить модель в раздел 18+</h2>
-    <div style="display: flex; flex-direction: column; gap: 10px; max-width: 400px;">
-        <input type="text" id="adultName" placeholder="Имя модели" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
-        <input type="number" id="adultAge" placeholder="Возраст" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
-        <input type="text" id="adultStatus" placeholder="Статус (например: 🔥 Фото и видео)" style="padding: 10px; border-radius: 5px; border: 1px solid #333; background: #2b2b2b; color: #fff;">
-        <input type="file" id="adultPhotoFile" accept="image/*" style="color: #ccc;">
-        <button onclick="uploadAdultModel()" style="padding: 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Сохранить модель</button>
+        <h2 id="adultFormTitle">Добавить модель в раздел 18+ <button id="cancelAdultEdit" class="btn-cancel" onclick="resetAdultForm()">Отмена</button></h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; max-width: 400px;">
+            <input type="text" id="adultName" placeholder="Имя модели">
+            <input type="number" id="adultAge" placeholder="Возраст">
+            <input type="text" id="adultStatus" placeholder="Статус (например: 🔥 Фото и видео)">
+            <label id="adultPhotoLabel" style="margin-top: 5px;">Главное фото (аватарка):</label>
+            <input type="file" id="adultPhotoFile" accept="image/*">
+            <button id="submitAdultBtn" onclick="saveAdultModel()" style="padding: 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; font-weight: bold; cursor: pointer;">Сохранить модель</button>
+        </div>
     </div>
-</div>
 
     <div class="admin-section" style="background: #1e1e1e; padding: 20px; border-radius: 12px; margin-top: 30px; color: #fff;">
-    <h2>Управление альбомами моделей 18+</h2>
-    <button onclick="loadAdultModelsForAlbums()" style="padding: 10px; background: #2ed573; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">
-        🔄 Загрузить список моделей
-    </button>
-    
-    <div id="adultModelsAlbumsList" style="display: flex; flex-direction: column; gap: 15px;">
-        </div>
-</div>
+        <h2>Управление альбомами моделей 18+</h2>
+        <button onclick="loadAdultModelsForAlbums()" style="padding: 10px; background: #2ed573; color: #fff; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px; font-weight: bold;">
+            🔄 Загрузить список моделей
+        </button>
+        <div id="adultModelsAlbumsList" style="display: flex; flex-direction: column; gap: 15px;"></div>
+    </div>
 
     <div class="admin-section">
         <h2>Текущие участницы на сайте</h2>
@@ -139,13 +138,14 @@
 </div>
 
 <script>
-    // Переменные для отслеживания текущего редактируемого ID (null означает режим создания)
     let editContestantId = null;
     let editHistoryId = null;
+    let editAdultModelId = null;
 
     document.addEventListener("DOMContentLoaded", () => {
         loadContestants();
         loadHistory();
+        loadAdultModelsForAlbums();
     });
 
     function toBase64(file) {
@@ -157,88 +157,84 @@
         });
     }
 
-    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ УЧАСТНИЦЫ ====================
+    // ==================== УЧАСТНИЦЫ ====================
 
     async function saveContestant(event) {
-    event.preventDefault();
-    const btn = document.getElementById('submitGirlBtn');
-    const name = document.getElementById('girlName').value;
-    const file = document.getElementById('girlPhoto').files[0];
+        event.preventDefault();
+        const btn = document.getElementById('submitGirlBtn');
+        const name = document.getElementById('girlName').value;
+        const file = document.getElementById('girlPhoto').files[0];
 
-    if (!editContestantId && !file) {
-        alert('Пожалуйста, выберите фотографию участницы!');
-        return;
+        if (!editContestantId && !file) {
+            alert('Пожалуйста, выберите фотографию участницы!');
+            return;
+        }
+
+        btn.innerText = "Сохранение...";
+        btn.disabled = true;
+
+        try {
+            let base64Str = "";
+            if (file) base64Str = await toBase64(file);
+            
+            const payload = {
+                name: name,
+                file_base64: base64Str,
+                filename: file ? file.name : "",
+                content_type: file ? file.type : ""
+            };
+
+            let url = '/api/admin/contestants';
+            let method = 'POST';
+
+            if (editContestantId) {
+                url = `/api/admin/contestants/${editContestantId}`;
+                method = 'PUT';
+            }
+
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                alert(editContestantId ? 'Данные участницы обновлены!' : 'Участница успешно добавлена!');
+                resetContestantForm();
+                loadContestants();
+            } else {
+                alert('Ошибка сервера: ' + (result.detail || JSON.stringify(result)));
+            }
+        } catch (error) {
+            alert('Сбой сети: ' + error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = editContestantId ? "Сохранить изменения" : "Загрузить в систему";
+        }
     }
 
-    btn.innerText = "Сохранение...";
-    btn.disabled = true;
-
-    try {
-        let base64Str = "";
-        if (file) {
-            base64Str = await toBase64(file);
-        }
-        
-        const payload = {
-            name: name,
-            file_base64: base64Str,
-            filename: file ? file.name : "",
-            content_type: file ? file.type : ""
-        };
-
-        let url = '/api/admin/contestants';
-        let method = 'POST';
-
-        if (editContestantId) {
-            url = `/api/admin/contestants/${editContestantId}`;
-            method = 'PUT';
-        }
-
-        const response = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const result = await response.json();
-        if (response.ok) {
-            alert(editContestantId ? 'Данные участницы обновлены!' : 'Участница успешно добавлена!');
-            resetContestantForm();
-            loadContestants();
-        } else {
-            alert('Ошибка сервера: ' + (result.detail || JSON.stringify(result)));
-        }
-    } catch (error) {
-        alert('Сбой сети: ' + error.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = editContestantId ? "Сохранить изменения" : "Загрузить в систему";
+    function startEditContestant(id, currentName) {
+        editContestantId = id;
+        document.getElementById('contestantFormTitle').firstChild.textContent = "Редактировать участницу ";
+        document.getElementById('cancelContestantEdit').style.display = 'inline-block';
+        document.getElementById('girlName').value = currentName;
+        document.getElementById('photoLabel').innerText = "Изменить фотографию (оставьте пустым, чтобы не менять):";
+        document.getElementById('submitGirlBtn').innerText = "Сохранить изменения";
+        document.getElementById('girlName').focus();
     }
-}
 
-function startEditContestant(id, currentName) {
-    editContestantId = id;
-    document.getElementById('contestantFormTitle').firstChild.textContent = "Редактировать участницу ";
-    document.getElementById('cancelContestantEdit').style.display = 'inline-block';
-    document.getElementById('girlName').value = currentName;
-    document.getElementById('photoLabel').innerText = "Изменить фотографию (оставьте пустым, чтобы не менять):";
-    document.getElementById('submitGirlBtn').innerText = "Сохранить изменения";
-    document.getElementById('girlName').focus();
-}
+    function resetContestantForm() {
+        editContestantId = null;
+        document.getElementById('contestantForm').reset();
+        document.getElementById('contestantFormTitle').firstChild.textContent = "Добавить новую участницу (на голосование) ";
+        document.getElementById('cancelContestantEdit').style.display = 'none';
+        document.getElementById('photoLabel').innerText = "Фотография участницы:";
+        document.getElementById('submitGirlBtn').innerText = "Загрузить в систему";
+    }
 
-function resetContestantForm() {
-    editContestantId = null;
-    document.getElementById('contestantForm').reset();
-    document.getElementById('contestantFormTitle').firstChild.textContent = "Добавить новую участницу (на голосование) ";
-    document.getElementById('cancelContestantEdit').style.display = 'none';
-    document.getElementById('photoLabel').innerText = "Фотография участницы:";
-    document.getElementById('submitGirlBtn').innerText = "Загрузить в систему";
-} // Вот эта скобка была потеряна!
-    
-    
+    // ==================== ЗАЛ СЛАВЫ (АРХИВ) ====================
 
-    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ ЗАЛА СЛАВЫ ====================
-    // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ ЗАЛА СЛАВЫ ====================
     async function saveHistoryWinner(event) {
         event.preventDefault();
         const btn = document.getElementById('submitWinnerBtn');
@@ -256,18 +252,15 @@ function resetContestantForm() {
 
         try {
             let mainBase64 = "";
-            if (mainFile) {
-                mainBase64 = await toBase64(mainFile);
-            }
+            if (mainFile) mainBase64 = await toBase64(mainFile);
 
-            // 1. СОБИРАЕМ ТОЛЬКО ОСНОВНЫЕ ДАННЫЕ (Без тяжелого альбома!)
             const payload = {
                 name: name,
                 title_date: titleDate,
                 file_base64: mainBase64,
                 filename: mainFile ? mainFile.name : "",
                 content_type: mainFile ? mainFile.type : "",
-                album_files: [] // Альбом отправляем отдельно ниже
+                album_files: []
             };
 
             let url = '/api/admin/history';
@@ -288,21 +281,14 @@ function resetContestantForm() {
             const result = await response.json();
 
             if (response.ok) {
-                // Вытаскиваем ID созданной или редактируемой королевы
-                // Если мы создавали новую, берем из ответа сервера (result.history_id)
-                // Если редактировали, ID у нас уже есть в переменной (editHistoryId)
                 const currentId = editHistoryId || result.history_id;
 
-                // 2. ПОШТУЧНАЯ ЗАГРУЗКА ФОТОГРАФИЙ В АЛЬБОМ
                 if (albumFiles.length > 0 && currentId) {
-                    
-                    // Если это режим редактирования, сначала даем команду серверу очистить старый альбом
                     if (editHistoryId) {
                         btn.innerText = "Очистка старых фото...";
                         await fetch(`/api/admin/history/${currentId}/photos`, { method: 'DELETE' });
                     }
 
-                    // Запускаем цикл по каждой фотографии и шлем их ОДНА ЗА ДРУГОЙ
                     for (let i = 0; i < albumFiles.length; i++) {
                         btn.innerText = `Загрузка фото ${i + 1} из ${albumFiles.length}...`;
                         const b64 = await toBase64(albumFiles[i]);
@@ -333,7 +319,6 @@ function resetContestantForm() {
         }
     }
 
-    // Включение режима редактирования Зала славы
     function startEditHistory(id, currentName, currentDate) {
         editHistoryId = id;
         document.getElementById('historyFormTitle').firstChild.textContent = "Редактировать архив королевы ";
@@ -354,173 +339,231 @@ function resetContestantForm() {
         document.getElementById('submitWinnerBtn').innerText = "Добавить королеву в историю";
     }
 
-    function uploadAdultModel() {
-    const name = document.getElementById('adultName').value.strip ? document.getElementById('adultName').value.strip() : document.getElementById('adultName').value;
-    const age = parseInt(document.getElementById('adultAge').value);
-    const status = document.getElementById('adultStatus').value;
-    const fileInput = document.getElementById('adultPhotoFile');
-    
-    if (!name || !age || !status || fileInput.files.length === 0) {
-        alert("Заполните все поля и выберите фото!");
-        return;
-    }
+    // ==================== РАЗДЕЛ МОДЕЛЕЙ 18+ (СОЗДАНИЕ И РЕДАКТИРОВАНИЕ) ====================
 
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    
-    reader.onloadend = function() {
-        const base64String = reader.result; // Получаем Base64 фото
+    async function saveAdultModel() {
+        const nameField = document.getElementById('adultName');
+        const name = nameField.value.trim ? nameField.value.trim() : nameField.value;
+        const age = parseInt(document.getElementById('adultAge').value);
+        const status = document.getElementById('adultStatus').value;
+        const fileInput = document.getElementById('adultPhotoFile');
+        const btn = document.getElementById('submitAdultBtn');
         
-        fetch('/api/admin/adult-models', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+        if (!name || !age || !status) {
+            alert("Заполните текстовые поля (Имя, Возраст, Статус)!");
+            return;
+        }
+
+        if (!editAdultModelId && fileInput.files.length === 0) {
+            alert("Выберите главное фото для новой модели!");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Сохранение...";
+
+        try {
+            let base64String = "";
+            if (fileInput.files.length > 0) {
+                base64String = await toBase64(fileInput.files[0]);
+            }
+
+            const payload = {
                 name: name,
                 age: age,
                 status: status,
                 file_base64: base64String
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert("Модель успешно добавлена!");
-                location.reload();
-            } else {
-                alert("Ошибка: " + data.detail);
+            };
+
+            let url = '/api/admin/adult-models';
+            let method = 'POST';
+
+            if (editAdultModelId) {
+                url = `/api/admin/adult-models/${editAdultModelId}`;
+                method = 'PUT';
             }
-        })
-        .catch(err => console.error("Ошибка отправки:", err));
-    };
-    
-    reader.readAsDataURL(file);
-}
 
-    // 1. Отображение моделей с возможностью выбора нескольких фото
-function loadAdultModelsForAlbums() {
-    fetch('/api/admin/get-adult-models-list') 
-        .then(res => res.json())
-        .then(models => {
-            const container = document.getElementById('adultModelsAlbumsList');
-            if (!container) return;
-            container.innerHTML = '';
-            
-            models.forEach(model => {
-                const div = document.createElement('div');
-                div.style.background = "#2b2b2b";
-                div.style.padding = "15px";
-                div.style.borderRadius = "8px";
-                div.style.display = "flex";
-                div.style.alignItems = "center";
-                div.style.justifyContent = "space-between";
-                div.style.gap = "20px";
-                div.style.marginBottom = "10px";
-                
-                div.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="${model.photo_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
-                        <div>
-                            <strong>${model.name} (${model.age})</strong>
-                            <p style="margin: 0; color: #aaa; font-size: 14px;">${model.status}</p>
-                        </div>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="file" id="albumFiles_${model.id}" accept="image/*" multiple style="max-width: 200px;">
-                        <button onclick="uploadPhotosToAdultAlbum(${model.id})" style="padding: 8px 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                            ➕ Загрузить фото (${model.id})
-                        </button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        })
-        .catch(err => console.error("Ошибка загрузки моделей:", err));
-}
-
-// 2. Массовая загрузка фотографий на бэкенд
-async function uploadPhotosToAdultAlbum(modelId) {
-    const fileInput = document.getElementById("albumFiles_" + modelId);
-    if (!fileInput || fileInput.files.length === 0) {
-        alert("Выберите хотя бы один файл для загрузки!");
-        return;
-    }
-    
-    const files = fileInput.files;
-    const totalFiles = files.length;
-    
-    // Функция-помощник для перевода одного файла в Base64
-    const readAsBase64 = (file) => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = (error) => reject(error);
-            reader.readAsDataURL(file);
-        });
-    };
-
-    alert(`Начинается загрузка файлов: ${totalFiles} шт.`);
-
-    // Перебираем все файлы последовательно
-    for (let i = 0; i < totalFiles; i++) {
-        const file = files[i];
-        try {
-            const base64String = await readAsBase64(file);
-            
-            const response = await fetch("/api/admin/adult-models/" + modelId + "/upload-photo", {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    file_base64: base64String,
-                    filename: file.name
-                })
+                body: JSON.stringify(payload)
             });
             
             const data = await response.json();
-            if (data.status !== 'success') {
-                console.error(`Ошибка загрузки файла ${file.name}:`, data.message);
+            if (response.ok || data.status === 'success') {
+                alert(editAdultModelId ? "Данные модели успешно обновлены!" : "Модель успешно добавлена!");
+                resetAdultForm();
+                loadAdultModelsForAlbums();
+            } else {
+                alert("Ошибка: " + (data.message || data.detail || JSON.stringify(data)));
             }
         } catch (err) {
-            console.error(`Сбой при чтении файла ${file.name}:`, err);
+            alert("Сбой сети: " + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = editAdultModelId ? "Сохранить изменения" : "Сохранить модель";
         }
     }
 
-    alert("Загрузка пачки фотографий завершена!");
-    fileInput.value = ''; // Очищаем поле выбора файлов
-}
+    function startEditAdultModel(id, name, age, status) {
+        editAdultModelId = id;
+        document.getElementById('adultFormTitle').firstChild.textContent = "Редактировать модель 18+ ";
+        document.getElementById('cancelAdultEdit').style.display = 'inline-block';
+        document.getElementById('adultName').value = name;
+        document.getElementById('adultAge').value = age;
+        document.getElementById('adultStatus').value = status;
+        document.getElementById('adultPhotoLabel').innerText = "Изменить главное фото (оставьте пустым, чтобы не менять):";
+        document.getElementById('submitAdultBtn').innerText = "Сохранить изменения";
+        document.getElementById('adultName').focus();
+    }
 
-    let editAdultModelId = null;
+    function resetAdultForm() {
+        editAdultModelId = null;
+        document.getElementById('adultName').value = '';
+        document.getElementById('adultAge').value = '';
+        document.getElementById('adultStatus').value = '';
+        document.getElementById('adultPhotoFile').value = '';
+        document.getElementById('adultFormTitle').firstChild.textContent = "Добавить модель в раздел 18+ ";
+        document.getElementById('cancelAdultEdit').style.display = 'none';
+        document.getElementById('adultPhotoLabel').innerText = "Главное фото (аватарка):";
+        document.getElementById('submitAdultBtn').innerText = "Сохранить модель";
+    }
 
-// Функция заполнения формы для редактирования контента 18+
-function startEditAdultModel(id, name, age, status) {
-    editAdultModelId = id;
-    
-    // Предполагается, что у тебя есть поля ввода для создания контента 18+, заполняем их:
-    const nameInput = document.getElementById('adultModelName');
-    const ageInput = document.getElementById('adultModelAge');
-    const statusInput = document.getElementById('adultModelStatus');
-    const formTitle = document.getElementById('adultFormTitle');
-    const submitBtn = document.getElementById('submitAdultBtn');
-    
-    if(nameInput) nameInput.value = name;
-    if(ageInput) ageInput.value = age;
-    if(statusInput) statusInput.value = status;
-    if(formTitle) formTitle.innerText = "Редактировать модель 18+";
-    if(submitBtn) submitBtn.innerText = "Сохранить изменения";
-}
+    function deleteAdultModel(id) {
+        if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) return;
+        
+        fetch("/api/admin/adult-models/" + id, { method: "DELETE" })
+            .then(res => res.json())
+            .then(data => {
+                alert("Модель удалена");
+                loadAdultModelsForAlbums();
+            })
+            .catch(err => console.error(err));
+    }
 
-// Функция удаления модели
-function deleteAdultModel(id) {
-    if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) return;
-    
-    fetch("/api/admin/adult-models/" + id, { method: "DELETE" })
-        .then(res => res.json())
-        .then(data => {
-            alert("Модель удалена");
-            loadAdultModelsForAlbums(); // перезагружаем список
-        })
-        .catch(err => console.error(err));
-}
-    // ==================== СЛУЖЕБНЫЕ ТАБЛИЦЫ С КНОПКАМИ РЕДАКТИРОВАНИЯ ====================
+    // ==================== УПРАВЛЕНИЕ АЛЬБОМАМИ 18+ ====================
+
+    function loadAdultModelsForAlbums() {
+        fetch('/api/admin/get-adult-models-list') 
+            .then(res => res.json())
+            .then(models => {
+                const container = document.getElementById('adultModelsAlbumsList');
+                if (!container) return;
+                container.innerHTML = '';
+                
+                if (!models || models.length === 0) {
+                    container.innerHTML = '<div style="color: #aaa; text-align: center;">Моделей пока нет</div>';
+                    return;
+                }
+                
+                models.forEach(model => {
+                    const div = document.createElement('div');
+                    div.style.background = "#2b2b2b";
+                    div.style.padding = "15px";
+                    div.style.borderRadius = "8px";
+                    div.style.marginBottom = "15px";
+                    
+                    div.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <img src="${model.photo_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
+                                <div>
+                                    <strong>${model.name} (${model.age})</strong>
+                                    <p style="margin: 0; color: #aaa; font-size: 14px;">${model.status}</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button onclick="startEditAdultModel(${model.id}, '${model.name.replace(/'/g, "\\'")}', ${model.age}, '${model.status.replace(/'/g, "\\'")}')" class="btn-edit" style="padding: 6px 12px;">✏️ Правка</button>
+                                <button onclick="deleteAdultModel(${model.id})" class="btn-delete" style="padding: 6px 12px; margin-right: 15px;">🗑️ Удалить</button>
+                                
+                                <input type="file" id="albumFiles_${model.id}" accept="image/*" multiple style="max-width: 180px;">
+                                <button onclick="uploadPhotosToAdultAlbum(${model.id})" style="padding: 8px 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                    ➕ Загрузить пачку фото
+                                </button>
+                            </div>
+                        </div>
+                        <div id="photos_container_${model.id}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                            <span style="color: #666; font-size: 14px;">Загрузка фото альбома...</span>
+                        </div>
+                    `;
+                    container.appendChild(div);
+
+                    // Сразу запрашиваем фотографии из правильной таблицы
+                    loadModelPhotos(model.id);
+                });
+            })
+            .catch(err => {
+                console.error("Ошибка загрузки моделей:", err);
+                const container = document.getElementById('adultModelsAlbumsList');
+                if (container) container.innerHTML = '<div style="color: #f44336;">Ошибка получения списка моделей с сервера</div>';
+            });
+    }
+
+    function loadModelPhotos(modelId) {
+        const pContainer = document.getElementById(`photos_container_${modelId}`);
+        if (!pContainer) return;
+
+        fetch(`/api/admin/adult-models/${modelId}/photos`)
+            .then(res => res.json())
+            .then(photos => {
+                pContainer.innerHTML = '';
+                if (!photos || photos.length === 0) {
+                    pContainer.innerHTML = '<span style="color: #666; font-size: 14px;">Альбом пуст</span>';
+                    return;
+                }
+
+                photos.forEach(p => {
+                    const imgWrapper = document.createElement('div');
+                    imgWrapper.style.position = 'relative';
+                    imgWrapper.style.width = '80px';
+                    imgWrapper.style.height = '80px';
+
+                    imgWrapper.innerHTML = `
+                        <img src="${p.photo_url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px; border: 1px solid #444;">
+                        <button onclick="deleteAlbumPhoto(${p.id}, ${modelId})" style="position: absolute; top: 2px; right: 2px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">×</button>
+                    `;
+                    pContainer.appendChild(imgWrapper);
+                });
+            })
+            .catch(err => console.error(err));
+    }
+
+    async function uploadPhotosToAdultAlbum(modelId) {
+        const fileInput = document.getElementById("albumFiles_" + modelId);
+        if (!fileInput || fileInput.files.length === 0) {
+            alert("Выберите файлы для добавления!");
+            return;
+        }
+        
+        const files = fileInput.files;
+        
+        for (let i = 0; i < files.length; i++) {
+            try {
+                const base64String = await toBase64(files[i]);
+                await fetch("/api/admin/adult-models/" + modelId + "/upload-photo", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_base64: base64String, filename: files[i].name })
+                });
+            } catch (err) {
+                console.error("Ошибка загрузки:", err);
+            }
+        }
+
+        alert("Фотографии успешно добавлены в альбом!");
+        fileInput.value = ''; 
+        loadModelPhotos(modelId); // Моментально обновляем миниатюры фото без перезагрузки
+    }
+
+    function deleteAlbumPhoto(photoId, modelId) {
+        if (!confirm("Удалить это фото из альбома?")) return;
+        fetch(`/api/admin/adult-photos/${photoId}`, { method: 'DELETE' })
+            .then(() => loadModelPhotos(modelId))
+            .catch(err => console.error(err));
+    }
+
+    // ==================== СЕРВЕРНЫЕ ТАБЛИЦЫ ВЫВОДА УЧАСТНИЦ И АРХИВА ====================
+
     async function loadContestants() {
         const tbody = document.getElementById('contestantsList');
         try {
