@@ -288,28 +288,10 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
+# Убедись, что перед @app нет пробелов!
 @app.get("/18plus", response_class=HTMLResponse)
-async def get_adult_page(): # Убрали request: Request для теста
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <title>Страница 18+</title>
-        <style>
-            body { background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 100px; }
-            h1 { color: #ff4757; font-size: 40px; }
-        </style>
-    </head>
-    <body>
-        <h1>Проверка бэкенда FastAPI</h1>
-        <p style="color: #2ed573; font-size: 20px; font-weight: bold;">✔ Бэкенд работает отлично и без ошибок!</p>
-        <p>Если вы видите этот текст, значит дело было в путях к файлу 18plus.html.</p>
-        <a href="/" style="color: #aaa;">На главную</a>
-    </body>
-    </html>
-    """
-    return html_content
+async def get_adult_page():
+    return HTMLResponse(content="<h1>Тест</h1>", status_code=200)
     
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
