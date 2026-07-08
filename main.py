@@ -283,10 +283,9 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
-@app.get("/18+", response_class=HTMLResponse)
-async def get_adult_page(user: dict = Depends(get_current_user)):
-    # Страница доступна только авторизованным пользователям
-    # (get_current_user автоматически выкинет 401, если сессии нет)
+@app.get("/18+")
+async def get_adult_page(request: Request, user: dict = Depends(get_current_user)):
+    return templates.TemplateResponse("18+.html", {"request": request})
     
     
     return html_content
