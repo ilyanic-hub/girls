@@ -175,6 +175,16 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS adult_models (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        age INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        photo_url TEXT NOT NULL
+    )
+    """)
+
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
@@ -230,6 +240,12 @@ class HistorySchema(BaseModel):
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
+
+class AdultModelSchema(BaseModel):
+    name: str
+    age: int
+    status: str
+    file_base64: str  # Принимаем фото в Base64, как у обычных конкурсанток
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
@@ -288,43 +304,32 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
-from fastapi import Request
-from fastapi.responses import HTMLResponse
+
 
 @app.get("/models", response_class=HTMLResponse)
-async def get_adult_page(request: Request):
-    # Наша база данных моделей. Чтобы добавить новую девушку, просто допиши еще один блок {} снизу!
-    adult_models = [
-        {
-            "name": "Алина", 
-            "age": 21, 
-            "status": "🔥 Доступно фото и видео", 
-            "photo": "/static/avatars/default.jpg"
-        },
-        {
-            "name": "Катя", 
-            "age": 24, 
-            "status": "💬 Приватные чаты", 
-            "photo": "/static/avatars/default.jpg"
-        },
-        {
-            "name": "Маша", 
-            "age": 19, 
-            "status": "✨ Эксклюзивный контент", 
-            "photo": "/static/avatars/default.jpg"
-        }
-        # Сюда можно дописывать новых моделей по аналогии через запятую
-    ]
-    
+async def get_adult_page(request: Request, db=Depends(get_db)):
     try:
-        # Передаем список моделей под именем "models" прямо в HTML-шаблон
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM adult_models ORDER BY id DESC")
+        rows = cursor.fetchall()
+        
+        # Переводим строки SQLite в обычный список словарей Python
+        models_list = [dict(row) for row in rows]
+        
+        # Если база пока пустая, подкинем дефолтных моделей, чтобы страница не была голой
+        if not models_list:
+            models_list = [
+                {"name": "Алина", "age": 21, "status": "🔥 Фото и видео", "photo_url": "/static/avatars/default.jpg"},
+                {"name": "Катя", "age": 24, "status": "💬 Приватные чаты", "photo_url": "/static/avatars/default.jpg"}
+            ]
+
         return templates.TemplateResponse(
             request=request, 
             name="18plus.html", 
-            context={"request": request, "models": adult_models}
+            context={"request": request, "models": models_list}
         )
     except Exception as e:
-        return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=200)
+        return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=500)
 
 
 
@@ -590,6 +595,45 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "message": "Участница успешно изменена!"}
+
+# 1. Добавление модели 18+ через админку
+@app.post("/api/admin/adult-models")
+async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
+    
+    cursor.execute(
+        "INSERT INTO adult_models (name, age, status, photo_url) VALUES (?, ?, ?, ?)", 
+        (data.name, data.age, data.status, inline_photo_url)
+    )
+    db.commit()
+    upload_db_to_dropbox()  # Синхронизация с Dropbox
+    return {"status": "success", "message": "Модель успешно добавлена!"}
+
+# 2. Удаление модели 18+ через админку
+@app.delete("/api/admin/adult-models/{id}")
+async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    cursor.execute("DELETE FROM adult_models WHERE id = ?", (id,))
+    db.commit()
+    upload_db_to_dropbox()  # Синхронизация с Dropbox
+    return {"status": "success", "message": "Модель удалена"}
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
