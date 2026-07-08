@@ -309,12 +309,16 @@ async def upload_avatar(
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
+    try:
         cursor = db.cursor()
-        cursor.execute("SELECT id, name, age, status, photo_url FROM adult_model_photos ORDER BY id DESC")
+        cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
         rows = cursor.fetchall()
 
-        # Если в get_db() настроен row_factory = sqlite3.Row, делаем так:
+        # Если в get_db() настроен row_factory = sqlite3.Row, преобразуем в dict:
         return [dict(row) for row in rows]
+    except Exception as e:
+        # Это поможет не падать бэкенду, а вернуть ошибку текстом
+        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
 
 @app.get("/api/admin/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
