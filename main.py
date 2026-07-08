@@ -289,18 +289,27 @@ async def upload_avatar(
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
 @app.get("/18plus", response_class=HTMLResponse)
-async def get_adult_page(request: Request):
-    try:
-        # Пробуем отдать страницу
-        return templates.TemplateResponse("18plus.html", {"request": request})
-    except Exception as e:
-        # Если не получилось, этот код покажет список файлов, чтобы мы поняли, где он лежит
-        files_in_templates = os.listdir("templates") if os.path.exists("templates") else "Папка templates не найдена"
-        error_message = f"""
-        <h1>Ошибка на бэкенде: {str(e)}</h1>
-        <p>Файлы в папке templates: {files_in_templates}</p>
-        """
-        return HTMLResponse(content=error_message, status_code=500)
+async def get_adult_page(): # Убрали request: Request для теста
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <title>Страница 18+</title>
+        <style>
+            body { background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 100px; }
+            h1 { color: #ff4757; font-size: 40px; }
+        </style>
+    </head>
+    <body>
+        <h1>Проверка бэкенда FastAPI</h1>
+        <p style="color: #2ed573; font-size: 20px; font-weight: bold;">✔ Бэкенд работает отлично и без ошибок!</p>
+        <p>Если вы видите этот текст, значит дело было в путях к файлу 18plus.html.</p>
+        <a href="/" style="color: #aaa;">На главную</a>
+    </body>
+    </html>
+    """
+    return html_content
     
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
