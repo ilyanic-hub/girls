@@ -396,7 +396,7 @@ function resetContestantForm() {
     reader.readAsDataURL(file);
 }
 
-    // Функция загрузки списка моделей для управления их альбомами
+    // 1. Отображение моделей с возможностью выбора нескольких фото
 function loadAdultModelsForAlbums() {
     fetch('/api/admin/get-adult-models-list') 
         .then(res => res.json())
@@ -425,10 +425,10 @@ function loadAdultModelsForAlbums() {
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <button onclick="startEditAdultModel(${model.id}, '${model.name}', ${model.age}, '${model.status}')" style="padding: 6px 10px; background: #3498db; color: #fff; border: none; border-radius: 4px; cursor: pointer;">✏️ Редактировать</button>
-                        <button onclick="deleteAdultModel(${model.id})" style="padding: 6px 10px; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer;">🗑️ Удалить</button>
-                        <input type="file" id="albumFile_${model.id}" accept="image/*" style="max-width: 150px;">
-                        <button onclick="uploadPhotoToAdultAlbum(${model.id})" style="padding: 6px 10px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">➕ Фото в альбом</button>
+                        <input type="file" id="albumFiles_${model.id}" accept="image/*" multiple style="max-width: 200px;">
+                        <button onclick="uploadPhotosToAdultAlbum(${model.id})" style="padding: 8px 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                            ➕ Загрузить фото (${model.id})
+                        </button>
                     </div>
                 `;
                 container.appendChild(div);
@@ -437,38 +437,55 @@ function loadAdultModelsForAlbums() {
         .catch(err => console.error("Ошибка загрузки моделей:", err));
 }
 
-// Функция отправки фото в альбом на бэкенд
-function uploadPhotoToAdultAlbum(modelId) {
-    const fileInput = document.getElementById("albumFile_" + modelId);
+// 2. Массовая загрузка фотографий на бэкенд
+async function uploadPhotosToAdultAlbum(modelId) {
+    const fileInput = document.getElementById("albumFiles_" + modelId);
     if (!fileInput || fileInput.files.length === 0) {
-        alert("Выберите файл для загрузки!");
+        alert("Выберите хотя бы один файл для загрузки!");
         return;
     }
     
-    const file = fileInput.files[0];
-    const reader = new FileReader();
+    const files = fileInput.files;
+    const totalFiles = files.length;
     
-    reader.onloadend = function() {
-        const base64String = reader.result;
-        
-        fetch("/api/admin/adult-models/" + modelId + "/upload-photo", {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ file_base64: base64String })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert("Фото успешно добавлено в альбом модели!");
-                fileInput.value = ''; 
-            } else {
-                alert("Ошибка: " + data.message);
-            }
-        })
-        .catch(err => console.error(err));
+    // Функция-помощник для перевода одного файла в Base64
+    const readAsBase64 = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+        });
     };
-    
-    reader.readAsDataURL(file);
+
+    alert(`Начинается загрузка файлов: ${totalFiles} шт.`);
+
+    // Перебираем все файлы последовательно
+    for (let i = 0; i < totalFiles; i++) {
+        const file = files[i];
+        try {
+            const base64String = await readAsBase64(file);
+            
+            const response = await fetch("/api/admin/adult-models/" + modelId + "/upload-photo", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    file_base64: base64String,
+                    filename: file.name
+                })
+            });
+            
+            const data = await response.json();
+            if (data.status !== 'success') {
+                console.error(`Ошибка загрузки файла ${file.name}:`, data.message);
+            }
+        } catch (err) {
+            console.error(`Сбой при чтении файла ${file.name}:`, err);
+        }
+    }
+
+    alert("Загрузка пачки фотографий завершена!");
+    fileInput.value = ''; // Очищаем поле выбора файлов
 }
 
     let editAdultModelId = null;
