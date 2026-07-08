@@ -397,7 +397,6 @@ function resetContestantForm() {
 }
 
     // Функция загрузки списка моделей для управления их альбомами
-// Функция загрузки списка моделей для управления их альбомами
 function loadAdultModelsForAlbums() {
     fetch('/api/admin/get-adult-models-list') 
         .then(res => res.json())
@@ -413,8 +412,9 @@ function loadAdultModelsForAlbums() {
                 div.style.borderRadius = "8px";
                 div.style.display = "flex";
                 div.style.alignItems = "center";
-                div.style.justify = "space-between";
+                div.style.justifyContent = "space-between";
                 div.style.gap = "20px";
+                div.style.marginBottom = "10px";
                 
                 div.innerHTML = `
                     <div style="display: flex; align-items: center; gap: 15px;">
@@ -425,10 +425,10 @@ function loadAdultModelsForAlbums() {
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="file" id="albumFile_${model.id}" accept="image/*" style="max-width: 200px;">
-                        <button onclick="uploadPhotoToAdultAlbum(${model.id})" style="padding: 8px 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                            ➕ Добавить в альбом
-                        </button>
+                        <button onclick="startEditAdultModel(${model.id}, '${model.name}', ${model.age}, '${model.status}')" style="padding: 6px 10px; background: #3498db; color: #fff; border: none; border-radius: 4px; cursor: pointer;">✏️ Редактировать</button>
+                        <button onclick="deleteAdultModel(${model.id})" style="padding: 6px 10px; background: #e74c3c; color: #fff; border: none; border-radius: 4px; cursor: pointer;">🗑️ Удалить</button>
+                        <input type="file" id="albumFile_${model.id}" accept="image/*" style="max-width: 150px;">
+                        <button onclick="uploadPhotoToAdultAlbum(${model.id})" style="padding: 6px 10px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">➕ Фото в альбом</button>
                     </div>
                 `;
                 container.appendChild(div);
