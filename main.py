@@ -310,7 +310,7 @@ async def upload_avatar(
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
         cursor = db.cursor()
-        cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
+        cursor.execute("SELECT id, name, age, status, photo_url FROM adult_model_photos ORDER BY id DESC")
         rows = cursor.fetchall()
 
         # Если в get_db() настроен row_factory = sqlite3.Row, делаем так:
@@ -321,7 +321,7 @@ async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     try:
         # Проверяем, как называется таблица. Обычно это adult_albums или adult_photos
-        cursor.execute("SELECT id, photo_url FROM adult_albums WHERE model_id = ? ORDER BY id DESC", (model_id,))
+        cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
     except Exception as e:
@@ -331,7 +331,7 @@ async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     try:
-        cursor.execute("DELETE FROM adult_albums WHERE id = ?", (photo_id,))
+        cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (photo_id,))
         db.commit()
         return {"status": "success", "message": "Фото удалено из альбома"}
     except Exception as e:
@@ -403,7 +403,7 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
             photo_url = file_base64  # Меняешь на вызов своей функции загрузки, если нужно
             
             cursor.execute(
-                "UPDATE adult_models SET name=?, age=?, status=?, photo_url=? WHERE id=?",
+                "UPDATE adult_model_photos SET name=?, age=?, status=?, photo_url=? WHERE id=?",
                 (name, age, status, photo_url, model_id)
             )
         else:
@@ -423,8 +423,8 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
 async def delete_adult_model(model_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     # Удаляем саму модель и её альбомы
-    cursor.execute("DELETE FROM adult_models WHERE id=?", (model_id,))
-    cursor.execute("DELETE FROM adult_albums WHERE model_id=?", (model_id,))
+    cursor.execute("DELETE FROM adult_model_photos WHERE id=?", (model_id,))
+    cursor.execute("DELETE FROM adult_model_photos WHERE model_id=?", (model_id,))
     db.commit()
     return {"status": "success", "message": "Модель полностью удалена"}
 
@@ -668,7 +668,7 @@ async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[s
     inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
     
     cursor.execute(
-        "INSERT INTO adult_models (name, age, status, photo_url) VALUES (?, ?, ?, ?)", 
+        "INSERT INTO adult_model_photos (name, age, status, photo_url) VALUES (?, ?, ?, ?)", 
         (data.name, data.age, data.status, inline_photo_url)
     )
     db.commit()
@@ -687,7 +687,7 @@ async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None)
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
-    cursor.execute("DELETE FROM adult_models WHERE id = ?", (id,))
+    cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (id,))
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "message": "Модель удалена"}
@@ -731,7 +731,7 @@ async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
+    cursor.execute("SELECT id, name, age, status, photo_url FROM adult_model_photos ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
 
 
