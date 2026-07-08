@@ -283,7 +283,27 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
-
+@app.get("/models", response_class=HTMLResponse)
+async def get_adult_page():
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <title>Контент 18+</title>
+        <style>
+            body { background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 50px; }
+            h1 { color: #ff4757; }
+        </style>
+    </head>
+    <body>
+        <h1>Горячий контент 18+</h1>
+        <p>Здесь будет твоя страница, которую ты создала!</p>
+        <a href="/" style="color: #ccc;">На главную</a>
+    </body>
+    </html>
+    """
+    return html_content
     
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
