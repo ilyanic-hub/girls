@@ -289,29 +289,18 @@ async def upload_avatar(
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
 @app.get("/18plus", response_class=HTMLResponse)
-async def get_adult_page():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <title>Страница 18+</title>
-        <style>
-            body { background-color: #121212; color: #ffffff; font-family: sans-serif; text-align: center; padding-top: 50px; }
-            h1 { color: #ff4757; font-size: 40px; }
-            .content-box { max-width: 600px; margin: 0 auto; padding: 20px; background: #1e1e1e; border-radius: 10px; border: 1px solid #ff4757; }
-        </style>
-    </head>
-    <body>
-        <div class="content-box">
-            <h1>Зона 18+</h1>
-            <p>Добро пожаловать в закрытый раздел.</p>
-            <a href="/" style="color: #ff4757; text-decoration: none;">← На главную</a>
-        </div>
-    </body>
-    </html>
-    """
-    return html_content
+async def get_adult_page(request: Request):
+    try:
+        # Пробуем отдать страницу
+        return templates.TemplateResponse("18plus.html", {"request": request})
+    except Exception as e:
+        # Если не получилось, этот код покажет список файлов, чтобы мы поняли, где он лежит
+        files_in_templates = os.listdir("templates") if os.path.exists("templates") else "Папка templates не найдена"
+        error_message = f"""
+        <h1>Ошибка на бэкенде: {str(e)}</h1>
+        <p>Файлы в папке templates: {files_in_templates}</p>
+        """
+        return HTMLResponse(content=error_message, status_code=500)
     
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
