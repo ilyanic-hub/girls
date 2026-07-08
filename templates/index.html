@@ -527,30 +527,7 @@ function goToAdultContent() {
     // либо просто перенаправим на другую страницу:
     window.location.href = "/models"; // Например, на страницу моделей
 }
-        
-// Обработка выбора пользователя
-function confirmAge(isOfAge) {
-    if (isOfAge) {
-        // Запоминаем в браузере, что пользователю есть 18
-        localStorage.setItem('isAdultConfirmed', 'true');
-        // Закрываем окно
-        document.getElementById('ageVerifyModal').style.display = 'none';
-        // Переходим в раздел
-        goToAdultContent();
-    } else {
-        // Если нет 18 — перенаправляем на главную страницу или закрываем окно
-        alert("Доступ ограничен. Вам должно быть больше 18 лет.");
-        window.location.href = "/"; // Уводим на главную
-    }
-}
-
-// Функция перехода в сам раздел 18+
-function goToAdultContent() {
-    // Сюда впиши логику перехода: например, открытие вкладки или редирект
-    // Вызовем функцию, которая скрывает обычных участниц и показывает горячих, 
-    // либо просто перенаправим на другую страницу:
-    window.location.href = "/18+"; // Например, на страницу моделей
-}
+    
         
         function toggleAuthMode() {
             const form = document.getElementById('auth-form');
