@@ -159,14 +159,81 @@
 
     // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ УЧАСТНИЦЫ ====================
 
-    @app.get("/api/admin/get-adult-models-list")
-    async def get_adult_models_list_for_admin(db=Depends(get_db)):
-        cursor = db.cursor()
-        cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
-        rows = cursor.fetchall()
-    
-        # Если в get_db() настроен row_factory = sqlite3.Row, делаем так:
-        return [dict(row) for row in rows]
+    async function saveContestant(event) {
+    event.preventDefault();
+    const btn = document.getElementById('submitGirlBtn');
+    const name = document.getElementById('girlName').value;
+    const file = document.getElementById('girlPhoto').files[0];
+
+    if (!editContestantId && !file) {
+        alert('Пожалуйста, выберите фотографию участницы!');
+        return;
+    }
+
+    btn.innerText = "Сохранение...";
+    btn.disabled = true;
+
+    try {
+        let base64Str = "";
+        if (file) {
+            base64Str = await toBase64(file);
+        }
+        
+        const payload = {
+            name: name,
+            file_base64: base64Str,
+            filename: file ? file.name : "",
+            content_type: file ? file.type : ""
+        };
+
+        let url = '/api/admin/contestants';
+        let method = 'POST';
+
+        if (editContestantId) {
+            url = `/api/admin/contestants/${editContestantId}`;
+            method = 'PUT';
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            alert(editContestantId ? 'Данные участницы обновлены!' : 'Участница успешно добавлена!');
+            resetContestantForm();
+            loadContestants();
+        } else {
+            alert('Ошибка сервера: ' + (result.detail || JSON.stringify(result)));
+        }
+    } catch (error) {
+        alert('Сбой сети: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = editContestantId ? "Сохранить изменения" : "Загрузить в систему";
+    }
+}
+
+function startEditContestant(id, currentName) {
+    editContestantId = id;
+    document.getElementById('contestantFormTitle').firstChild.textContent = "Редактировать участницу ";
+    document.getElementById('cancelContestantEdit').style.display = 'inline-block';
+    document.getElementById('girlName').value = currentName;
+    document.getElementById('photoLabel').innerText = "Изменить фотографию (оставьте пустым, чтобы не менять):";
+    document.getElementById('submitGirlBtn').innerText = "Сохранить изменения";
+    document.getElementById('girlName').focus();
+}
+
+function resetContestantForm() {
+    editContestantId = null;
+    document.getElementById('contestantForm').reset();
+    document.getElementById('contestantFormTitle').firstChild.textContent = "Добавить новую участницу (на голосование) ";
+    document.getElementById('cancelContestantEdit').style.display = 'none';
+    document.getElementById('photoLabel').innerText = "Фотография участницы:";
+    document.getElementById('submitGirlBtn').innerText = "Загрузить в систему";
+} // Вот эта скобка была потеряна!
     
     
 
