@@ -366,6 +366,41 @@ async def get_about_page():
     with open(path_to_html, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
 
+@app.put("/api/admin/adult-models/{model_id}")
+async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
+    cursor = db.cursor()
+    name = payload.get("name")
+    age = payload.get("age")
+    status = payload.get("status")
+    
+    # Проверяем, передано ли новое фото (base64)
+    file_base64 = payload.get("file_base64")
+    if file_base64:
+        # Здесь логика сохранения фото (как при создании), получаем новый photo_url
+        # Для примера запишем новый URL, если ты используешь Imgur или локальное хранилище:
+        photo_url = payload.get("photo_url") # или функция сохранения
+        cursor.execute(
+            "UPDATE adult_models SET name=?, age=?, status=?, photo_url=? WHERE id=?",
+            (name, age, status, photo_url, model_id)
+        )
+    else:
+        cursor.execute(
+            "UPDATE adult_models SET name=?, age=?, status=? WHERE id=?",
+            (name, age, status, model_id)
+        )
+    
+    db.commit()
+    return {"status": "success", "message": "Данные модели успешно обновлены"}
+
+@app.delete("/api/admin/adult-models/{model_id}")
+async def delete_adult_model(model_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    # Удаляем саму модель и её альбомы
+    cursor.execute("DELETE FROM adult_models WHERE id=?", (model_id,))
+    cursor.execute("DELETE FROM adult_albums WHERE model_id=?", (model_id,))
+    db.commit()
+    return {"status": "success", "message": "Модель полностью удалена"}
+
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
 async def get_admin_page(session_user: Optional[str] = Cookie(None)):
