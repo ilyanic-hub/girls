@@ -316,6 +316,27 @@ async def get_adult_models_list_for_admin(db=Depends(get_db)):
         # Если в get_db() настроен row_factory = sqlite3.Row, делаем так:
         return [dict(row) for row in rows]
 
+@app.get("/api/admin/adult-models/{model_id}/photos")
+async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        # Проверяем, как называется таблица. Обычно это adult_albums или adult_photos
+        cursor.execute("SELECT id, photo_url FROM adult_albums WHERE model_id = ? ORDER BY id DESC", (model_id,))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
+
+@app.delete("/api/admin/adult-photos/{photo_id}")
+async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
+    cursor = db.cursor()
+    try:
+        cursor.execute("DELETE FROM adult_albums WHERE id = ?", (photo_id,))
+        db.commit()
+        return {"status": "success", "message": "Фото удалено из альбома"}
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка удаления: {str(e)}"}
+
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
     path_to_html = "templates/index.html"
