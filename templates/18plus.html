@@ -46,6 +46,7 @@
             border-radius: 12px;
             overflow: hidden;
             transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            cursor: pointer; /* Делаем карточку явно кликабельной */
         }
         .card:hover {
             transform: translateY(-5px);
@@ -95,6 +96,60 @@
             border-color: #ff4757;
             box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
         }
+
+        /* Стиль для модального окна (окно просмотра альбома) */
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+        .modal-content {
+            background-color: #1e1e1e;
+            margin: 5% auto;
+            padding: 25px;
+            border: 1px solid #333;
+            width: 80%;
+            max-width: 900px;
+            border-radius: 12px;
+            position: relative;
+        }
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            color: #aaa;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .close-modal:hover {
+            color: #ff4757;
+        }
+        .album-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .album-grid img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #333;
+            transition: transform 0.2s;
+        }
+        .album-grid img:hover {
+            transform: scale(1.03);
+            border-color: #ff4757;
+        }
     </style>
 </head>
 <body>
@@ -102,10 +157,9 @@
         <h1>Горячий контент</h1>
         <div class="warning-badge">Только для взрослых 18+</div>
         
-        <!-- Сетка с карточками моделей -->
         <div class="grid">
             {% for model in models %}
-            <div class="card">
+            <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}')">
                 <img src="{{ model.photo_url }}" alt="Модель {{ model.name }}">
                 <div class="card-info">
                     <p class="card-name">{{ model.name }}, {{ model.age }}</p>
@@ -113,10 +167,8 @@
                 </div>
             </div>
             {% endfor %}
-        </div>
             
-            <!-- Карточка 2 -->
-            <div class="card">
+            <div class="card" onclick="alert('Это демонстрационная карточка. Альбом недоступен.')">
                 <img src="/static/avatars/default.jpg" alt="Модель">
                 <div class="card-info">
                     <p class="card-name">Катя, 24</p>
@@ -124,8 +176,7 @@
                 </div>
             </div>
 
-            <!-- Карточка 3 -->
-            <div class="card">
+            <div class="card" onclick="alert('Это демонстрационная карточка. Альбом недоступен.')">
                 <img src="/static/avatars/default.jpg" alt="Модель">
                 <div class="card-info">
                     <p class="card-name">Маша, 19</p>
@@ -136,5 +187,70 @@
 
         <a href="/" class="back-btn">← Вернуться на главную</a>
     </div>
+
+    <div id="albumModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="modalTitle" style="color: #ff4757; text-align: left; margin-bottom: 5px;">Альбом модели</h2>
+            <div id="albumPhotosContainer" class="album-grid">
+                </div>
+        </div>
+    </div>
+
+<script>
+    function openModelAlbum(modelId, modelName) {
+        const modal = document.getElementById('albumModal');
+        const container = document.getElementById('albumPhotosContainer');
+        const title = document.getElementById('modalTitle');
+        
+        if (!modal || !container) return;
+
+        // Ставим заголовок и пишем, что идёт загрузка
+        title.innerText = `Альбом модели: ${modelName}`;
+        container.innerHTML = '<p style="color: #aaa; grid-column: 1/-1;">Загрузка альбома...</p>';
+        
+        // Показываем модалку
+        modal.style.display = 'block';
+
+        // Делаем запрос к твоему админскому роуту (который мы проверили)
+        fetch(`/api/admin/adult-models/${modelId}/photos`)
+            .then(res => res.json())
+            .then(photos => {
+                container.innerHTML = ''; // Чистим текст загрузки
+                
+                if (!photos || photos.length === 0) {
+                    container.innerHTML = '<p style="color: #666; grid-column: 1/-1; padding: 20px;">У этой модели пока нет дополнительных фотографий в альбоме.</p>';
+                    return;
+                }
+
+                // Перебираем массив фоток из таблицы adult_model_photos
+                photos.forEach(p => {
+                    const img = document.createElement('img');
+                    img.src = p.photo_url;
+                    img.alt = 'Фото из альбома';
+                    // При клике на фото альбома — откроем её в новой вкладке в полном размере
+                    img.onclick = () => window.open(p.photo_url, '_blank');
+                    
+                    container.appendChild(img);
+                });
+            })
+            .catch(err => {
+                console.error("Ошибка:", err);
+                container.innerHTML = '<p style="color: #ff4757; grid-column: 1/-1;">Не удалось загрузить фотографии альбома.</p>';
+            });
+    }
+
+    function closeModal() {
+        document.getElementById('albumModal').style.display = 'none';
+    }
+
+    // Закрытие модалки, если кликнуть в тёмную область вокруг неё
+    window.onclick = function(event) {
+        const modal = document.getElementById('albumModal');
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+</script>
 </body>
 </html>
