@@ -282,6 +282,146 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ =================
+
+from fastapi.responses import HTMLResponse
+
+# ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
+@app.get("/models", response_class=HTMLResponse)
+async def get_adult_page(user: dict = Depends(get_current_user)):
+    # Страница доступна только авторизованным пользователям
+    # (get_current_user автоматически выкинет 401, если сессии нет)
+    
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ru">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Контент 18+</title>
+        <style>
+            body {
+                background-color: #121212;
+                color: #ffffff;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                margin: 0;
+                padding: 20px;
+                text-align: center;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            h1 {
+                color: #ff4757;
+                font-size: 36px;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+            }
+            .warning-badge {
+                background: #ff4757;
+                color: #fff;
+                padding: 5px 15px;
+                border-radius: 20px;
+                font-weight: bold;
+                display: inline-block;
+                margin-bottom: 30px;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 25px;
+                margin-top: 20px;
+            }
+            .card {
+                background: #1e1e1e;
+                border: 1px solid #2f3542;
+                border-radius: 12px;
+                overflow: hidden;
+                transition: transform 0.3s, border-color 0.3s;
+            }
+            .card:hover {
+                transform: translateY(-5px);
+                border-color: #ff4757;
+            }
+            .card img {
+                width: 100%;
+                height: 300px;
+                object-fit: cover;
+                filter: blur(8px); /* Легкое размытие по умолчанию для интриги */
+                transition: filter 0.3s;
+            }
+            .card:hover img {
+                filter: blur(0px); /* Размытие пропадает при наведении */
+            }
+            .card-info {
+                padding: 15px;
+                text-align: left;
+            }
+            .card-name {
+                font-size: 20px;
+                font-weight: bold;
+                margin: 0 0 5px 0;
+            }
+            .card-meta {
+                color: #a4b0be;
+                font-size: 14px;
+            }
+            .back-btn {
+                display: inline-block;
+                margin-top: 40px;
+                color: #a4b0be;
+                text-decoration: none;
+                border: 1px solid #57606f;
+                padding: 10px 20px;
+                border-radius: 6px;
+                transition: 0.2s;
+            }
+            .back-btn:hover {
+                background: #ff4757;
+                color: white;
+                border-color: #ff4757;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Горячий контент</h1>
+            <div class="warning-badge">Только для взрослых 18+</div>
+            
+            <div class="grid">
+                <div class="card">
+                    <img src="/static/avatars/default.jpg" alt="Модель">
+                    <div class="card-info">
+                        <p class="card-name">Алина, 21</p>
+                        <p class="card-meta">Доступно фото/видео</p>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <img src="/static/avatars/default.jpg" alt="Модель">
+                    <div class="card-info">
+                        <p class="card-name">Катя, 24</p>
+                        <p class="card-meta">Приватные чаты</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <img src="/static/avatars/default.jpg" alt="Модель">
+                    <div class="card-info">
+                        <p class="card-name">Маша, 19</p>
+                        <p class="card-meta">Эксклюзив</p>
+                    </div>
+                </div>
+            </div>
+
+            <a href="/" class="back-btn">← Вернуться на главную</a>
+        </div>
+    </body>
+    </html>
+    """
+    return html_content
+    
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page():
     path_to_html = "templates/index.html"
