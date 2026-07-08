@@ -190,6 +190,9 @@ def init_db():
     )
     """)
 
+    # Добавь это в init_db(), если боишься, что колонка отсутствует
+    cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
+
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
@@ -251,6 +254,7 @@ class AdultModelSchema(BaseModel):
     age: int
     status: str
     file_base64: str
+    is_paid: int = 100  # Добавляем это поле (0 — бесплатно, 1 — за токены)
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
@@ -682,14 +686,15 @@ async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[s
     
     inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
     
+    # Добавляем is_paid в SQL-запрос и меняем таблицу на adult_models (если была опечатка)
     cursor.execute(
-        "INSERT INTO adult_model_photos (name, age, status, photo_url) VALUES (?, ?, ?, ?)", 
-        (data.name, data.age, data.status, inline_photo_url)
+        "INSERT INTO adult_models (name, age, status, photo_url, is_paid) VALUES (?, ?, ?, ?, ?)", 
+        (data.name, data.age, data.status, inline_photo_url, data.is_paid)
     )
     db.commit()
     upload_db_to_dropbox()
     return {"status": "success", "message": "Модель успешно добавлена!"}
-
+    
 # 2. Удаление модели 18+ через админку
 @app.delete("/api/admin/adult-models/{id}")
 async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
