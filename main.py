@@ -22,7 +22,7 @@ app = FastAPI()
 @app.get("/18plus", response_class=HTMLResponse)
 async def get_adult_page(request: Request):
     # Бэкенд прочитает файл models.html из папки templates и отдаст его браузеру
-    return templates.TemplateResponse("18+.html", {"request": request})
+    return templates.TemplateResponse("18plus.html", {"request": request})
 router = APIRouter()
 
 # Папка, куда будут сохраняться аватарки
