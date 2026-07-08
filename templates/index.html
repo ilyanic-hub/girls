@@ -355,6 +355,10 @@
             <a href="/models">📸 Моделям</a>
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
+            <!-- Кнопка в боковом меню -->
+            <a href="#" class="sidebar-link" onclick="checkAge(event)" style="color: #ff4757; font-weight: bold;">
+    🔞 Контент 18+
+</a>
         </nav>
     </aside>
 
@@ -483,6 +487,46 @@
                 } catch (error) { console.error("Ошибка при проверке баланса:", error); }
             }, 4000);
         }
+
+        // Функция, которая срабатывает при клике на "Контент 18+"
+function checkAge(event) {
+    event.preventDefault(); // Отменяем стандартный переход по ссылке
+
+    // Проверяем, подтверждал ли пользователь возраст ранее
+    const isAdult = localStorage.getItem('isAdultConfirmed');
+
+    if (isAdult === 'true') {
+        // Если уже подтверждал — сразу пускаем в раздел
+        goToAdultContent();
+    } else {
+        // Если зашёл впервые — показываем окно проверки
+        document.getElementById('ageVerifyModal').style.display = 'flex';
+    }
+}
+
+// Обработка выбора пользователя
+function confirmAge(isOfAge) {
+    if (isOfAge) {
+        // Запоминаем в браузере, что пользователю есть 18
+        localStorage.setItem('isAdultConfirmed', 'true');
+        // Закрываем окно
+        document.getElementById('ageVerifyModal').style.display = 'none';
+        // Переходим в раздел
+        goToAdultContent();
+    } else {
+        // Если нет 18 — перенаправляем на главную страницу или закрываем окно
+        alert("Доступ ограничен. Вам должно быть больше 18 лет.");
+        window.location.href = "/"; // Уводим на главную
+    }
+}
+
+// Функция перехода в сам раздел 18+
+function goToAdultContent() {
+    // Сюда впиши логику перехода: например, открытие вкладки или редирект
+    // Вызовем функцию, которая скрывает обычных участниц и показывает горячих, 
+    // либо просто перенаправим на другую страницу:
+    window.location.href = "/models"; // Например, на страницу моделей
+}
         
         function toggleAuthMode() {
             const form = document.getElementById('auth-form');
@@ -768,5 +812,17 @@
             updateTimer();
         };
     </script>
+    <!-- Модальное окно проверки возраста -->
+<div id="ageVerifyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; font-family: sans-serif;">
+    <div style="background: #222; color: #fff; padding: 30px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; border: 2px solid #ff4757; box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);">
+        <h2 style="color: #ff4757; margin-top: 0; font-size: 24px;">Внимание! Контент 18+</h2>
+        <p style="font-size: 16px; margin: 20px 0; line-height: 1.5;">Этот раздел содержит материалы для взрослых. Вам уже исполнилось 18 лет?</p>
+        
+        <div style="display: flex; gap: 15px; justify-content: center;">
+            <button onclick="confirmAge(true)" style="background: #ff4757; color: white; border: none; padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;">Да, мне есть 18</button>
+            <button onclick="confirmAge(false)" style="background: #444; color: #ccc; border: none; padding: 12px 30px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.2s;">Нет, уйти</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
