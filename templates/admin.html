@@ -158,6 +158,13 @@
     }
 
     // ==================== СОХРАНЕНИЕ / ИЗМЕНЕНИЕ УЧАСТНИЦЫ ====================
+
+    @app.get("/api/admin/get-adult-models-list")
+async def get_adult_models_list_for_admin(db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("SELECT id, name, age, status, photo_url FROM adult_models ORDER BY id DESC")
+    return [dict(row) for row in cursor.fetchall()]
+    
     async function saveContestant(event) {
         event.preventDefault();
         const btn = document.getElementById('submitGirlBtn');
