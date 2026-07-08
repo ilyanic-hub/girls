@@ -283,8 +283,9 @@ async def upload_avatar(
 
 
 # ================= РОУТ ДЛЯ СТРАНИЦЫ 18+ =================
-@app.get("/18+")
-async def get_adult_page(request: Request, user: dict = Depends(get_current_user)):
+@app.get("/18+", response_class=HTMLResponse)
+async def get_adult_page(request: Request):
+    # Бэкенд прочитает файл models.html из папки templates и отдаст его браузеру
     return templates.TemplateResponse("18+.html", {"request": request})
     
     
