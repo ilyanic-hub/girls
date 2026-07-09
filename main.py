@@ -444,17 +444,17 @@ async def get_main_page(request: Request, session_user: Optional[str] = Cookie(N
         return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
         
     user_data = None
-    
-    # Если у пользователя есть кука сессии, достаем его из базы
     if session_user:
         try:
+            # КРИТИЧЕСКИ ВАЖНО: включаем чтение строк как словарей
+            db.row_factory = lambda cursor, row: dict(zip([col[0] for col in cursor.description], row))
             cursor = db.cursor()
+            
             cursor.execute("SELECT username, balance FROM users WHERE username = ?", (session_user,))
             user_data = cursor.fetchone()
         except Exception as e:
-            print(f"Ошибка при поиске пользователя на главной: {e}")
+            print(f"Ошибка БД на главной: {e}")
 
-    # Рендерим страницу через Jinja2 и передаем объект user (будет None, если гость)
     return templates.TemplateResponse("index.html", {
         "request": request,
         "user": user_data
