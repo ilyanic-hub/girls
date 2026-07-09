@@ -194,7 +194,7 @@ def init_db():
     cursor.execute("CREATE TABLE IF NOT EXISTS user_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, model_id INTEGER)")
 
     # === ЗАМЕНИ СВОЙ БЛОК ПРОВЕРКИ IS_PAID НА ЭТОТ ВАРИАНТ ===
-try:
+    try:
     cursor = db.cursor()
     cursor.execute("PRAGMA table_info(adult_models)")
     columns = cursor.fetchall()
@@ -207,12 +207,12 @@ try:
         cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
         db.commit()
         print("Колонка is_paid успешно добавлена.")
-except Exception as e:
-    # try и except находятся НА ОДНОЙ ВЕРТИКАЛЬНОЙ ЛИНИИ
-    print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
-# === КОНЕЦ БЛОКА ===
+    except Exception as e:
+        # try и except находятся НА ОДНОЙ ВЕРТИКАЛЬНОЙ ЛИНИИ
+        print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
+    # === КОНЕЦ БЛОКА ===    
     # Накатываем альтеры на случай старых баз
-    try:
+    try:    
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
         db.commit()
     except sqlite3.OperationalError: pass
