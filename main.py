@@ -447,14 +447,23 @@ async def get_main_page(request: Request, session_user: Optional[str] = Cookie(N
     user_data = None
     if session_user:
         try:
-            # КРИТИЧЕСКИ ВАЖНО: включаем чтение строк как словарей
-            db.row_factory = lambda cursor, row: dict(zip([col[0] for col in cursor.description], row))
             cursor = db.cursor()
-            
             cursor.execute("SELECT username, balance FROM users WHERE username = ?", (session_user,))
-            user_data = cursor.fetchone()
+            row = cursor.fetchone()
+            
+            # Безопасно переводим кортеж в словарь вручную, если пользователь найден
+            if row:
+                user_data = {
+                    "username": row[0],
+                    "balance": row[1]
+                }
         except Exception as e:
             print(f"Ошибка БД на главной: {e}")
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "user": user_data
+    })
 
     return templates.TemplateResponse("index.html", {
         "request": request,
