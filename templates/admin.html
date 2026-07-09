@@ -459,17 +459,29 @@ function startEditAdultModel(id, name, age, status, isPaid) {
     document.getElementById('submitAdultBtn').innerText = "Сохранить модель";
 }
 
-    function deleteAdultModel(id) {
-        if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) return;
-        
-        fetch("/api/admin/adult-models/" + id, { method: "DELETE" })
-            .then(res => res.json())
-            .then(data => {
-                alert("Модель удалена");
-                loadAdultModelsForAlbums();
-            })
-            .catch(err => console.error(err));
+    async function deleteAdultModel(id) {
+    if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) {
+        return;
     }
+
+    try {
+        const response = await fetch(`/api/admin/adult-models/${id}`, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+
+        if (response.ok || data.status === 'success') {
+            alert("Модель полностью удалена!");
+            // Перезапускаем функцию загрузки списка моделей в админке
+            if (typeof loadAdultModelsForAlbums === 'function') loadAdultModelsForAlbums();
+            else location.reload();
+        } else {
+            alert("Ошибка удаления: " + data.message);
+        }
+    } catch (err) {
+        alert("Ошибка сети при удалении: " + err.message);
+    }
+}
 
     // ==================== УПРАВЛЕНИЕ АЛЬБОМАМИ 18+ ====================
 
