@@ -191,6 +191,8 @@ def init_db():
     )
     """)
 
+    cursor.execute("CREATE TABLE IF NOT EXISTS user_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, model_id INTEGER)")
+
     try:
         # Проверяем, какие колонки уже есть в таблице adult_models
         cursor.execute("PRAGMA table_info(adult_models)")
