@@ -460,10 +460,13 @@ async def get_main_page(request: Request, session_user: Optional[str] = Cookie(N
                 }
 
         # Пробуем отрендерить шаблон
-        return templates.TemplateResponse("index.html", {
-            "request": request,
-            "user": user_data
-        })
+        return templates.TemplateResponse(
+            request=request,
+            name="index.html",
+            context={
+                "user": user_data
+            }
+        )
         
     except Exception as e:
         # Если что-то падает, мы увидим ПОЛНЫЙ текст ошибки (traceback) прямо на экране сайта!
