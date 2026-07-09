@@ -732,7 +732,9 @@ function goToAdultContent() {
                             </div>`;
                     });
                 }
-            } catch (err) { console.error("Ошибка загрузки комментариев:", err); }
+            } catch (err) {
+                console.error("Ошибка загрузки комментариев:", err);
+            }
         }
 
         async function sendComment(contestantId) {
@@ -746,99 +748,113 @@ function goToAdultContent() {
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ text: text })
                 });
-
                 if (res.ok) {
                     input.value = '';
-                    await loadComments(contestantId); 
-                    
-                    let listContainer = document.getElementById(`comments-list-${contestantId}`);
-                    let currentCount = listContainer.querySelectorAll('.card-comment-item').length;
-                    document.getElementById(`comment-btn-${contestantId}`).innerText = `💬 Комментарии (${currentCount})`;
-                } else {
-                    let data = await res.json();
-                    alert("Ошибка: " + (data.detail || "Не удалось отправить"));
+                    loadComments(contestantId);
+                    // Обновляем счетчик на кнопке
+                    let btn = document.getElementById(`comment-btn-${contestantId}`);
+                    let parts = btn.innerText.split('(');
+                    let count = parseInt(parts[1]) + 1;
+                    btn.innerText = `💬 Комментарии (${count})`;
                 }
-            } catch (err) { alert("Ошибка сети при отправке комментария"); }
+            } catch (err) { console.error("Ошибка отправки комментария:", err); }
         }
 
-        async function vote(id, event) {
-            if (event) spawnHearts(event); 
-            let res = await fetch(`/api/vote?contestant_id=${id}`, {method: 'POST'});
-            if (res.ok) { checkAuth(); } else { let d = await res.json(); alert(d.detail || "Ошибка при голосовании"); }
-        }
-
-        function spawnHearts(event) {
-            const heartCount = 6;
-            for (let i = 0; i < heartCount; i++) {
-                const heart = document.createElement('div');
-                heart.classList.add('heart-particle');
-                heart.innerText = '❤️';
-                heart.style.left = event.clientX + 'px';
-                heart.style.top = event.clientY + 'px';
-                const x = (Math.random() - 0.5) * 160;
-                const y = (Math.random() - 0.8) * 160;
-                const r = (Math.random() - 0.5) * 90;
-                heart.style.setProperty('--x', `${x}px`);
-                heart.style.setProperty('--y', `${y}px`);
-                heart.style.setProperty('--r', `${r}deg`);
-                document.body.appendChild(heart);
-                setTimeout(() => { heart.remove(); }, 800);
-            }
-        }
-
-        async function getDailyBonus() {
+        async function vote(contestantId, event) {
             try {
-                const response = await fetch('/api/bonus', { method: 'POST' });
-                const result = await response.json();
-                if (response.ok) { alert("🎉 " + result.message); checkAuth(); } 
-                else { alert("❌ " + (result.detail || "Ошибка получения бонуса")); }
-            } catch (error) { alert("Сетевая ошибка"); }
+                let res = await fetch(`/api/contestants/${contestantId}/vote`, { method: 'POST' });
+                let data = await res.json();
+                if (res.ok) {
+                    // Создаем анимацию сердечка в месте клика
+                    createHeart(event.clientX, event.clientY);
+                    document.getElementById('user-balance').innerText = data.new_balance;
+                    loadContestants();
+                } else {
+                    alert(data.detail || "Ошибка при голосовании");
+                }
+            } catch (err) { alert("Ошибка сети."); }
         }
 
-        function updateTimer() {
-            const now = new Date();
-            const nextDeadline = new Date();
-            nextDeadline.setDate(now.getDate() + (7 - now.getDay()) % 7);
-            nextDeadline.setHours(23, 59, 59, 999);
-            const diff = nextDeadline - now;
-            if (diff <= 0) { document.getElementById("countdown-timer").innerText = "Раунд завершен!"; return; }
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            document.getElementById("countdown-timer").innerText = `${days}д ${hours.toString().padStart(2, '0')}ч ${minutes.toString().padStart(2, '0')}м ${seconds.toString().padStart(2, '0')}с`;
+        function createHeart(x, y) {
+            const heart = document.createElement('div');
+            heart.classList.add('heart-particle');
+            heart.innerHTML = '❤️';
+            heart.style.left = `${x - 12}px`;
+            heart.style.top = `${y - 12}px`;
+            
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = Math.random() * 60 + 40;
+            heart.style.setProperty('--x', `${Math.cos(angle) * velocity}px`);
+            heart.style.setProperty('--y', `${Math.sin(angle) * velocity - 100}px`);
+            heart.style.setProperty('--r', `${Math.random() * 90 - 45}deg`);
+            
+            document.body.appendChild(heart);
+            setTimeout(() => heart.remove(), 800);
         }
 
         function openDepositModal() { document.getElementById('depositModal').style.display = 'flex'; }
         function closeDepositModal() { document.getElementById('depositModal').style.display = 'none'; }
-        function selectDepositAmount(amt) { selectedAmount = amt; document.getElementById('customAmount').value = ''; }
-        
-        async function sendPaymentRequest() {
-            let amt = document.getElementById('customAmount').value || selectedAmount;
-            if (!amt || amt < 100) { alert("Минимальная сумма пополнения - 100 коинов"); return; }
-            alert("Запрос на оплату отправлен. Сумма: " + amt);
-            closeDepositModal();
+        function selectDepositAmount(amount) {
+            selectedAmount = amount;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.deposit-opt-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
         }
 
+        async function sendPaymentRequest() {
+            let amount = document.getElementById('customAmount').value || selectedAmount;
+            if (!amount || amount < 100) { alert("Минимальная сумма — 100 коинов"); return; }
+            
+            try {
+                let res = await fetch('/api/deposit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount: parseInt(amount) })
+                });
+                let data = await res.json();
+                if (res.ok && data.pay_url) {
+                    window.open(data.pay_url, '_blank');
+                    startCheckingBalance();
+                } else { alert("Ошибка: " + data.detail); }
+            } catch (err) { alert("Ошибка сервера платежей"); }
+        }
+
+        // Таймер обратного отсчета (пример логики)
+        function startTimer() {
+            let timerEl = document.getElementById('countdown-timer');
+            if (!timerEl) return;
+            let target = new Date();
+            target.setHours(24, 0, 0, 0); // До конца дня
+
+            setInterval(() => {
+                let now = new Date();
+                let diff = target - now;
+                if (diff <= 0) { target.setHours(target.getHours() + 24); return; }
+                
+                let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                let mins = Math.floor((diff / (1000 * 60)) % 60);
+                let secs = Math.floor((diff / 1000) % 60);
+                
+                timerEl.innerText = `00д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
+            }, 1000);
+        }
+
+        async function getDailyBonus() {
+            try {
+                let res = await fetch('/api/daily-bonus', { method: 'POST' });
+                let data = await res.json();
+                if (res.ok) {
+                    alert(`Вы получили бонус: ${data.bonus} коинов!`);
+                    checkAuth();
+                } else { alert(data.detail); }
+            } catch (e) { alert("Ошибка при получении бонуса"); }
+        }
+
+        // Запуск проверки авторизации при загрузке страницы
         window.onload = function() {
             checkAuth();
-            setInterval(updateTimer, 1000);
-            updateTimer();
+            startTimer();
         };
     </script>
-
-    <!-- Модальное окно проверки возраста -->
-<div id="ageVerifyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; font-family: sans-serif;">
-    <div style="background: #222; color: #fff; padding: 30px; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; border: 2px solid #ff4757; box-shadow: 0 0 20px rgba(255, 71, 87, 0.5);">
-        <h2 style="color: #ff4757; margin-top: 0; font-size: 24px;">Внимание! Контент 18+</h2>
-        <p style="font-size: 16px; margin: 20px 0; line-height: 1.5;">Этот раздел содержит материалы для взрослых. Вам уже исполнилось 18 лет?</p>
-        
-        <div style="display: flex; gap: 15px; justify-content: center;">
-            <button onclick="confirmAge(true)" style="background: #ff4757; color: white; border: none; padding: 12px 30px; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.2s;">Да, мне есть 18</button>
-            <button onclick="confirmAge(false)" style="background: #444; color: #ccc; border: none; padding: 12px 30px; font-size: 16px; border-radius: 6px; cursor: pointer; transition: 0.2s;">Нет, уйти</button>
-        </div>
-    </div>
-</div>
-    
 </body>
 </html>
