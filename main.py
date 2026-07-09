@@ -328,6 +328,49 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
+@app.post("/api/adult-models/buy")
+async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    
+    # 1. Проверяем баланс пользователя
+    cursor.execute("SELECT tokens FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    if user["tokens"] < 50:
+        return {"status": "error", "message": "Недостаточно токенов! Пополните баланс."}
+    
+    # 2. Проверяем, не куплена ли модель уже
+    cursor.execute(
+        "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
+        (session_user, data.model_id)
+    )
+    already_bought = cursor.fetchone()
+    if already_bought:
+        return {"status": "success", "message": "Доступ уже был куплен ранее"}
+    
+    try:
+        # 3. Списываем 50 токенов
+        cursor.execute("UPDATE users SET tokens = tokens - 50 WHERE username = ?", (session_user,))
+        
+        # 4. Записываем покупку в базу (убедись, что у тебя есть таблица user_purchases)
+        cursor.execute(
+            "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
+            (session_user, data.model_id)
+        )
+        
+        db.commit()
+        upload_db_to_dropbox()
+        return {"status": "success", "message": "Доступ успешно разблокирован!"}
+        
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": f"Ошибка транзакции: {str(e)}"}
+
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
     try:
