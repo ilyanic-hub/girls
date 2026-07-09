@@ -562,18 +562,28 @@ function goToAdultContent() {
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
         }
-
-        function openAuthModal(mode) {
-    // Включаем отображение контейнера авторизации поверх всего
-    document.getElementById('auth-page').style.display = 'flex';
+    function openAuthModal(mode) {
+        // Показываем блок с формой
+        const authPage = document.getElementById('auth-page');
+        if (authPage) authPage.style.display = 'flex';
     
-    // Переключаем форму в нужный режим (login или register)
-    if (mode === 'register' && authMode !== 'register') {
-        toggleAuthMode();
-    } else if (mode === 'login' && authMode !== 'login') {
-        toggleAuthMode();
+        // Переключаем заголовок и инпуты в зависимости от того, что нажали
+        if (mode === 'register') {
+            authMode = 'register';
+            document.getElementById('auth-title').innerText = "Регистрация";
+            document.getElementById('password').placeholder = "Придумайте пароль";
+            document.getElementById('secret_answer').style.display = 'block';
+            document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+            document.getElementById('auth-reset-text').style.display = 'none';
+        } else if (mode === 'login') {
+            authMode = 'login';
+            document.getElementById('auth-title').innerText = "Вход в аккаунт";
+            document.getElementById('password').placeholder = "Пароль";
+            document.getElementById('secret_answer').style.display = 'none';
+            document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+            document.getElementById('auth-reset-text').style.display = 'block';
+        }
     }
-}
 
         function enableResetMode() {
             authMode = 'reset';
@@ -646,7 +656,7 @@ function goToAdultContent() {
                     `;
                 }
             }
-        
+        }
         
         // Загружаем карточки участников для всех
         loadContestants();
