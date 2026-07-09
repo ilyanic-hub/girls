@@ -483,7 +483,9 @@ def check_and_rotate_round(db):
         return
     
     saved_month = row["value"] # Строка вида "2026-07"
-    current_month = datetime.now().strftime("%Y-%m")
+    # Закомментируй реальную строку и поставь искусственную дату для теста:
+# current_month = datetime.now().strftime("%Y-%m")
+current_month = "2026-08"
     
     # Если календарный месяц изменился — закрываем старый раунд!
     if current_month != saved_month:
