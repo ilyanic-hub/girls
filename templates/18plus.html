@@ -236,12 +236,14 @@
         </div>
     </div>
 
+    <div id="fullScreenModal" class="modal" onclick="closeFullScreenModal()">
+        <span class="close-modal" onclick="closeFullScreenModal()">&times;</span>
+        <img id="fullScreenImage" src="" alt="Полный экран" style="max-width: 95%; max-height: 90vh; margin: 3% auto; display: block; border-radius: 8px; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+    </div>
+
 <script>
     let currentSelectedModelId = null;
     let currentSelectedModelName = ""; 
-    
-    // Сюда скрипт будет временно записывать ID купленных моделей, 
-    // чтобы не просить оплату повторно до перезагрузки страницы
     let localPurchasedModels = []; 
 
     function openModelAlbum(modelId, modelName, isPaid) {
@@ -250,22 +252,18 @@
         currentSelectedModelId = modelId;
         currentSelectedModelName = modelName;
 
-        // Если модель платная, но она УЖЕ куплена (есть в нашем массиве покупок) — сбрасываем платный статус в 0
         if (localPurchasedModels.includes(modelId)) {
             isPaid = 0;
         }
 
-        // Если контент платный — блокируем и показываем окно оплаты
         if (isPaid === 1) {
             document.getElementById('buyModal').style.display = 'block';
             return; 
         }
 
-        // Если бесплатный или уже куплен — открываем альбом
         loadPhotosFromServer(modelId, modelName);
     }
 
-    // Функция загрузки фотографий
     function loadPhotosFromServer(modelId, modelName) {
         const modal = document.getElementById('albumModal');
         const container = document.getElementById('albumPhotosContainer');
@@ -288,28 +286,19 @@
                 }
 
                 photos.forEach(p => {
-                    // Создаем не просто картинку, а ссылку-обёртку
-                    const link = document.createElement('a');
+                    const img = document.createElement('img');
                     const url = p.photo_url ? p.photo_url : p;
                     
-                    link.href = url;
-                    link.target = '_blank'; // Это заставит браузер открыть фото в новой вкладке
-                    link.style.textDecoration = 'none';
-                    link.style.display = 'block';
-
-                    const img = document.createElement('img');
                     img.src = url;
                     img.alt = 'Фото из альбома';
-                    img.style.width = '100%';
-                    img.style.height = '200px';
-                    img.style.objectFit = 'cover';
-                    img.style.borderRadius = '8px';
-                    img.style.border = '1px solid #333';
-                    img.style.cursor = 'pointer';
-
-                    // Добавляем картинку внутрь ссылки, а ссылку в контейнер
-                    link.appendChild(img);
-                    container.appendChild(link);
+                    
+                    // КРИТИЧЕСКИЙ НАДЁЖНЫЙ ВАРИАНТ: открываем прямо тут же в новом окне
+                    img.onclick = (e) => {
+                        e.stopPropagation(); // Чтобы клик не улетал на закрытие альбома
+                        viewImageFullScreen(url);
+                    };
+                    
+                    container.appendChild(img);
                 });
             })
             .catch(err => {
@@ -318,8 +307,22 @@
             });
     }
 
+    // Открытие фотки на весь экран внутри страницы
+    function viewImageFullScreen(url) {
+        const fullModal = document.getElementById('fullScreenModal');
+        const fullImg = document.getElementById('fullScreenImage');
+        if(fullModal && fullImg) {
+            fullImg.src = url;
+            fullModal.style.display = 'block';
+        }
+    }
+
+    // Закрытие полноэкранного просмотра
+    function closeFullScreenModal() {
+        document.getElementById('fullScreenModal').style.display = 'none';
+    }
+
     function closeModal() {
-        document.getElementById('albumModal').style.none;
         document.getElementById('albumModal').style.display = 'none';
     }
 
@@ -343,13 +346,8 @@
         .then(data => {
             if (data.status === 'success') {
                 alert(data.message);
-                
-                // ЗАПОМИНАЕМ ПОКУПКУ: Добавляем ID модели в локальный список купленных
                 localPurchasedModels.push(currentSelectedModelId);
-                
                 closeBuyModal();
-                
-                // Сразу открываем альбом
                 loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
             } else {
                 alert("Ошибка: " + data.message);
@@ -367,15 +365,20 @@
         });
     }
 
-    // Закрытие модалок по клику вне контента
+    // Умное закрытие окон по клику на тёмную область
     window.onclick = function(event) {
         const albumModal = document.getElementById('albumModal');
         const buyModal = document.getElementById('buyModal');
+        const fullModal = document.getElementById('fullScreenModal');
+        
         if (event.target == albumModal) {
             albumModal.style.display = 'none';
         }
         if (event.target == buyModal) {
             buyModal.style.display = 'none';
+        }
+        if (event.target == fullModal) {
+            fullModal.style.display = 'none';
         }
     }
 </script>
