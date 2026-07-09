@@ -206,8 +206,8 @@ def init_db():
         cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
         db.commit()
         print("Колонка is_paid успешно добавлена.")
-except Exception as e:
-    print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
+    except Exception as e:
+        print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
