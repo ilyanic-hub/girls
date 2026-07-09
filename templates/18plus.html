@@ -238,15 +238,27 @@
 
 <script>
     let currentSelectedModelId = null;
+    let currentSelectedModelName = ""; // Переменная для хранения имени модели при покупке
 
     function openModelAlbum(modelId, modelName, isPaid) {
-        // Проверяем: если контент платный (равен 1), блокируем fetch альбома и показываем окно покупки
+        console.log("Кликнули по модели:", modelName, "Платная (isPaid):", isPaid);
+        
+        // Сохраняем данные текущей модели в глобальные переменные
+        currentSelectedModelId = modelId;
+        currentSelectedModelName = modelName;
+
+        // Если контент платный (1) — блокируем и показываем окно оплаты
         if (isPaid === 1) {
-            currentSelectedModelId = modelId;
             document.getElementById('buyModal').style.display = 'block';
             return; 
         }
 
+        // Если бесплатный — запускаем загрузку фоток
+        loadPhotosFromServer(modelId, modelName);
+    }
+
+    // Изолированная функция загрузки фотографий
+    function loadPhotosFromServer(modelId, modelName) {
         const modal = document.getElementById('albumModal');
         const container = document.getElementById('albumPhotosContainer');
         const title = document.getElementById('modalTitle');
@@ -257,7 +269,6 @@
         container.innerHTML = '<p style="color: #aaa; grid-column: 1/-1;">Загрузка альбома...</p>';
         modal.style.display = 'block';
 
-        // Использование публичного роута для выгрузки фотографий
         fetch(`/api/adult-models/${modelId}/photos`)
             .then(res => res.json())
             .then(photos => {
@@ -291,20 +302,10 @@
     }
 
     function confirmPurchase() {
-    // 1. Показываем уведомление (можно потом убрать)
-    alert(`Доступ успешно приобретен за 50 токенов!`);
-    
-    // 2. Закрываем модальное окно оплаты
-    closeBuyModal();
-    
-    // 3. Находим имя модели по её ID, чтобы передать в заголовок альбома
-    // (Или можем просто написать "Приватный альбом")
-    const albumTitle = "Приватный альбом"; 
-    
-    // 4. Перевызываем функцию открытия альбома, но передаем в третий параметр 0 (как будто он бесплатный),
-    // чтобы скрипт пропустил нас внутрь и загрузил фотки!
-    openModelAlbum(currentSelectedModelId, albumTitle, 0);
-}
+        alert(`Доступ успешно приобретен за 50 токенов!`);
+        closeBuyModal();
+        // Принудительно загружаем фотки купленной модели
+        loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
     }
 
     // Закрытие модалок по клику вне контента
