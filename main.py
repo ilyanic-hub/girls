@@ -200,12 +200,12 @@ def init_db():
     
         # Ровно 4 пробела (или 1 таб) от края try
         has_is_paid = any(col[1] == 'is_paid' for col in columns)
-    
-    if not has_is_paid:
-        print("Колонка is_paid не найдена. Добавляю...")
-        cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
-        db.commit()
-        print("Колонка is_paid успешно добавлена.")
+        
+        if not has_is_paid:
+            print("Колонка is_paid не найдена. Добавляю...")
+            cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
+            db.commit()
+            print("Колонка is_paid успешно добавлена.")
     except Exception as e:
         # try и except находятся НА ОДНОЙ ВЕРТИКАЛЬНОЙ ЛИНИИ
         print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
