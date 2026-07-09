@@ -909,6 +909,20 @@ function goToAdultContent() {
         alert("Ошибка при получении бонуса"); 
     }
 }
+
+
+
+        // Запуск проверки авторизации при загрузке страницы
+
+        window.onload = function() {
+
+            checkAuth();
+
+            startTimer();
+
+        }; 
+
+
     </script>
 </body>
 </html>
