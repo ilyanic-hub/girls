@@ -84,6 +84,23 @@
     color: #ff4757; /* Розово-красный акцент для статуса */
     margin: 0;
 }
+
+        /* Эффект размытия для платных моделей */
+.blur-effect {
+    filter: blur(8px); /* Сила размытия (можно сделать 10px для большей приватности) */
+    transform: scale(1.05); /* Слегка увеличиваем, чтобы из-за размытия не было видно белых краев */
+    transition: filter 0.3s ease;
+}
+
+/* На всякий случай: контейнер карточки не должен выпускать увеличенную картинку за свои границы */
+.card {
+    background: #1e1e1e;
+    border-radius: 10px;
+    overflow: hidden; /* Этот параметр как раз прячет вылезающие края размытой фотки */
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #2a2a2a;
+}
         .back-btn {
             display: inline-block;
             margin-top: 50px;
@@ -184,7 +201,7 @@
             {% set is_paid_int = 1 if model.is_paid == 1 or model.is_paid == True else 0 %}
             
             <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}', {{ is_paid_int }})">
-                <img src="{{ model.photo_url }}" alt="Модель {{ model.name }}">
+                <img src="{{ model.photo_url }}" alt="Модель {{ model.name }}" class="{% if is_paid_int == 1 %}blur-effect{% endif %}">
                 <div class="card-info">
                     <p class="card-name">
                         <span>{{ model.name }}, {{ model.age }}</span>
