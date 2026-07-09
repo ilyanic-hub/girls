@@ -927,6 +927,15 @@ function goToAdultContent() {
             checkAuth();
 
             startTimer();
+            // ПРОВЕРКА: если пользователь пришел со страницы 18+ регистрироваться
+    if (window.location.hash === '#register') {
+        // Очищаем хэш в строке, чтобы при обновлении модалка не вылезала сама
+        history.replaceState(null, null, ' ');
+        // Открываем окно регистрации
+        if (typeof openAuthModal === 'function') {
+            openAuthModal('register');
+        }
+    }
 
         }; 
 
