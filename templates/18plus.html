@@ -280,15 +280,28 @@
         currentSelectedModelId = modelId;
         currentSelectedModelName = modelName;
 
+        // Если модель уже покупалась в этой сессии, убираем платный статус
         if (localPurchasedModels.includes(modelId)) {
             isPaid = 0;
         }
 
+        // КРИТИЧЕСКИЙ БЛОК: Проверка клика по платной карточке
         if (isPaid === 1) {
+            // Проверяем авторизацию через Jinja2
+            const isUserLoggedIn = {% if user %} true {% else %} false {% endif %};
+
+            if (!isUserLoggedIn) {
+                alert("Этот альбом приватный. Пожалуйста, зарегистрируйтесь или войдите в аккаунт, чтобы открыть доступ!");
+                window.location.href = '/login'; // Кидаем на логин/регистрацию
+                return; // Блокируем дальнейший код
+            }
+
+            // Если авторизован и модель платная — показываем стандартное окно покупки за 50 токенов
             document.getElementById('buyModal').style.display = 'block';
             return; 
         }
 
+        // Если модель бесплатная (isPaid === 0) — её может смотреть КТО УГОДНО (и гость, и юзер)
         loadPhotosFromServer(modelId, modelName);
     }
 
