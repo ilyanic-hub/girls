@@ -661,6 +661,36 @@ function goToAdultContent() {
         // Загружаем карточки участников для всех
         loadContestants();
 
+        // === ВОТ СЮДА ВСТАВЛЯЕМ ПРОВЕРКУ ХЭША ===
+        if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+            history.replaceState(null, null, ' '); // Чистим адресную строку
+            
+            const authPage = document.getElementById('auth-page');
+            if (authPage) authPage.style.display = 'flex';
+            
+            const authTitle = document.getElementById('auth-title');
+            const passwordInput = document.getElementById('password');
+            const secretAnswer = document.getElementById('secret_answer');
+            const toggleText = document.getElementById('auth-toggle-text');
+            const resetText = document.getElementById('auth-reset-text');
+            
+            if (typeof authMode !== 'undefined') authMode = 'register';
+            if (authTitle) authTitle.innerText = "Регистрация";
+            if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
+            if (secretAnswer) secretAnswer.style.display = 'block';
+            if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
+            if (resetText) resetText.style.display = 'none';
+        }
+
+    } catch (err) {
+        console.error("Ошибка при проверке статуса:", err);
+        document.getElementById('auth-page').style.display = 'none';
+        document.getElementById('main-sidebar').style.display = 'flex';
+        document.getElementById('main-page').style.display = 'flex';
+        loadContestants();
+    }
+}
+
     } catch (err) {
         console.error("Ошибка при проверке статуса:", err);
         document.getElementById('auth-page').style.display = 'none';
@@ -923,43 +953,8 @@ function goToAdultContent() {
         // Запуск проверки авторизации при загрузке страницы
 
         window.onload = function() {
-    // Запускаем стандартные функции
     checkAuth();
     if (typeof startTimer === 'function') startTimer();
-    
-    // Проверяем хэш
-    if (window.location.hash === '#register' || window.location.href.includes('#register')) {
-        // Чистим адресную строку
-        history.replaceState(null, null, ' ');
-        
-        setTimeout(() => {
-            // 1. Принудительно включаем отображение самого темного фона модалки
-            const authPage = document.getElementById('auth-page');
-            if (authPage) {
-                authPage.style.display = 'flex';
-            }
-            
-            // 2. Вручную настраиваем поля под РЕГИСТРАЦИЮ, чтобы не зависеть от других функций
-            const authTitle = document.getElementById('auth-title');
-            const passwordInput = document.getElementById('password');
-            const secretAnswer = document.getElementById('secret_answer');
-            const toggleText = document.getElementById('auth-toggle-text');
-            const resetText = document.getElementById('auth-reset-text');
-            
-            // Задаем глобальную переменную режима (если она используется в твоем скрипте)
-            if (typeof authMode !== 'undefined') {
-                authMode = 'register';
-            }
-
-            if (authTitle) authTitle.innerText = "Регистрация";
-            if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
-            if (secretAnswer) secretAnswer.style.display = 'block';
-            if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
-            if (resetText) resetText.style.display = 'none';
-            
-            console.log("Модальное окно регистрации успешно вызвано через редирект.");
-        }, 100);
-    }
 };
 
 
