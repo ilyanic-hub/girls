@@ -673,7 +673,7 @@ function goToAdultContent() {
         // В любом случае загружаем карточки участников для просмотра
         loadContestants();
 
-    } catch (err) {
+      catch (err) {
         console.error("Ошибка при проверке статуса:", err);
         // Даже если бэкенд недоступен, показываем оболочку
         document.getElementById('auth-page').style.display = 'none';
