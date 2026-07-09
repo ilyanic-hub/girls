@@ -35,53 +35,55 @@
             margin-bottom: 40px;
         }
         .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 30px;
-            margin-top: 20px;
-        }
-        .card {
-            background: #1e1e1e;
-            border: 1px solid #2f3542;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: #ff4757;
-            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.2);
-        }
-        .card img {
-            width: 100%;
-            height: 320px;
-            object-fit: cover;
-            filter: blur(10px);
-            transition: filter 0.4s;
-        }
-        .card:hover img {
-            filter: blur(0px);
-        }
-        .card-info {
-            padding: 20px;
-            text-align: left;
-            border-top: 1px solid #2f3542;
-        }
-        .card-name {
-            font-size: 22px;
-            font-weight: bold;
-            margin: 0 0 8px 0;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .card-meta {
-            color: #a4b0be;
-            font-size: 14px;
-            margin: 0;
-        }
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Было скорее всего 250px+, уменьшили до 180px */
+    gap: 15px; /* Чуть уменьшили отступы между карточками */
+    padding: 20px;
+}
+
+/* Сама карточка становится компактнее */
+.card {
+    background: #1e1e1e;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: 1px solid #2a2a2a;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(255, 71, 87, 0.2); /* Лёгкое свечение при наведении */
+}
+
+/* Ограничиваем высоту аватарки, чтобы карточка не растягивалась вниз */
+.card img {
+    width: 100%;
+    height: 220px; /* Фиксированная уменьшенная высота для аккуратного вида */
+    object-fit: cover; /* Картинка не деформируется, а красиво подрезается */
+}
+
+/* Название модели и статус делаем чуть компактнее */
+.card-info {
+    padding: 10px; /* Уменьшили внутренние отступы */
+    background: #1e1e1e;
+}
+
+.card-name {
+    font-size: 15px; /* Чуть уменьшили шрифт */
+    font-weight: bold;
+    color: #fff;
+    margin: 0 0 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-meta {
+    font-size: 12px;
+    color: #ff4757; /* Розово-красный акцент для статуса */
+    margin: 0;
+}
         .back-btn {
             display: inline-block;
             margin-top: 50px;
