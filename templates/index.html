@@ -575,47 +575,63 @@ function goToAdultContent() {
         }
 
         async function checkAuth() {
-            let res = await fetch('/api/me');
-            if (res.ok) {
-                let user = await res.json();
-                if (!user.username || user.username === "Гость") {
-                    document.getElementById('main-page').style.display = 'none';
-                    document.getElementById('main-sidebar').style.display = 'none';
-                    document.getElementById('auth-page').style.display = 'flex';
-                    return;
-                }
-                document.getElementById('auth-page').style.display = 'none';
-                document.getElementById('main-sidebar').style.display = 'flex';
-                document.getElementById('main-page').style.display = 'flex';
-                
-                document.getElementById('user-name').innerText = user.username;
-                document.getElementById('user-balance').innerText = user.balance;
-                
-                let avatarUrl = user.avatar_url || user.avatar;
-                let avatarImg = document.getElementById('user-avatar-img');
-                let avatarDefault = document.getElementById('user-avatar-default');
-                
-                if (avatarUrl) {
-                    avatarImg.src = avatarUrl;
-                    avatarImg.style.display = 'block';
-                    avatarDefault.style.display = 'none';
-                } else {
-                    avatarImg.style.display = 'none';
-                    avatarDefault.style.display = 'block';
-                }
-                
-                if(user.is_admin === 1) {
-                    document.getElementById('admin-link').style.display = 'inline';
-                } else {
-                    document.getElementById('admin-link').style.display = 'none';
-                }
-                loadContestants();
-            } else {
+    try {
+        let res = await fetch('/api/me');
+        
+        // ВЫВОДИМ СТАТУС ОТВЕТА СЕРВЕРА
+        console.log("Статус ответа сервера /api/me:", res.status, res.statusText);
+        
+        if (res.ok) {
+            let user = await res.json();
+            
+            // ВЫВОДИМ ДАННЫЕ, КОТОРЫЕ ПРИСЛАЛ СЕРВЕР
+            console.log("Данные пользователя от сервера:", user);
+            
+            if (!user.username || user.username === "Гость") {
                 document.getElementById('main-page').style.display = 'none';
                 document.getElementById('main-sidebar').style.display = 'none';
                 document.getElementById('auth-page').style.display = 'flex';
+                return;
             }
+            document.getElementById('auth-page').style.display = 'none';
+            document.getElementById('main-sidebar').style.display = 'flex';
+            document.getElementById('main-page').style.display = 'flex';
+            
+            document.getElementById('user-name').innerText = user.username;
+            document.getElementById('user-balance').innerText = user.balance;
+            
+            let avatarUrl = user.avatar_url || user.avatar;
+            let avatarImg = document.getElementById('user-avatar-img');
+            let avatarDefault = document.getElementById('user-avatar-default');
+            
+            if (avatarUrl) {
+                avatarImg.src = avatarUrl;
+                avatarImg.style.display = 'block';
+                avatarDefault.style.display = 'none';
+            } else {
+                avatarImg.style.display = 'none';
+                avatarDefault.style.display = 'block';
+            }
+            
+            if(user.is_admin === 1) {
+                document.getElementById('admin-link').style.display = 'inline';
+            } else {
+                document.getElementById('admin-link').style.display = 'none';
+            }
+            loadContestants();
+        } else {
+            console.log("Сервер вернул ошибку, res.ok === false");
+            document.getElementById('main-page').style.display = 'none';
+            document.getElementById('main-sidebar').style.display = 'none';
+            document.getElementById('auth-page').style.display = 'flex';
         }
+    } catch (err) {
+        console.error("Критическая ошибка сети при checkAuth:", err);
+        document.getElementById('main-page').style.display = 'none';
+        document.getElementById('main-sidebar').style.display = 'none';
+        document.getElementById('auth-page').style.display = 'flex';
+    }
+}
 
         /* Функция отправки новой аватарки на сервер */
         async function uploadAvatar() {
