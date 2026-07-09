@@ -330,6 +330,7 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
+# Заменяем роут на безопасный (с автосозданием таблицы при первой покупке)
 @app.post("/api/adult-models/buy")
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -337,41 +338,56 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
     
     cursor = db.cursor()
     
-    # 1. Проверяем баланс пользователя
-    cursor.execute("SELECT tokens FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    
-    if user["tokens"] < 50:
-        return {"status": "error", "message": "Недостаточно токенов! Пополните баланс."}
-    
-    # 2. Проверяем, не куплена ли модель уже
-    cursor.execute(
-        "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
-        (session_user, data.model_id)
-    )
-    already_bought = cursor.fetchone()
-    if already_bought:
-        return {"status": "success", "message": "Доступ уже был куплен ранее"}
-    
     try:
+        # КРИТИЧЕСКИ ВАЖНО: Автоматически создаем таблицу покупок, если её забыли создать в init_db
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT,
+            model_id INTEGER
+        )
+        """)
+        db.commit()
+
+        # 1. Проверяем баланс пользователя
+        cursor.execute("SELECT tokens FROM users WHERE username = ?", (session_user,))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+        
+        if user["tokens"] < 50:
+            return {"status": "error", "message": "Недостаточно токенов! Пополните баланс."}
+        
+        # 2. Проверяем, не куплена ли модель уже
+        cursor.execute(
+            "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
+            (session_user, data.model_id)
+        )
+        already_bought = cursor.fetchone()
+        if already_bought:
+            return {"status": "success", "message": "Доступ уже был куплен ранее!"}
+        
         # 3. Списываем 50 токенов
         cursor.execute("UPDATE users SET tokens = tokens - 50 WHERE username = ?", (session_user,))
         
-        # 4. Записываем покупку в базу (убедись, что у тебя есть таблица user_purchases)
+        # 4. Записываем покупку в базу
         cursor.execute(
             "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
             (session_user, data.model_id)
         )
         
         db.commit()
-        upload_db_to_dropbox()
+        
+        # Перестраховка: если функция выгрузки в Dropbox существует — вызываем её
+        if "upload_db_to_dropbox" in globals():
+            upload_db_to_dropbox()
+            
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
         
     except Exception as e:
         db.rollback()
-        return {"status": "error", "message": f"Ошибка транзакции: {str(e)}"}
+        # Если что-то пойдёт не так, мы вернём читаемую ошибку, а не уроним бэкенд
+        return {"status": "error", "message": f"Ошибка на стороне сервера БД: {str(e)}"}
 
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
