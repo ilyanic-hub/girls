@@ -923,21 +923,27 @@ function goToAdultContent() {
         // Запуск проверки авторизации при загрузке страницы
 
         window.onload = function() {
-
-            checkAuth();
-
-            startTimer();
-            // ПРОВЕРКА: если пользователь пришел со страницы 18+ регистрироваться
+    // 1. Запускаем базовые проверки
+    checkAuth();
+    if (typeof startTimer === 'function') startTimer();
+    
+    // 2. Проверяем, пришли ли мы со страницы 18+ с хэшем #register
     if (window.location.hash === '#register') {
-        // Очищаем хэш в строке, чтобы при обновлении модалка не вылезала сама
+        // Убираем хэш из адресной строки, чтобы при обычном обновлении окно не всплывало
         history.replaceState(null, null, ' ');
-        // Открываем окно регистрации
-        if (typeof openAuthModal === 'function') {
-            openAuthModal('register');
-        }
+        
+        // Даем браузеру микропаузу (50мс), чтобы DOM и все функции точно прогрузились
+        setTimeout(() => {
+            if (typeof openAuthModal === 'function') {
+                openAuthModal('register');
+            } else {
+                // Резервный вариант, если openAuthModal почему-то недоступна
+                const authPage = document.getElementById('auth-page');
+                if (authPage) authPage.style.display = 'flex';
+            }
+        }, 50);
     }
-
-        }; 
+};
 
 
     </script>
