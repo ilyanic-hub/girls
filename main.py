@@ -438,12 +438,27 @@ async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
         return {"status": "error", "message": f"Ошибка удаления: {str(e)}"}
 
 @app.get("/", response_class=HTMLResponse)
-async def get_main_page():
+async def get_main_page(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     path_to_html = "templates/index.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
-    with open(path_to_html, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+        
+    user_data = None
+    
+    # Если у пользователя есть кука сессии, достаем его из базы
+    if session_user:
+        try:
+            cursor = db.cursor()
+            cursor.execute("SELECT username, balance FROM users WHERE username = ?", (session_user,))
+            user_data = cursor.fetchone()
+        except Exception as e:
+            print(f"Ошибка при поиске пользователя на главной: {e}")
+
+    # Рендерим страницу через Jinja2 и передаем объект user (будет None, если гость)
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "user": user_data
+    })
 
 @app.get("/top", response_class=HTMLResponse)
 @app.get("/top/", response_class=HTMLResponse)
