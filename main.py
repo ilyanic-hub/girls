@@ -194,9 +194,9 @@ def init_db():
     cursor.execute("CREATE TABLE IF NOT EXISTS user_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, model_id INTEGER)")
 
     try:
-    cursor = db.cursor()
-    cursor.execute("PRAGMA table_info(adult_models)")
-    columns = cursor.fetchall()
+        cursor = db.cursor()
+        cursor.execute("PRAGMA table_info(adult_models)")
+        columns = cursor.fetchall()
     
     # Исправление: используем col[1] (индекс), а не col['name'] (строку)
     has_is_paid = any(col[1] == 'is_paid' for col in columns)
