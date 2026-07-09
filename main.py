@@ -442,13 +442,13 @@ import traceback
 
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    try:
-        path_to_html = "templates/index.html"
-        if not os.path.exists(path_to_html):
-            return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
-            
-        user_data = None
-        if session_user:
+    path_to_html = "templates/index.html"
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
+        
+    user_data = None
+    if session_user:
+        try:
             cursor = db.cursor()
             cursor.execute("SELECT username, balance FROM users WHERE username = ?", (session_user,))
             row = cursor.fetchone()
@@ -458,33 +458,15 @@ async def get_main_page(request: Request, session_user: Optional[str] = Cookie(N
                     "username": row[0],
                     "balance": row[1]
                 }
+        except Exception as e:
+            print(f"Ошибка БД на главной: {e}")
 
-        # Пробуем отрендерить шаблон
-        return templates.TemplateResponse(
-            request=request,
-            name="index.html",
-            context={
-                "user": user_data
-            }
-        )
-        
-    except Exception as e:
-        # Если что-то падает, мы увидим ПОЛНЫЙ текст ошибки (traceback) прямо на экране сайта!
-        error_details = traceback.format_exc()
-        return HTMLResponse(
-            content=f"<h3>Ошибка на стороне сервера:</h3><pre>{error_details}</pre>", 
-            status_code=500
-        )
-
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "user": user_data
-    })
-
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "user": user_data
-    })
+    # Новый безопасный синтаксис FastAPI / Starlette
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"user": user_data}
+    )
 
 @app.get("/top", response_class=HTMLResponse)
 @app.get("/top/", response_class=HTMLResponse)
