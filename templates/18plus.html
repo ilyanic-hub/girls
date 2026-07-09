@@ -269,41 +269,79 @@
     let currentSelectedModelId = null;
     let currentSelectedModelName = ""; 
     let localPurchasedModels = []; 
+
+    // Глобальная переменная статуса пользователя
+let isUserLoggedIn = false;
+
+// Проверяем авторизацию сразу при загрузке страницы 18+
+async function checkAuth18Plus() {
+    try {
+        let res = await fetch('/api/me');
+        if (res.ok) {
+            let data = await res.json();
+            // Если бэкенд вернул пользователя, ставим true
+            isUserLoggedIn = true; 
+            console.log("Авторизован как:", data.username);
+        } else {
+            isUserLoggedIn = false;
+        }
+    } catch (err) {
+        console.error("Ошибка проверки авторизации", err);
+        isUserLoggedIn = false;
+    }
+}
+
+// Запускаем проверку при старте страницы
+document.addEventListener("DOMContentLoaded", () => {
+    checkAuth18Plus();
+});
     
     // Переменные для перелистывания
     let currentAlbumPhotos = []; // Сюда сохраняем массив всех фоток альбома
     let currentImageIndex = 0;   // Индекс текущей открытой фотки
 
-    function openModelAlbum(modelId, modelName, isPaid) {
-        console.log("Кликнули по модели:", modelName, "Платная (isPaid):", isPaid);
-        
-        currentSelectedModelId = modelId;
-        currentSelectedModelName = modelName;
+    // Добавляем слово async перед функцией, чтобы внутри работал await
+async function openModelAlbum(modelId, modelName, isPaid) {
+    console.log("Кликнули по модели:", modelName, "Платная (isPaid):", isPaid);
+    
+    currentSelectedModelId = modelId;
+    currentSelectedModelName = modelName;
 
-        // Если модель уже покупалась в этой сессии, убираем платный статус
-        if (localPurchasedModels.includes(modelId)) {
-            isPaid = 0;
-        }
-
-        // КРИТИЧЕСКИЙ БЛОК: Проверка клика по платной карточке
-        if (isPaid === 1) {
-            // Проверяем авторизацию через Jinja2
-            const isUserLoggedIn = {% if user %} true {% else %} false {% endif %};
-
-            if (!isUserLoggedIn) {
-                alert("Этот альбом приватный. Пожалуйста, зарегистрируйтесь или войдите в аккаунт, чтобы открыть доступ!");
-                window.location.href = '/#register'; // Кидаем на логин/регистрацию
-                return; // Блокируем дальнейший код
-            }
-
-            // Если авторизован и модель платная — показываем стандартное окно покупки за 50 токенов
-            document.getElementById('buyModal').style.display = 'block';
-            return; 
-        }
-
-        // Если модель бесплатная (isPaid === 0) — её может смотреть КТО УГОДНО (и гость, и юзер)
-        loadPhotosFromServer(modelId, modelName);
+    // Если модель уже покупалась в этой сессии, убираем платный статус
+    if (localPurchasedModels.includes(modelId)) {
+        isPaid = 0;
     }
+
+    // КРИТИЧЕСКИЙ БЛОК: Проверка клика по платной карточке
+    if (isPaid === 1) {
+        let isUserLoggedIn = false;
+
+        // ДИНАМИЧЕСКАЯ ПРОВЕРКА: Спрашиваем бэкенд напрямую через API
+        try {
+            let res = await fetch('/api/me');
+            if (res.ok) {
+                isUserLoggedIn = true; // Сервер подтвердил сессию
+            }
+        } catch (err) {
+            console.error("Ошибка проверки авторизации:", err);
+            isUserLoggedIn = false;
+        }
+
+        // Если проверка не прошла
+        if (!isUserLoggedIn) {
+            alert("Этот альбом приватный. Пожалуйста, зарегистрируйтесь или войдите в аккаунт, чтобы открыть доступ!");
+            window.location.href = '/#register'; // Наша новая рабочая модалка на главной
+            return; // Блокируем дальнейший код
+        }
+
+        // Если авторизован и модель платная — показываем стандартное окно покупки за 50 токенов
+        document.getElementById('buyModal').style.display = 'block';
+        return; 
+    }
+
+    // Если модель бесплатная (isPaid === 0) — её может смотреть КТО УГОДНО (и гость, и юзер)
+    loadPhotosFromServer(modelId, modelName);
+}
 
     function loadPhotosFromServer(modelId, modelName) {
         const modal = document.getElementById('albumModal');
