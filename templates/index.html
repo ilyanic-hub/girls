@@ -955,5 +955,43 @@ function goToAdultContent() {
 
 
     </script>
+    <script>
+function startTimer() {
+    let timerEl = document.getElementById('countdown-timer');
+    if (!timerEl) {
+        console.error("Элемент countdown-timer не найден на странице!");
+        return;
+    }
+
+    function getNextMidnight() {
+        let midnight = new Date();
+        midnight.setHours(24, 0, 0, 0);
+        return midnight;
+    }
+
+    let target = getNextMidnight();
+
+    setInterval(() => {
+        let now = new Date();
+        let diff = target - now;
+
+        if (diff <= 0) {
+            target = getNextMidnight();
+            diff = target - now;
+        }
+
+        let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        let mins = Math.floor((diff / (1000 * 60)) % 60);
+        let secs = Math.floor((diff / 1000) % 60);
+
+        timerEl.innerText = `00д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
+    }, 1000);
+}
+
+// Запускаем таймер сразу после загрузки страницы
+document.addEventListener("DOMContentLoaded", () => {
+    startTimer();
+});
+</script>
 </body>
 </html>
