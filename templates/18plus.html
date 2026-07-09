@@ -46,7 +46,7 @@
             border-radius: 12px;
             overflow: hidden;
             transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
-            cursor: pointer; /* Делаем карточку явно кликабельной */
+            cursor: pointer;
         }
         .card:hover {
             transform: translateY(-5px);
@@ -73,6 +73,9 @@
             font-weight: bold;
             margin: 0 0 8px 0;
             color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
         .card-meta {
             color: #a4b0be;
@@ -97,7 +100,7 @@
             box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
         }
 
-        /* Стиль для модального окна (окно просмотра альбома) */
+        /* Общие стили для модальных окон */
         .modal {
             display: none; 
             position: fixed;
@@ -150,6 +153,23 @@
             transform: scale(1.03);
             border-color: #ff4757;
         }
+        
+        /* Специфические кнопки для окна оплаты */
+        .buy-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            transition: background 0.2s;
+        }
+        .buy-btn:hover {
+            background: #ff2f43;
+        }
     </style>
 </head>
 <body>
@@ -159,10 +179,15 @@
         
         <div class="grid">
             {% for model in models %}
-            <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}')">
+            <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}', {{ model.is_paid | default(0) }})">
                 <img src="{{ model.photo_url }}" alt="Модель {{ model.name }}">
                 <div class="card-info">
-                    <p class="card-name">{{ model.name }}, {{ model.age }}</p>
+                    <p class="card-name">
+                        <span>{{ model.name }}, {{ model.age }}</span>
+                        {% if model.is_paid == 1 %}
+                        <span style="color: #ffb300; font-size: 18px;" title="Приватный контент">🔒</span>
+                        {% endif %}
+                    </p>
                     <p class="card-meta">{{ model.status }}</p>
                 </div>
             </div>
@@ -192,45 +217,60 @@
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal()">&times;</span>
             <h2 id="modalTitle" style="color: #ff4757; text-align: left; margin-bottom: 5px;">Альбом модели</h2>
-            <div id="albumPhotosContainer" class="album-grid">
-                </div>
+            <div id="albumPhotosContainer" class="album-grid"></div>
+        </div>
+    </div>
+
+    <div id="buyModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center; margin: 15% auto;">
+            <span class="close-modal" onclick="closeBuyModal()">&times;</span>
+            <h2 style="color: #ffb300; margin-bottom: 15px;">🔒 Приватный контент</h2>
+            <p style="color: #ccc; font-size: 15px; line-height: 1.5;">Просмотр приватного альбома этой модели доступен только после разблокировки.</p>
+            <p style="font-size: 20px; font-weight: bold; margin: 25px 0; color: #fff;">Стоимость: <span style="color: #ff4757;">50 токенов</span></p>
+            
+            <button class="buy-btn" onclick="confirmPurchase()">
+                Открыть доступ
+            </button>
         </div>
     </div>
 
 <script>
-    function openModelAlbum(modelId, modelName) {
+    let currentSelectedModelId = null;
+
+    function openModelAlbum(modelId, modelName, isPaid) {
+        // Проверяем: если контент платный (равен 1), блокируем fetch альбома и показываем окно покупки
+        if (isPaid === 1) {
+            currentSelectedModelId = modelId;
+            document.getElementById('buyModal').style.display = 'block';
+            return; 
+        }
+
         const modal = document.getElementById('albumModal');
         const container = document.getElementById('albumPhotosContainer');
         const title = document.getElementById('modalTitle');
         
         if (!modal || !container) return;
 
-        // Ставим заголовок и пишем, что идёт загрузка
         title.innerText = `Альбом модели: ${modelName}`;
         container.innerHTML = '<p style="color: #aaa; grid-column: 1/-1;">Загрузка альбома...</p>';
-        
-        // Показываем модалку
         modal.style.display = 'block';
 
-        // Делаем запрос к твоему админскому роуту (который мы проверили)
-        fetch(`/api/admin/adult-models/${modelId}/photos`)
+        // Использование публичного роута для выгрузки фотографий
+        fetch(`/api/adult-models/${modelId}/photos`)
             .then(res => res.json())
             .then(photos => {
-                container.innerHTML = ''; // Чистим текст загрузки
+                container.innerHTML = '';
                 
                 if (!photos || photos.length === 0) {
                     container.innerHTML = '<p style="color: #666; grid-column: 1/-1; padding: 20px;">У этой модели пока нет дополнительных фотографий в альбоме.</p>';
                     return;
                 }
 
-                // Перебираем массив фоток из таблицы adult_model_photos
                 photos.forEach(p => {
                     const img = document.createElement('img');
                     img.src = p.photo_url;
                     img.alt = 'Фото из альбома';
-                    // При клике на фото альбома — откроем её в новой вкладке в полном размере
                     img.onclick = () => window.open(p.photo_url, '_blank');
-                    
                     container.appendChild(img);
                 });
             })
@@ -244,11 +284,24 @@
         document.getElementById('albumModal').style.display = 'none';
     }
 
-    // Закрытие модалки, если кликнуть в тёмную область вокруг неё
+    function closeBuyModal() {
+        document.getElementById('buyModal').style.display = 'none';
+    }
+
+    function confirmPurchase() {
+        alert(`Запрос на списание отправлен! (ID модели: ${currentSelectedModelId}). Баланс проверен.`);
+        closeBuyModal();
+    }
+
+    // Закрытие модалок по клику вне контента
     window.onclick = function(event) {
-        const modal = document.getElementById('albumModal');
-        if (event.target == modal) {
-            modal.style.display = 'none';
+        const albumModal = document.getElementById('albumModal');
+        const buyModal = document.getElementById('buyModal');
+        if (event.target == albumModal) {
+            albumModal.style.display = 'none';
+        }
+        if (event.target == buyModal) {
+            buyModal.style.display = 'none';
         }
     }
 </script>
