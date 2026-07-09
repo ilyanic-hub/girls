@@ -669,19 +669,6 @@ function goToAdultContent() {
         loadContestants();
     }
 }
-        
-        // В любом случае загружаем карточки участников для просмотра
-        loadContestants();
-
-      catch (err) {
-        console.error("Ошибка при проверке статуса:", err);
-        // Даже если бэкенд недоступен, показываем оболочку
-        document.getElementById('auth-page').style.display = 'none';
-        document.getElementById('main-sidebar').style.display = 'flex';
-        document.getElementById('main-page').style.display = 'flex';
-        loadContestants();
-    }
-}
 
         /* Функция отправки новой аватарки на сервер */
         async function uploadAvatar() {
