@@ -190,8 +190,21 @@ def init_db():
     )
     """)
 
-    # Добавь это в init_db(), если боишься, что колонка отсутствует
-    cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
+    try:
+        # Проверяем, какие колонки уже есть в таблице adult_models
+        cursor.execute("PRAGMA table_info(adult_models)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        
+        # Если колонки is_paid еще нет — добавляем её
+        if "is_paid" not in columns:
+            cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
+            db.commit()
+            print("=== Колонка is_paid успешно добавлена в базу данных ===")
+        else:
+            print("=== Колонка is_paid уже существует, пропускаем ===")
+            
+    except Exception as e:
+        print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
 
     # Накатываем альтеры на случай старых баз
     try:
