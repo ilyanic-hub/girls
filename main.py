@@ -330,6 +330,13 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
+@app.get("/api/debug-users-table")
+async def debug_users_table(db=Depends(get_db)):
+    cursor = db.cursor()
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [dict(row) for row in cursor.fetchall()]
+    return {"columns": columns}
+
 # Заменяем роут на безопасный (с автосозданием таблицы при первой покупке)
 @app.post("/api/adult-models/buy")
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
