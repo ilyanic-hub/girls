@@ -958,37 +958,40 @@ function goToAdultContent() {
     <script>
 function startTimer() {
     let timerEl = document.getElementById('countdown-timer');
-    if (!timerEl) {
-        console.error("Элемент countdown-timer не найден на странице!");
-        return;
+    if (!timerEl) return;
+
+    // Функция, которая находит 1-е число следующего месяца, 00:00:00
+    function getNextMonthTarget() {
+        let now = new Date();
+        // Создаем дату: текущий год, следующий месяц (now.getMonth() + 1), 1-е число, 00:00:00
+        let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+        return targetDate;
     }
 
-    function getNextMidnight() {
-        let midnight = new Date();
-        midnight.setHours(24, 0, 0, 0);
-        return midnight;
-    }
-
-    let target = getNextMidnight();
+    let target = getNextMonthTarget();
 
     setInterval(() => {
         let now = new Date();
         let diff = target - now;
 
+        // Если месяц кончился, переключаемся на следующий
         if (diff <= 0) {
-            target = getNextMidnight();
+            target = getNextMonthTarget();
             diff = target - now;
         }
 
+        // Вычисляем дни, часы, минуты и секунды
+        let days = Math.floor(diff / (1000 * 60 * 60 * 24));
         let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
         let mins = Math.floor((diff / (1000 * 60)) % 60);
         let secs = Math.floor((diff / 1000) % 60);
 
-        timerEl.innerText = `00д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
+        // Форматируем вывод, включая реальные дни вместо "00д"
+        timerEl.innerText = `${String(days).padStart(2, '0')}д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
     }, 1000);
 }
 
-// Запускаем таймер сразу после загрузки страницы
+// Автозапуск при загрузке страницы
 document.addEventListener("DOMContentLoaded", () => {
     startTimer();
 });
