@@ -337,7 +337,6 @@ async def debug_users_table(db=Depends(get_db)):
     columns = [dict(row) for row in cursor.fetchall()]
     return {"columns": columns}
 
-# Заменяем роут на безопасный (с автосозданием таблицы при первой покупке)
 @app.post("/api/adult-models/buy")
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -346,7 +345,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
     cursor = db.cursor()
     
     try:
-        # КРИТИЧЕСКИ ВАЖНО: Автоматически создаем таблицу покупок, если её забыли создать в init_db
+        # Автоматически создаем таблицу покупок, если её нет
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_purchases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -356,16 +355,17 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         """)
         db.commit()
 
-        # 1. Проверяем баланс пользователя
-        cursor.execute("SELECT tokens FROM users WHERE username = ?", (session_user,))
+        # 1. Проверяем баланс пользователя (ИСПРАВЛЕНО: используем balance вместо tokens)
+        cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
         user = cursor.fetchone()
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         
-        if user["tokens"] < 50:
-            return {"status": "error", "message": "Недостаточно токенов! Пополните баланс."}
+        # Проверяем, хватает ли средств (баланс из базы сравниваем с ценой в 50 единиц)
+        if user["balance"] < 50:
+            return {"status": "error", "message": "Недостаточно средств! Пополните баланс."}
         
-        # 2. Проверяем, не куплена ли модель уже
+        # 2. Проверяем, не куплена ли модель уже ранее
         cursor.execute(
             "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
             (session_user, data.model_id)
@@ -374,8 +374,8 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         if already_bought:
             return {"status": "success", "message": "Доступ уже был куплен ранее!"}
         
-        # 3. Списываем 50 токенов
-        cursor.execute("UPDATE users SET tokens = tokens - 50 WHERE username = ?", (session_user,))
+        # 3. Списываем 50 единиц с баланса (ИСПРАВЛЕНО: обновляем поле balance)
+        cursor.execute("UPDATE users SET balance = balance - 50 WHERE username = ?", (session_user,))
         
         # 4. Записываем покупку в базу
         cursor.execute(
@@ -385,7 +385,6 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         
         db.commit()
         
-        # Перестраховка: если функция выгрузки в Dropbox существует — вызываем её
         if "upload_db_to_dropbox" in globals():
             upload_db_to_dropbox()
             
@@ -393,7 +392,6 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         
     except Exception as e:
         db.rollback()
-        # Если что-то пойдёт не так, мы вернём читаемую ошибку, а не уроним бэкенд
         return {"status": "error", "message": f"Ошибка на стороне сервера БД: {str(e)}"}
 
 @app.get("/api/admin/get-adult-models-list")
@@ -860,12 +858,26 @@ async def get_adult_models_list_for_admin(db=Depends(get_db)):
 
 # 6. НОВЫЙ РОУТ: Публичный список моделей для страницы 18+.html
 @app.get("/api/adult-models")
-async def get_adult_models_public(db=Depends(get_db)):
+async def get_adult_models_public(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     try:
         cursor = db.cursor()
-        # Тянем всё, включая статус платного контента is_paid
+        
+        # Тянем все модели из базы
         cursor.execute("SELECT id, name, age, status, photo_url, is_paid FROM adult_models ORDER BY id DESC")
-        return [dict(row) for row in cursor.fetchall()]
+        models = [dict(row) for row in cursor.fetchall()]
+        
+        # Если пользователь авторизован, получаем список ID моделей, которые он уже купил
+        bought_ids = []
+        if session_user:
+            cursor.execute("SELECT model_id FROM user_purchases WHERE username = ?", (session_user,))
+            bought_ids = [row["model_id"] for row in cursor.fetchall()]
+        
+        # Добавляем в каждую карточку метку: если модель платная, но уже куплена, ставим ей is_paid = 0
+        for model in models:
+            if model["id"] in bought_ids:
+                model["is_paid"] = 0  # Снимаем блокировку, так как доступ уже куплен
+                
+        return models
     except Exception as e:
         return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
 
