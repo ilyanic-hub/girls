@@ -302,11 +302,44 @@
     }
 
     function confirmPurchase() {
-        alert(`Доступ успешно приобретен за 50 токенов!`);
-        closeBuyModal();
-        // Принудительно загружаем фотки купленной модели
-        loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
+    const btn = document.querySelector('.buy-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Обработка...";
     }
+
+    // Отправляем запрос на списание токенов на бэкенд
+    fetch('/api/adult-models/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id: currentSelectedModelId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message); // "Доступ успешно разблокирован!"
+            closeBuyModal();
+            
+            // Напрямую загружаем фотки купленной модели
+            loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
+            
+            // Если у тебя на странице отображается баланс токенов, можно обновить страницу для его изменения:
+            // location.reload(); 
+        } else {
+            alert("Ошибка: " + data.message);
+        }
+    })
+    .catch(err => {
+        console.error("Ошибка сети:", err);
+        alert("Не удалось связаться с сервером для списания токенов.");
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Открыть доступ";
+        }
+    });
+}
 
     // Закрытие модалок по клику вне контента
     window.onclick = function(event) {
