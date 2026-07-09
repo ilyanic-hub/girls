@@ -763,14 +763,28 @@ function goToAdultContent() {
                         </div>
                         
                         <div class="card-comments-box" id="comments-box-${girl.id}">
-                            <div class="mini-comment-form">
-                                <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий...">
-                                <button class="mini-comment-btn" onclick="sendComment(${girl.id})">ОК</button>
-                            </div>
-                            <div class="card-comments-list" id="comments-list-${girl.id}">
-                                <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
-                            </div>
-                        </div>
+    <div class="mini-comment-form" style="display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+        
+        <input type="text" 
+               id="comment-input-${girl.id}" 
+               class="mini-comment-input" 
+               placeholder="Ваш комментарий..." 
+               style="flex-grow: 1; min-width: 0; box-sizing: border-box;">
+        
+        <button class="mini-comment-btn" 
+                onclick="sendComment(${girl.id})" 
+                style="flex-shrink: 0; background: none; border: none; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </button>
+        
+    </div>
+    
+    <div class="card-comments-list" id="comments-list-${girl.id}">
+        <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
+    </div>
+</div>
                     </div>`;
             });
         }
