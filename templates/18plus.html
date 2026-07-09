@@ -179,12 +179,14 @@
         
         <div class="grid">
             {% for model in models %}
-            <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}', {{ model.is_paid | default(0) }})">
+            {% set is_paid_int = 1 if model.is_paid == 1 or model.is_paid == True else 0 %}
+            
+            <div class="card" onclick="openModelAlbum({{ model.id }}, '{{ model.name }}', {{ is_paid_int }})">
                 <img src="{{ model.photo_url }}" alt="Модель {{ model.name }}">
                 <div class="card-info">
                     <p class="card-name">
                         <span>{{ model.name }}, {{ model.age }}</span>
-                        {% if model.is_paid == 1 %}
+                        {% if is_paid_int == 1 %}
                         <span style="color: #ffb300; font-size: 18px;" title="Приватный контент">🔒</span>
                         {% endif %}
                     </p>
