@@ -814,19 +814,27 @@ function goToAdultContent() {
         }
 
         async function vote(contestantId, event) {
-            try {
-                let res = await fetch(`/api/contestants/${contestantId}/vote`, { method: 'POST' });
-                let data = await res.json();
-                if (res.ok) {
-                    // Создаем анимацию сердечка в месте клика
-                    createHeart(event.clientX, event.clientY);
-                    document.getElementById('user-balance').innerText = data.new_balance;
-                    loadContestants();
-                } else {
-                    alert(data.detail || "Ошибка при голосовании");
-                }
-            } catch (err) { alert("Ошибка сети."); }
+    try {
+        // ИСПРАВЛЕНО: привели адрес в соответствие с Python роутом /api/vote?contestant_id=...
+        let res = await fetch(`/api/vote?contestant_id=${contestantId}`, { method: 'POST' });
+        let data = await res.json();
+        
+        if (res.ok) {
+            // Создаем анимацию сердечка в месте клика
+            createHeart(event.clientX, event.clientY);
+            
+            // Вызываем проверку авторизации, чтобы баланс в шапке гарантированно обновился
+            checkAuth(); 
+            
+            // Перезагружаем карточки, чтобы обновился счётчик голосов
+            loadContestants();
+        } else {
+            alert(data.detail || "Ошибка при голосовании");
         }
+    } catch (err) { 
+        alert("Ошибка сети."); 
+    }
+}
 
         function createHeart(x, y) {
             const heart = document.createElement('div');
