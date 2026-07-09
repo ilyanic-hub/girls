@@ -884,42 +884,33 @@ function goToAdultContent() {
         }
 
         async function sendPaymentRequest() {
-            let amount = document.getElementById('customAmount').value || selectedAmount;
-            if (!amount || amount < 100) { alert("Минимальная сумма — 100 коинов"); return; }
+    let amount = document.getElementById('customAmount').value || selectedAmount;
+    if (!amount || amount < 100) { alert("Минимальная сумма — 100 коинов"); return; }
+    
+    try {
+        let res = await fetch('/api/deposit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ amount: parseInt(amount) })
+        });
+        
+        let data = await res.json();
+        
+        // ИСПРАВЛЕНО: Проверяем data.payment_url вместо data.pay_url
+        if (res.ok && data.payment_url) {
+            // Перенаправляем в этой же вкладке, чтобы браузер не заблокировал окно
+            window.location.href = data.payment_url;
             
-            try {
-                let res = await fetch('/api/deposit', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ amount: parseInt(amount) })
-                });
-                let data = await res.json();
-                if (res.ok && data.pay_url) {
-                    window.open(data.pay_url, '_blank');
-                    startCheckingBalance();
-                } else { alert("Ошибка: " + data.detail); }
-            } catch (err) { alert("Ошибка сервера платежей"); }
+            if (typeof startCheckingBalance === 'function') {
+                startCheckingBalance();
+            }
+        } else { 
+            alert("Ошибка: " + (data.detail || "Не удалось получить ссылку на оплату")); 
         }
-
-        // Таймер обратного отсчета (пример логики)
-        function startTimer() {
-            let timerEl = document.getElementById('countdown-timer');
-            if (!timerEl) return;
-            let target = new Date();
-            target.setHours(24, 0, 0, 0); // До конца дня
-
-            setInterval(() => {
-                let now = new Date();
-                let diff = target - now;
-                if (diff <= 0) { target.setHours(target.getHours() + 24); return; }
-                
-                let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-                let mins = Math.floor((diff / (1000 * 60)) % 60);
-                let secs = Math.floor((diff / 1000) % 60);
-                
-                timerEl.innerText = `00д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
-            }, 1000);
-        }
+    } catch (err) { 
+        alert("Ошибка сервера платежей"); 
+    }
+}
 
         async function getDailyBonus() {
     try {
