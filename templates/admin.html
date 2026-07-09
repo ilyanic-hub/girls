@@ -349,6 +349,10 @@
         const fileInput = document.getElementById('adultPhotoFile');
         const btn = document.getElementById('submitAdultBtn');
         
+        // Читаем галочку (если чекбокс отмечен — 1, если нет — 0)
+        const isPaidCheckbox = document.getElementById('modelIsPaid');
+        const isPaidValue = isPaidCheckbox && isPaidCheckbox.checked ? 1 : 0;
+        
         if (!name || !age || !status) {
             alert("Заполните текстовые поля (Имя, Возраст, Статус)!");
             return;
@@ -372,7 +376,8 @@
                 name: name,
                 age: age,
                 status: status,
-                file_base64: base64String
+                file_base64: base64String,
+                is_paid: isPaidValue // <-- ВОТ СЮДА передаем статус оплаты
             };
 
             let url = '/api/admin/adult-models';
@@ -393,7 +398,15 @@
             if (response.ok || data.status === 'success') {
                 alert(editAdultModelId ? "Данные модели успешно обновлены!" : "Модель успешно добавлена!");
                 resetAdultForm();
-                loadAdultModelsForAlbums();
+                
+                // Перезагружаем список (если у тебя функция называется чуть иначе, оставь свою строку)
+                if (typeof loadAdultModelsForAlbums === 'function') {
+                    loadAdultModelsForAlbums();
+                } else if (typeof loadAdminAdultModels === 'function') {
+                    loadAdminAdultModels();
+                } else {
+                    location.reload();
+                }
             } else {
                 alert("Ошибка: " + (data.message || data.detail || JSON.stringify(data)));
             }
@@ -404,30 +417,41 @@
             btn.innerText = editAdultModelId ? "Сохранить изменения" : "Сохранить модель";
         }
     }
-
-    function startEditAdultModel(id, name, age, status) {
-        editAdultModelId = id;
-        document.getElementById('adultFormTitle').firstChild.textContent = "Редактировать модель 18+ ";
-        document.getElementById('cancelAdultEdit').style.display = 'inline-block';
-        document.getElementById('adultName').value = name;
-        document.getElementById('adultAge').value = age;
-        document.getElementById('adultStatus').value = status;
-        document.getElementById('adultPhotoLabel').innerText = "Изменить главное фото (оставьте пустым, чтобы не менять):";
-        document.getElementById('submitAdultBtn').innerText = "Сохранить изменения";
-        document.getElementById('adultName').focus();
+    // Добавили isPaid в параметры функции
+function startEditAdultModel(id, name, age, status, isPaid) {
+    editAdultModelId = id;
+    document.getElementById('adultFormTitle').firstChild.textContent = "Редактировать модель 18+ ";
+    document.getElementById('cancelAdultEdit').style.display = 'inline-block';
+    document.getElementById('adultName').value = name;
+    document.getElementById('adultAge').value = age;
+    document.getElementById('adultStatus').value = status;
+    
+    // ВОТ СЮДА: отмечаем чекбокс, если модель была платной
+    const checkbox = document.getElementById('modelIsPaid');
+    if (checkbox) {
+        checkbox.checked = (isPaid === 1);
     }
+
+    document.getElementById('adultPhotoLabel').innerText = "Изменить главное фото (оставьте пустым, чтобы не менять):";
+    document.getElementById('submitAdultBtn').innerText = "Сохранить изменения";
+    document.getElementById('adultName').focus();
+}
 
     function resetAdultForm() {
-        editAdultModelId = null;
-        document.getElementById('adultName').value = '';
-        document.getElementById('adultAge').value = '';
-        document.getElementById('adultStatus').value = '';
-        document.getElementById('adultPhotoFile').value = '';
-        document.getElementById('adultFormTitle').firstChild.textContent = "Добавить модель в раздел 18+ ";
-        document.getElementById('cancelAdultEdit').style.display = 'none';
-        document.getElementById('adultPhotoLabel').innerText = "Главное фото (аватарка):";
-        document.getElementById('submitAdultBtn').innerText = "Сохранить модель";
-    }
+    editAdultModelId = null;
+    document.getElementById('adultName').value = '';
+    document.getElementById('adultAge').value = '';
+    document.getElementById('adultStatus').value = '';
+    document.getElementById('adultPhotoFile').value = '';
+    
+    // Сбрасываем галочку платного контента
+    const checkbox = document.getElementById('modelIsPaid');
+    if (checkbox) checkbox.checked = false;
+
+    document.getElementById('adultFormTitle').firstChild.textContent = "Добавить модель в раздел 18+ ";
+    document.getElementById('adultPhotoLabel').innerText = "Главное фото (аватарка):";
+    document.getElementById('submitAdultBtn').innerText = "Сохранить модель";
+}
 
     function deleteAdultModel(id) {
         if (!confirm("Вы уверены, что хотите полностью удалить эту модель и весь её альбом?")) return;
