@@ -436,14 +436,29 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": f"Ошибка базы данных: {str(e)}"}
 
-@app.delete("/api/admin/adult-models/{model_id}")
-async def delete_adult_model(model_id: int, db=Depends(get_db)):
+# 2. Удаление модели 18+ через админку (Обновлённый роут)
+@app.delete("/api/admin/adult-models/{id}")
+async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
     cursor = db.cursor()
-    # Удаляем саму модель и её альбомы
-    cursor.execute("DELETE FROM adult_model_photos WHERE id=?", (model_id,))
-    cursor.execute("DELETE FROM adult_model_photos WHERE model_id=?", (model_id,))
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user or not user["is_admin"]:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    
+    print(f"=== ЗАПРОС НА УДАЛЕНИЕ МОДЕЛИ С ID: {id} ===")
+    
+    # 1. Удаляем саму модель из главной таблицы моделей по её id
+    cursor.execute("DELETE FROM adult_models WHERE id = ?", (id,))
+    
+    # 2. Удаляем все фотографии, привязанные к этой модели в таблице альбомов
+    cursor.execute("DELETE FROM adult_model_photos WHERE model_id = ?", (id,))
+    
     db.commit()
-    return {"status": "success", "message": "Модель полностью удалена"}
+    upload_db_to_dropbox()
+    return {"status": "success", "message": f"Модель {id} и её фотографии полностью удалены"}
 
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
