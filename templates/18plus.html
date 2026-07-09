@@ -238,26 +238,34 @@
 
 <script>
     let currentSelectedModelId = null;
-    let currentSelectedModelName = ""; // Переменная для хранения имени модели при покупке
+    let currentSelectedModelName = ""; 
+    
+    // Сюда скрипт будет временно записывать ID купленных моделей, 
+    // чтобы не просить оплату повторно до перезагрузки страницы
+    let localPurchasedModels = []; 
 
     function openModelAlbum(modelId, modelName, isPaid) {
         console.log("Кликнули по модели:", modelName, "Платная (isPaid):", isPaid);
         
-        // Сохраняем данные текущей модели в глобальные переменные
         currentSelectedModelId = modelId;
         currentSelectedModelName = modelName;
 
-        // Если контент платный (1) — блокируем и показываем окно оплаты
+        // Если модель платная, но она УЖЕ куплена (есть в нашем массиве покупок) — сбрасываем платный статус в 0
+        if (localPurchasedModels.includes(modelId)) {
+            isPaid = 0;
+        }
+
+        // Если контент платный — блокируем и показываем окно оплаты
         if (isPaid === 1) {
             document.getElementById('buyModal').style.display = 'block';
             return; 
         }
 
-        // Если бесплатный — запускаем загрузку фоток
+        // Если бесплатный или уже куплен — открываем альбом
         loadPhotosFromServer(modelId, modelName);
     }
 
-    // Изолированная функция загрузки фотографий
+    // Функция загрузки фотографий
     function loadPhotosFromServer(modelId, modelName) {
         const modal = document.getElementById('albumModal');
         const container = document.getElementById('albumPhotosContainer');
@@ -281,9 +289,16 @@
 
                 photos.forEach(p => {
                     const img = document.createElement('img');
-                    img.src = p.photo_url;
+                    
+                    // ИСПРАВЛЕНО: Проверяем структуру (p.photo_url или просто p, если бэкенд вернул строку)
+                    const url = p.photo_url ? p.photo_url : p;
+                    
+                    img.src = url;
                     img.alt = 'Фото из альбома';
-                    img.onclick = () => window.open(p.photo_url, '_blank');
+                    
+                    // ИСПРАВЛЕНО: Клик теперь берёт правильный URL и открывает фото на весь экран во вкладке
+                    img.onclick = () => window.open(url, '_blank');
+                    
                     container.appendChild(img);
                 });
             })
@@ -294,6 +309,7 @@
     }
 
     function closeModal() {
+        document.getElementById('albumModal').style.none;
         document.getElementById('albumModal').style.display = 'none';
     }
 
@@ -302,44 +318,44 @@
     }
 
     function confirmPurchase() {
-    const btn = document.querySelector('.buy-btn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerText = "Обработка...";
-    }
-
-    // Отправляем запрос на списание токенов на бэкенд
-    fetch('/api/adult-models/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model_id: currentSelectedModelId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === 'success') {
-            alert(data.message); // "Доступ успешно разблокирован!"
-            closeBuyModal();
-            
-            // Напрямую загружаем фотки купленной модели
-            loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
-            
-            // Если у тебя на странице отображается баланс токенов, можно обновить страницу для его изменения:
-            // location.reload(); 
-        } else {
-            alert("Ошибка: " + data.message);
-        }
-    })
-    .catch(err => {
-        console.error("Ошибка сети:", err);
-        alert("Не удалось связаться с сервером для списания токенов.");
-    })
-    .finally(() => {
+        const btn = document.querySelector('.buy-btn');
         if (btn) {
-            btn.disabled = false;
-            btn.innerText = "Открыть доступ";
+            btn.disabled = true;
+            btn.innerText = "Обработка...";
         }
-    });
-}
+
+        fetch('/api/adult-models/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model_id: currentSelectedModelId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert(data.message);
+                
+                // ЗАПОМИНАЕМ ПОКУПКУ: Добавляем ID модели в локальный список купленных
+                localPurchasedModels.push(currentSelectedModelId);
+                
+                closeBuyModal();
+                
+                // Сразу открываем альбом
+                loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
+            } else {
+                alert("Ошибка: " + data.message);
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка сети:", err);
+            alert("Не удалось связаться с сервером.");
+        })
+        .finally(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Открыть доступ";
+            }
+        });
+    }
 
     // Закрытие модалок по клику вне контента
     window.onclick = function(event) {
