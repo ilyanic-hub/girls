@@ -923,25 +923,42 @@ function goToAdultContent() {
         // Запуск проверки авторизации при загрузке страницы
 
         window.onload = function() {
-    // 1. Запускаем базовые проверки
+    // Запускаем стандартные функции
     checkAuth();
     if (typeof startTimer === 'function') startTimer();
     
-    // 2. Проверяем, пришли ли мы со страницы 18+ с хэшем #register
-    if (window.location.hash === '#register') {
-        // Убираем хэш из адресной строки, чтобы при обычном обновлении окно не всплывало
+    // Проверяем хэш
+    if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+        // Чистим адресную строку
         history.replaceState(null, null, ' ');
         
-        // Даем браузеру микропаузу (50мс), чтобы DOM и все функции точно прогрузились
         setTimeout(() => {
-            if (typeof openAuthModal === 'function') {
-                openAuthModal('register');
-            } else {
-                // Резервный вариант, если openAuthModal почему-то недоступна
-                const authPage = document.getElementById('auth-page');
-                if (authPage) authPage.style.display = 'flex';
+            // 1. Принудительно включаем отображение самого темного фона модалки
+            const authPage = document.getElementById('auth-page');
+            if (authPage) {
+                authPage.style.display = 'flex';
             }
-        }, 50);
+            
+            // 2. Вручную настраиваем поля под РЕГИСТРАЦИЮ, чтобы не зависеть от других функций
+            const authTitle = document.getElementById('auth-title');
+            const passwordInput = document.getElementById('password');
+            const secretAnswer = document.getElementById('secret_answer');
+            const toggleText = document.getElementById('auth-toggle-text');
+            const resetText = document.getElementById('auth-reset-text');
+            
+            // Задаем глобальную переменную режима (если она используется в твоем скрипте)
+            if (typeof authMode !== 'undefined') {
+                authMode = 'register';
+            }
+
+            if (authTitle) authTitle.innerText = "Регистрация";
+            if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
+            if (secretAnswer) secretAnswer.style.display = 'block';
+            if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
+            if (resetText) resetText.style.display = 'none';
+            
+            console.log("Модальное окно регистрации успешно вызвано через редирект.");
+        }, 100);
     }
 };
 
