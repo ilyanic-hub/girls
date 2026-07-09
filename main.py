@@ -747,16 +747,7 @@ async def api_logout(response: Response):
     response.delete_cookie(key="session_user", path="/")
     return {"status": "success", "message": "Вы вышли"}
 
-@app.post("/api/deposit")
-async def api_deposit(amount_data: dict, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    amount = float(amount_data.get("amount", 100.0))
-    cursor = db.cursor()
-    cursor.execute("UPDATE users SET balance = balance + ? WHERE username = ?", (session_user))
-    db.commit()
-    upload_db_to_dropbox()
-    return {"status": "success", "balance_added": amount}
+
 
 
 # ================= РАБОТА С УЧАСТНИЦАМИ =================
@@ -1199,6 +1190,7 @@ async def get_contest_status():
 
 
 # ================= ПЛАТЕЖИ PLISIO =================
+@app.post("/api/deposit") # Теперь старый адрес ведет на правильную платежку!
 @app.post("/api/payment/create")
 @app.post("/api/payment/create/")
 async def create_plisio_invoice(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
