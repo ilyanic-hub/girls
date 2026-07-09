@@ -893,21 +893,22 @@ function goToAdultContent() {
         }
 
         async function getDailyBonus() {
-            try {
-                let res = await fetch('/api/daily-bonus', { method: 'POST' });
-                let data = await res.json();
-                if (res.ok) {
-                    alert(`Вы получили бонус: ${data.bonus} коинов!`);
-                    checkAuth();
-                } else { alert(data.detail); }
-            } catch (e) { alert("Ошибка при получении бонуса"); }
+    try {
+        // ИСПРАВЛЕНО: убрали "-daily", теперь адрес совпадает с бэкендом
+        let res = await fetch('/api/bonus', { method: 'POST' });
+        let data = await res.json();
+        
+        if (res.ok) {
+            // ИСПРАВЛЕНО: берем data.message, так как бэкенд возвращает именно его
+            alert(data.message); 
+            checkAuth(); // Обновляем баланс в шапке
+        } else { 
+            alert(data.detail || "Не удалось получить бонус"); 
         }
-
-        // Запуск проверки авторизации при загрузке страницы
-        window.onload = function() {
-            checkAuth();
-            startTimer();
-        };
+    } catch (e) { 
+        alert("Ошибка при получении бонуса"); 
+    }
+}
     </script>
 </body>
 </html>
