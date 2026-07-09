@@ -578,58 +578,60 @@ function goToAdultContent() {
     try {
         let res = await fetch('/api/me');
         
-        // ВЫВОДИМ СТАТУС ОТВЕТА СЕРВЕРА
-        console.log("Статус ответа сервера /api/me:", res.status, res.statusText);
-        
+        // Всегда показываем главную страницу и сайдбар для всех
+        document.getElementById('auth-page').style.display = 'none';
+        document.getElementById('main-sidebar').style.display = 'flex';
+        document.getElementById('main-page').style.display = 'flex';
+
         if (res.ok) {
             let user = await res.json();
             
-            // ВЫВОДИМ ДАННЫЕ, КОТОРЫЕ ПРИСЛАЛ СЕРВЕР
-            console.log("Данные пользователя от сервера:", user);
-            
-            if (!user.username || user.username === "Гость") {
-                document.getElementById('main-page').style.display = 'none';
-                document.getElementById('main-sidebar').style.display = 'none';
-                document.getElementById('auth-page').style.display = 'flex';
-                return;
-            }
-            document.getElementById('auth-page').style.display = 'none';
-            document.getElementById('main-sidebar').style.display = 'flex';
-            document.getElementById('main-page').style.display = 'flex';
-            
-            document.getElementById('user-name').innerText = user.username;
-            document.getElementById('user-balance').innerText = user.balance;
-            
-            let avatarUrl = user.avatar_url || user.avatar;
-            let avatarImg = document.getElementById('user-avatar-img');
-            let avatarDefault = document.getElementById('user-avatar-default');
-            
-            if (avatarUrl) {
-                avatarImg.src = avatarUrl;
-                avatarImg.style.display = 'block';
-                avatarDefault.style.display = 'none';
+            // Если пришел реальный пользователь (не Гость)
+            if (user.username && user.username !== "Гость") {
+                document.getElementById('user-name').innerText = user.username;
+                document.getElementById('user-balance').innerText = user.balance;
+                
+                let avatarUrl = user.avatar_url || user.avatar;
+                let avatarImg = document.getElementById('user-avatar-img');
+                let avatarDefault = document.getElementById('user-avatar-default');
+                
+                if (avatarUrl) {
+                    avatarImg.src = avatarUrl;
+                    avatarImg.style.display = 'block';
+                    avatarDefault.style.display = 'none';
+                } else {
+                    avatarImg.style.display = 'none';
+                    avatarDefault.style.display = 'block';
+                }
+                
+                if (user.is_admin === 1) {
+                    document.getElementById('admin-link').style.display = 'inline';
+                } else {
+                    document.getElementById('admin-link').style.display = 'none';
+                }
             } else {
-                avatarImg.style.display = 'none';
-                avatarDefault.style.display = 'block';
-            }
-            
-            if(user.is_admin === 1) {
-                document.getElementById('admin-link').style.display = 'inline';
-            } else {
+                // Если это Гость — настраиваем интерфейс под гостя
+                document.getElementById('user-name').innerText = "Гость";
+                document.getElementById('user-balance').innerText = "0";
                 document.getElementById('admin-link').style.display = 'none';
+                
+                // Здесь, если хочешь, можно вместо аватарки показать кнопку "Войти" 
+                // или просто оставить дефолтную иконку пользователя
+                document.getElementById('user-avatar-img').style.display = 'none';
+                document.getElementById('user-avatar-default').style.display = 'block';
             }
-            loadContestants();
-        } else {
-            console.log("Сервер вернул ошибку, res.ok === false");
-            document.getElementById('main-page').style.display = 'none';
-            document.getElementById('main-sidebar').style.display = 'none';
-            document.getElementById('auth-page').style.display = 'flex';
         }
+        
+        // В любом случае загружаем карточки участников для просмотра
+        loadContestants();
+
     } catch (err) {
-        console.error("Критическая ошибка сети при checkAuth:", err);
-        document.getElementById('main-page').style.display = 'none';
-        document.getElementById('main-sidebar').style.display = 'none';
-        document.getElementById('auth-page').style.display = 'flex';
+        console.error("Ошибка при проверке статуса:", err);
+        // Даже если бэкенд недоступен, показываем оболочку
+        document.getElementById('auth-page').style.display = 'none';
+        document.getElementById('main-sidebar').style.display = 'flex';
+        document.getElementById('main-page').style.display = 'flex';
+        loadContestants();
     }
 }
 
