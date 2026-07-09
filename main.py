@@ -194,21 +194,20 @@ def init_db():
     cursor.execute("CREATE TABLE IF NOT EXISTS user_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, model_id INTEGER)")
 
     try:
-        # Проверяем, какие колонки уже есть в таблице adult_models
-        cursor.execute("PRAGMA table_info(adult_models)")
-        columns = [row["name"] for row in cursor.fetchall()]
-        
-        # Если колонки is_paid еще нет — добавляем её
-        if "is_paid" not in columns:
-            cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
-            db.commit()
-            print("=== Колонка is_paid успешно добавлена в базу данных ===")
-        else:
-            print("=== Колонка is_paid уже существует, пропускаем ===")
-            
-    except Exception as e:
-        print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
-
+    cursor = db.cursor()
+    cursor.execute("PRAGMA table_info(adult_models)")
+    columns = cursor.fetchall()
+    
+    # Исправление: используем col[1] (индекс), а не col['name'] (строку)
+    has_is_paid = any(col[1] == 'is_paid' for col in columns)
+    
+    if not has_is_paid:
+        print("Колонка is_paid не найдена. Добавляю...")
+        cursor.execute("ALTER TABLE adult_models ADD COLUMN is_paid INTEGER DEFAULT 0")
+        db.commit()
+        print("Колонка is_paid успешно добавлена.")
+except Exception as e:
+    print(f"Ошибка при проверке/добавлении колонки is_paid: {e}")
     # Накатываем альтеры на случай старых баз
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN last_bonus_date TEXT DEFAULT NULL")
