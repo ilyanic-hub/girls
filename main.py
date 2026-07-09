@@ -641,15 +641,21 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 @app.get("/api/me")
-async def api_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+async def api_get_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        return {"username": "Гость", "balance": 0, "is_admin": 0, "avatar": None}
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
+    
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin, avatar FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if user:
-        return dict(user)
-    return {"username": "Гость", "balance": 0, "is_admin": 0, "avatar": None}
+    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
+    row = cursor.fetchone()
+    if not row:
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
+        
+    return {
+        "username": row[0],
+        "balance": row[1],
+        "is_admin": row[2]
+    }
 
 @app.post("/api/register")
 async def api_register(data: UserAuthSchema, db=Depends(get_db)):
