@@ -251,6 +251,20 @@ def init_db():
         cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
+
+    # === ДОБАВИТЬ В КОНЕЦ ФУНКЦИИ init_db() ===
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )
+    """)
+    
+    # Записываем текущий месяц (например, "2026-07"), если записи ещё нет
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'current_round_month'")
+    if not cursor.fetchone():
+        current_month = datetime.now().strftime("%Y-%m")
+        cursor.execute("INSERT INTO system_settings (key, value) VALUES ('current_round_month', ?)", (current_month,))
         
     db.commit()
     db.close()
@@ -459,12 +473,65 @@ async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
 
 import traceback
 
+def check_and_rotate_round(db):
+    cursor = db.cursor()
+    
+    # 1. Получаем месяц текущего активного раунда из БД
+    cursor.execute("SELECT value FROM system_settings WHERE key = 'current_round_month'")
+    row = cursor.fetchone()
+    if not row:
+        return
+    
+    saved_month = row["value"] # Строка вида "2026-07"
+    current_month = datetime.now().strftime("%Y-%m")
+    
+    # Если календарный месяц изменился — закрываем старый раунд!
+    if current_month != saved_month:
+        try:
+            print(f"=== ОБНАРУЖЕН НАСТУПИВШИЙ НОВЫЙ МЕСЯЦ! Закрываем раунд {saved_month} ===")
+            
+            # Находим участницу с максимальным количеством голосов
+            cursor.execute("SELECT name, photo_url, votes_count FROM contestants ORDER BY votes_count DESC LIMIT 1")
+            winner = cursor.fetchone()
+            
+            if winner and winner["votes_count"] > 0:
+                # Красиво форматируем дату для Зала славы (например: "Июнь 2026")
+                # Для простоты запишем текстом прошлый месяц:
+                title_date = f"Раунд {saved_month}"
+                
+                # Переносим победительницу в историю (Зал славы)
+                cursor.execute(
+                    "INSERT INTO history (name, title_date, photo_url) VALUES (?, ?, ?)",
+                    (winner["name"], title_date, winner["photo_url"])
+                )
+                print(f"Победительница {winner['name']} перенесена в Зал славы.")
+            
+            # Обнуляем голоса у ВСЕХ участниц для нового раунда
+            cursor.execute("UPDATE contestants SET votes_count = 0")
+            
+            # Обновляем текущий рабочий месяц в настройках системы
+            cursor.execute("UPDATE system_settings SET value = ? WHERE key = 'current_round_month'", (current_month,))
+            
+            db.commit()
+            print("=== РАУНД УСПЕШНО ОБНОВЛЕН ДЛЯ НОВОГО МЕСЯЦА ===")
+            
+            if "upload_db_to_dropbox" in globals():
+                upload_db_to_dropbox()
+                
+        except Exception as e:
+            db.rollback()
+            print(f"Ошибка при автоматической смене раунда: {e}")
+
+
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     path_to_html = "templates/index.html"
     if not os.path.exists(path_to_html):
         return HTMLResponse(content="<h1>Файл index.html не найден!</h1>", status_code=404)
         
+    # === АВТОМАТИЧЕСКАЯ ПРОВЕРКА И СМЕНА РАУНДА ТУТ ===
+    check_and_rotate_round(db)
+    
     user_data = None
     if session_user:
         try:
@@ -480,7 +547,6 @@ async def get_main_page(request: Request, session_user: Optional[str] = Cookie(N
         except Exception as e:
             print(f"Ошибка БД на главной: {e}")
 
-    # Новый безопасный синтаксис FastAPI / Starlette
     return templates.TemplateResponse(
         request=request,
         name="index.html",
