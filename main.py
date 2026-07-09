@@ -1241,21 +1241,21 @@ async def create_plisio_invoice(request: Request, session_user: Optional[str] = 
             "callback_url": "https://www.photo-rating.club/api/payment/plisio-callback"
         }
         
+        # ... твой код отправки запроса в httpx ...
         async with httpx.AsyncClient() as client:
             response = await client.get("https://plisio.net/api/v1/invoices/new", params=params)
             res_data = response.json()
         
+        # ДОБАВЛЯЕМ ЛОГ: Выведет в консоль сервера абсолютно всё, что ответил Plisio
+        print("=== ПОЛНЫЙ ОТВЕТ ОТ PLISIO ===", res_data)
+        
         if res_data.get("status") == "success":
             return {"payment_url": res_data["data"]["invoice_url"]}
         else:
+            # Вытягиваем текст ошибки из ответа самого Plisio
+            plisio_error = res_data.get("data", {}).get("message", "Неизвестная ошибка")
             print(f"Ошибка Plisio API: {res_data}")
-            raise HTTPException(status_code=400, detail="Ошибка создания счета в платежной системе")
-            
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as e:
-        print(f"Критическая ошибка при создании инвойса: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=400, detail=f"Ошибка платежной системы: {plisio_error}")
 
 # 2. Ежедневный бонус
 @app.post("/api/bonus")
