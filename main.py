@@ -23,6 +23,25 @@ import pytz
 app = FastAPI()
 router = APIRouter()
 
+TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
+TELEGRAM_CHAT_ID = "8501380785"
+
+def send_telegram_notification(username: str):
+    """Отправляет уведомление в Telegram о новом пользователе"""
+    try:
+        message = f"🎉 **Новая регистрация на сайте!**\n👤 Пользователь: `{username}`"
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+        # Отправляем асинхронно или через обычный requests (таймаут 3 сек, чтобы сайт не завис)
+        requests.post(url, json=payload, timeout=3)
+    except Exception as e:
+        print(f"Ошибка отправки уведомления в Telegram: {e}")
+
+
 # Папка, куда будут сохраняться аватарки
 UPLOAD_DIR = "static/avatars"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -698,6 +717,10 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
             (username, password_hash, answer_hash)
         )
         db.commit()
+        
+        # === ВСТАВЛЯЕМ ОТПРАВКУ УВЕДОМЛЕНИЯ ТУТ ===
+        send_telegram_notification(username)
+        
         upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
     except Exception as e:
