@@ -671,6 +671,7 @@ async def admin_edit_contestant(id: int, data: ContestantSchema, session_user: O
     return {"status": "success", "message": "Участница успешно изменена!"}
 
 # 1. Добавление модели 18+ через админку
+# 1. Добавление модели 18+ через админку (с поддержкой платного контента)
 @app.post("/api/admin/adult-models")
 async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
@@ -684,7 +685,6 @@ async def admin_add_adult_model(data: AdultModelSchema, session_user: Optional[s
     
     inline_photo_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
     
-    # Добавляем is_paid в SQL-запрос и меняем таблицу на adult_models (если была опечатка)
     cursor.execute(
         "INSERT INTO adult_models (name, age, status, photo_url, is_paid) VALUES (?, ?, ?, ?, ?)", 
         (data.name, data.age, data.status, inline_photo_url, data.is_paid)
@@ -705,10 +705,14 @@ async def delete_adult_model(id: int, session_user: Optional[str] = Cookie(None)
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=403, detail="Доступ запрещен")
     
-    cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (id,))
+    # ИСПРАВЛЕНО: удаляем из adult_models, а не из таблицы фотографий альбома
+    cursor.execute("DELETE FROM adult_models WHERE id = ?", (id,))
+    # Дополнительно удаляем её фотографии альбома, чтобы не засорять БД
+    cursor.execute("DELETE FROM adult_model_photos WHERE model_id = ?", (id,))
+    
     db.commit()
     upload_db_to_dropbox()
-    return {"status": "success", "message": "Модель удалена"}
+    return {"status": "success", "message": "Модель и её альбом удалены"}
 
 # 3. Загрузка фото в альбом конкретной модели
 @app.post("/api/admin/adult-models/{model_id}/upload-photo")
@@ -737,20 +741,33 @@ async def admin_upload_adult_model_photo(model_id: int, data: AlbumFileSchema, s
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
 
-# 4. Получение всех фотографий из альбома конкретной модели
+# 4. Получение всех фотографий из альбома конкретной модели (для пользователей и админки)
 @app.get("/api/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT photo_url FROM adult_model_photos WHERE model_id = ?", (model_id,))
+    # ИСПРАВЛЕНО: возвращаем id и photo_url словарём, чтобы фронтенд (p.photo_url) корректно читал данные
+    cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
     rows = cursor.fetchall()
-    return [row["photo_url"] for row in rows]
+    return [dict(row) for row in rows]
 
-# Эндпоинт для отображения списка моделей в админке
+# 5. Эндпоинт для отображения списка моделей в админке
 @app.get("/api/admin/get-adult-models-list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
     cursor = db.cursor()
-    cursor.execute("SELECT id, name, age, status, photo_url FROM adult_model_photos ORDER BY id DESC")
+    # ИСПРАВЛЕНО: тянем данные из правильной таблицы adult_models и добавили выборку поля is_paid
+    cursor.execute("SELECT id, name, age, status, photo_url, is_paid FROM adult_models ORDER BY id DESC")
     return [dict(row) for row in cursor.fetchall()]
+
+# 6. НОВЫЙ РОУТ: Публичный список моделей для страницы 18+.html
+@app.get("/api/adult-models")
+async def get_adult_models_public(db=Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        # Тянем всё, включая статус платного контента is_paid
+        cursor.execute("SELECT id, name, age, status, photo_url, is_paid FROM adult_models ORDER BY id DESC")
+        return [dict(row) for row in cursor.fetchall()]
+    except Exception as e:
+        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
