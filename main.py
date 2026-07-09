@@ -478,8 +478,11 @@ async def get_top_page():
         return HTMLResponse(content=f.read())
 
 # ЕДИНСТВЕННЫЙ И ПРАВИЛЬНЫЙ РОУТ ДЛЯ СТРАНИЦЫ МModels 18+ (старые дубли удалены ниже)
-@app.get("/models", response_class=HTMLResponse)
-@app.get("/models/", response_class=HTMLResponse)
+# ====================================================================
+# 1. СТРАНИЦА КОНТЕНТА 18+ (Текущий адрес изменен на /18plus)
+# ====================================================================
+@app.get("/18plus", response_class=HTMLResponse)
+@app.get("/18plus/", response_class=HTMLResponse)
 async def get_adult_page(request: Request, db=Depends(get_db)):
     try:
         cursor = db.cursor()
@@ -500,6 +503,19 @@ async def get_adult_page(request: Request, db=Depends(get_db)):
         )
     except Exception as e:
         return HTMLResponse(content=f"<h1>Ошибка бэкенда: {str(e)}</h1>", status_code=500)
+
+
+# ====================================================================
+# 2. ИНФОРМАЦИОННАЯ СТРАНИЦА ДЛЯ МОДЕЛЕЙ (Адрес /models)
+# ====================================================================
+@app.get("/models", response_class=HTMLResponse)
+@app.get("/models/", response_class=HTMLResponse)
+async def get_models_info_page():
+    path_to_html = "templates/models.html" # Убедись, что твой новый HTML файл называется именно так!
+    if not os.path.exists(path_to_html):
+        return HTMLResponse(content="<h1>Файл models.html не найден в папке templates!</h1>", status_code=404)
+    with open(path_to_html, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 @app.get("/about", response_class=HTMLResponse)
 @app.get("/about/", response_class=HTMLResponse)
