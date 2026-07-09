@@ -236,15 +236,24 @@
         </div>
     </div>
 
-    <div id="fullScreenModal" class="modal" onclick="closeFullScreenModal()">
+    <div id="fullScreenModal" class="modal">
         <span class="close-modal" onclick="closeFullScreenModal()">&times;</span>
-        <img id="fullScreenImage" src="" alt="Полный экран" style="max-width: 95%; max-height: 90vh; margin: 3% auto; display: block; border-radius: 8px; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+        
+        <span onclick="changeImage(-1)" style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 50px; font-weight: bold; cursor: pointer; user-select: none; z-index: 1010; background: rgba(0,0,0,0.5); padding: 0 15px; border-radius: 5px;">&#10094;</span>
+        
+        <img id="fullScreenImage" src="" alt="Полный экран" style="max-width: 85%; max-height: 85vh; margin: auto; display: block; position: absolute; top: 0; bottom: 0; left: 0; right: 0; border-radius: 8px; object-fit: contain; box-shadow: 0 0 20px rgba(0,0,0,0.8);">
+        
+        <span onclick="changeImage(1)" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: #fff; font-size: 50px; font-weight: bold; cursor: pointer; user-select: none; z-index: 1010; background: rgba(0,0,0,0.5); padding: 0 15px; border-radius: 5px;">&#10095;</span>
     </div>
 
 <script>
     let currentSelectedModelId = null;
     let currentSelectedModelName = ""; 
     let localPurchasedModels = []; 
+    
+    // Переменные для перелистывания
+    let currentAlbumPhotos = []; // Сюда сохраняем массив всех фоток альбома
+    let currentImageIndex = 0;   // Индекс текущей открытой фотки
 
     function openModelAlbum(modelId, modelName, isPaid) {
         console.log("Кликнули по модели:", modelName, "Платная (isPaid):", isPaid);
@@ -282,20 +291,23 @@
                 
                 if (!photos || photos.length === 0) {
                     container.innerHTML = '<p style="color: #666; grid-column: 1/-1; padding: 20px;">У этой модели пока нет дополнительных фотографий в альбоме.</p>';
+                    currentAlbumPhotos = []; // Очищаем массив, если пусто
                     return;
                 }
 
-                photos.forEach(p => {
+                // Преобразуем массив объектов бэкенда в чистый массив строк-ссылок для удобства перелистывания
+                currentAlbumPhotos = photos.map(p => p.photo_url ? p.photo_url : p);
+
+                // Отрисовываем сетку превьюшек
+                currentAlbumPhotos.forEach((url, index) => {
                     const img = document.createElement('img');
-                    const url = p.photo_url ? p.photo_url : p;
-                    
                     img.src = url;
                     img.alt = 'Фото из альбома';
                     
-                    // КРИТИЧЕСКИЙ НАДЁЖНЫЙ ВАРИАНТ: открываем прямо тут же в новом окне
+                    // При клике передаем индекс фотки, чтобы знать с чего начинать листать
                     img.onclick = (e) => {
-                        e.stopPropagation(); // Чтобы клик не улетал на закрытие альбома
-                        viewImageFullScreen(url);
+                        e.stopPropagation();
+                        viewImageFullScreen(index);
                     };
                     
                     container.appendChild(img);
@@ -307,17 +319,38 @@
             });
     }
 
-    // Открытие фотки на весь экран внутри страницы
-    function viewImageFullScreen(url) {
+    // Открытие фотки на весь экран по её индексу в массиве
+    function viewImageFullScreen(index) {
+        currentImageIndex = index;
         const fullModal = document.getElementById('fullScreenModal');
         const fullImg = document.getElementById('fullScreenImage');
-        if(fullModal && fullImg) {
-            fullImg.src = url;
+        
+        if(fullModal && fullImg && currentAlbumPhotos.length > 0) {
+            fullImg.src = currentAlbumPhotos[currentImageIndex];
             fullModal.style.display = 'block';
         }
     }
 
-    // Закрытие полноэкранного просмотра
+    // Функция перелистывания (direction может быть -1 для "назад" и 1 для "вперед")
+    function changeImage(direction) {
+        if (currentAlbumPhotos.length === 0) return;
+        
+        // Меняем индекс
+        currentImageIndex += direction;
+        
+        // Зацикливание: если ушли за первую фотку — прыгаем в конец
+        if (currentImageIndex < 0) {
+            currentImageIndex = currentAlbumPhotos.length - 1;
+        }
+        // Если ушли за последнюю фотку — прыгаем в начало
+        if (currentImageIndex >= currentAlbumPhotos.length) {
+            currentImageIndex = 0;
+        }
+        
+        // Подставляем новый URL в открытую картинку
+        document.getElementById('fullScreenImage').src = currentAlbumPhotos[currentImageIndex];
+    }
+
     function closeFullScreenModal() {
         document.getElementById('fullScreenModal').style.display = 'none';
     }
@@ -365,11 +398,12 @@
         });
     }
 
-    // Умное закрытие окон по клику на тёмную область
+    // Закрытие окон по клику на фон
     window.onclick = function(event) {
         const albumModal = document.getElementById('albumModal');
         const buyModal = document.getElementById('buyModal');
         const fullModal = document.getElementById('fullScreenModal');
+        const fullImg = document.getElementById('fullScreenImage');
         
         if (event.target == albumModal) {
             albumModal.style.display = 'none';
@@ -377,10 +411,25 @@
         if (event.target == buyModal) {
             buyModal.style.display = 'none';
         }
-        if (event.target == fullModal) {
+        // Закрываем галерею, только если кликнули по фону, а не по самой картинке
+        if (event.target == fullModal && event.target != fullImg) {
             fullModal.style.display = 'none';
         }
     }
+
+    // Бонус: Управление с клавиатуры (стрелочки влево/вправо и Esc для закрытия)
+    document.addEventListener('keydown', function(event) {
+        const fullModal = document.getElementById('fullScreenModal');
+        if (fullModal && fullModal.style.display === 'block') {
+            if (event.key === 'ArrowLeft') {
+                changeImage(-1);
+            } else if (event.key === 'ArrowRight') {
+                changeImage(1);
+            } else if (event.key === 'Escape') {
+                closeFullScreenModal();
+            }
+        }
+    });
 </script>
 </body>
 </html>
