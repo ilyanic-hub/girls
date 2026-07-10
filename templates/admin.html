@@ -518,9 +518,9 @@ function startEditAdultModel(id, name, age, status, isPaid) {
                                 <button onclick="startEditAdultModel(${model.id}, '${model.name.replace(/'/g, "\\'")}', ${model.age}, '${model.status.replace(/'/g, "\\'")}')" class="btn-edit" style="padding: 6px 12px;">✏️ Правка</button>
                                 <button onclick="deleteAdultModel(${model.id})" class="btn-delete" style="padding: 6px 12px; margin-right: 15px;">🗑️ Удалить</button>
                                 
-                                <input type="file" id="albumFiles_${model.id}" accept="image/*" multiple style="max-width: 180px;">
-                                <button onclick="uploadPhotosToAdultAlbum(${model.id})" style="padding: 8px 12px; background: #ff4757; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                                    ➕ Загрузить пачку фото
+                                <input type="text" id="albumLink_${model.id}" placeholder="Вставь ссылку на фото из Dropbox" style="padding: 6px 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 220px; font-size: 13px;">
+                                <button onclick="addDropboxPhotoToAlbum(${model.id})" style="padding: 8px 12px; background: #0070e0; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                    🔗 Добавить фото
                                 </button>
                             </div>
                         </div>
@@ -693,6 +693,40 @@ function startEditAdultModel(id, name, age, status, isPaid) {
             loadHistory();
         }
     }
+
+    function addDropboxPhotoToAlbum(modelId) {
+    const input = document.getElementById(`albumLink_${modelId}`);
+    let url = input.value.trim();
+
+    if (!url) {
+        alert("Пожалуйста, введи ссылку!");
+        return;
+    }
+
+    // Автоматически исправляем dl=0 на raw=1 для прямой загрузки картинки
+    if (url.includes("dl=0")) {
+        url = url.replace("dl=0", "raw=1");
+    } else if (!url.includes("raw=1") && !url.includes("raw=1")) {
+        // Если параметров вообще нет, добавляем raw=1
+        url += (url.includes("?") ? "&" : "?") + "raw=1";
+    }
+
+    // Отправляем ссылку на бэкенд
+    fetch(`/api/admin/adult-models/${modelId}/photos-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photo_url: url })
+    })
+    .then(res => {
+        if (res.ok) {
+            input.value = ""; // Очищаем поле
+            loadModelPhotos(modelId); // Перезагружаем фотки в открытой папке
+        } else {
+            alert("Ошибка при сохранении ссылки");
+        }
+    })
+    .catch(err => console.error("Ошибка:", err));
+}
 </script>
 </body>
 </html>
