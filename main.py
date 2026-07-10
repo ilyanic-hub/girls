@@ -319,47 +319,44 @@ class PhotoLinkSchema(BaseModel):
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
 async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
-    folder_url = data.photo_url.trim()
+    # ИСПОЛЬЗУЕМ .strip() ВМЕСТО .trim()
+    folder_url = data.photo_url.strip()
     
     if "dropbox.com" not in folder_url:
-        raise HTTPException(status_code=400, detail="Это не ссылка на Dropbox")
+        return {"status": "error", "message": "Это не ссылка на Dropbox"}
     
-    # Меняем параметры в конце ссылки, чтобы Dropbox отдал превью папки без лишних скриптов
+    # Очищаем ссылку от лишних параметров
     if "?" in folder_url:
         base_url = folder_url.split("?")[0]
     else:
         base_url = folder_url
         
-    # Формируем URL для парсинга
     target_url = f"{base_url}?dl=0" 
     
     try:
-        # Скачиваем содержимое страницы папки
-        async with httpx.AsyncClient() as client:
+        # Скачиваем страницу папки с таймаутом, чтобы сервер не зависал
+        async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(target_url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
             if response.status_code != 200:
-                return {"status": "error", "message": f"Dropbox вернул ошибку {response.status_code}"}
+                return {"status": "error", "message": f"Dropbox вернул код ошибки: {response.status_code}"}
                 
         html_content = response.text
         
-        # Регулярное выражение ищет ссылки на конкретные файлы внутри папки
-        # Dropbox хранит их в JSON-объектах на странице в таком формате
+        # Ищем регуляркой ссылки на файлы
         found_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/?[^"\s]+', html_content)
         
         if not found_links:
-            return {"status": "error", "message": "В папке не найдено доступных фотографий. Проверь, что папка открыта по ссылке."}
+            return {"status": "error", "message": "В папке не найдено доступных файлов. Проверь, открыт ли доступ."}
             
         cursor = db.cursor()
         added_count = 0
-        saved_urls = set() # Чтобы избежать дубликатов одной и той же фотки
+        saved_urls = set()
         
         for link in found_links:
-            # Очищаем ссылку от лишних символов кодирования HTML (если они есть)
             clean_link = link.replace("&amp;", "&")
             
-            # Нам нужны только файлы изображений (jpg, jpeg, png, webp)
+            # Проверяем расширения картинок
             if any(ext in clean_link.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-                # Убираем старые параметры и жестко ставим ?raw=1
                 if "?" in clean_link:
                     clean_link = clean_link.split("?")[0]
                 direct_img_url = f"{clean_link}?raw=1"
@@ -367,7 +364,7 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
                 if direct_img_url not in saved_urls:
                     saved_urls.add(direct_img_url)
                     
-                    # Проверяем, нет ли уже такой фотки у этой модели в БД
+                    # Проверяем на дубликаты в базе
                     cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
                     if not cursor.fetchone():
                         cursor.execute(
@@ -380,8 +377,9 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
         return {"status": "success", "message": f"Успешно добавлено фотографий: {added_count}"}
         
     except Exception as e:
-        print(f"Ошибка при парсинге папки Dropbox: {e}")
-        return {"status": "error", "message": f"Внутренняя ошибка сервера: {str(e)}"}
+        # Логируем ошибку в консоль сервера, чтобы ты видела её в терминале
+        print(f"!!! КРИТИЧЕСКАЯ ОШИБКА БЭКЕНДА: {e}")
+        return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
