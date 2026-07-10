@@ -695,6 +695,11 @@ function startEditAdultModel(id, name, age, status, isPaid) {
 
     function addDropboxPhotoToAlbum(modelId) {
     const input = document.getElementById(`albumLink_${modelId}`);
+    if (!input) {
+        console.error(`Инпут с id albumLink_${modelId} не найден!`);
+        return;
+    }
+    
     let url = input.value.trim();
 
     if (!url) {
@@ -702,29 +707,33 @@ function startEditAdultModel(id, name, age, status, isPaid) {
         return;
     }
 
-    // Автоматически исправляем dl=0 на raw=1 для прямой загрузки картинки
+    // Корректируем ссылку Dropbox для прямой отдачи картинки
     if (url.includes("dl=0")) {
         url = url.replace("dl=0", "raw=1");
-    } else if (!url.includes("raw=1") && !url.includes("raw=1")) {
-        // Если параметров вообще нет, добавляем raw=1
+    } else if (!url.includes("raw=1")) {
         url += (url.includes("?") ? "&" : "?") + "raw=1";
     }
 
-    // Отправляем ссылку на бэкенд
+    console.log("Отправляем ссылку:", url, "для модели:", modelId);
+
     fetch(`/api/admin/adult-models/${modelId}/photos-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ photo_url: url })
     })
-    .then(res => {
+    .then(async res => {
         if (res.ok) {
-            input.value = ""; // Очищаем поле
-            loadModelPhotos(modelId); // Перезагружаем фотки в открытой папке
+            input.value = ""; // очищаем инпут
+            loadModelPhotos(modelId); // перерисовываем альбом
         } else {
-            alert("Ошибка при сохранении ссылки");
+            const errData = await res.json();
+            alert("Ошибка сервера: " + JSON.stringify(errData));
         }
     })
-    .catch(err => console.error("Ошибка:", err));
+    .catch(err => {
+        console.error("Ошибка сети:", err);
+        alert("Ошибка сети: " + err.message);
+    });
 }
 </script>
 </body>
