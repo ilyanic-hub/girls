@@ -486,64 +486,64 @@ function startEditAdultModel(id, name, age, status, isPaid) {
     // ==================== УПРАВЛЕНИЕ АЛЬБОМАМИ 18+ ====================
 
     function loadAdultModelsForAlbums() {
-        fetch('/api/admin/get-adult-models-list') 
-            .then(res => res.json())
-            .then(models => {
-                const container = document.getElementById('adultModelsAlbumsList');
-                if (!container) return;
-                container.innerHTML = '';
-                
-                if (!models || models.length === 0) {
-                    container.innerHTML = '<div style="color: #aaa; text-align: center;">Моделей пока нет</div>';
-                    return;
-                }
-                
-               models.forEach(model => {
-    const div = document.createElement('div');
-    div.style.background = "#2b2b2b";
-    div.style.padding = "15px";
-    div.style.borderRadius = "8px";
-    div.style.marginBottom = "15px";
-    
-    div.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <img src="${model.photo_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
-                <div>
-                    <strong>${model.name} (${model.age})</strong>
-                    <p style="margin: 0; color: #aaa; font-size: 14px;">${model.status}</p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <button onclick="startEditAdultModel(${model.id}, '${model.name.replace(/'/g, "\\'")}', ${model.age}, '${model.status.replace(/'/g, "\\'")}')" class="btn-edit" style="padding: 6px 12px;">✏️ Правка</button>
-                <button onclick="deleteAdultModel(${model.id})" class="btn-delete" style="padding: 6px 12px; margin-right: 15px;">🗑️ Удалить</button>
-                
-                <input type="text" id="albumLink_${model.id}" placeholder="Вставь ссылку на ПАПКУ из Dropbox" style="padding: 6px 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 220px; font-size: 13px;">
-                <button onclick="addDropboxFolderToAlbum(${model.id})" style="padding: 8px 12px; background: #0070e0; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-                    📁 Добавить папку
-                </button>
-            </div>
-        </div>
+    fetch('/api/admin/get-adult-models-list') 
+        .then(res => res.json())
+        .then(models => {
+            const container = document.getElementById('adultModelsAlbumsList');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            if (!models || models.length === 0) {
+                container.innerHTML = '<div style="color: #aaa; text-align: center;">Моделей пока нет</div>';
+                return;
+            }
 
-        <button class="toggle-album-btn" onclick="toggleAlbumWindow(this, ${model.id})" style="background: #444; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold;">
-            📁 Открыть альбом модели
-        </button>
+            models.forEach(model => {
+                const div = document.createElement('div');
+                div.style.background = "#2b2b2b";
+                div.style.padding = "15px";
+                div.style.borderRadius = "8px";
+                div.style.marginBottom = "15px";
+                
+                div.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img src="${model.photo_url}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 50%;">
+                            <div>
+                                <strong>${model.name} (${model.age})</strong>
+                                <p style="margin: 0; color: #aaa; font-size: 14px;">${model.status}</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="startEditAdultModel(${model.id}, '${model.name.replace(/'/g, "\\'")}', ${model.age}, '${model.status.replace(/'/g, "\\'")}')" class="btn-edit" style="padding: 6px 12px;">✏️ Правка</button>
+                            <button onclick="deleteAdultModel(${model.id})" class="btn-delete" style="padding: 6px 12px; margin-right: 15px;">🗑️ Удалить</button>
+                            
+                            <input type="text" id="albumLink_${model.id}" placeholder="Вставь ссылку на ПАПКУ из Dropbox" style="padding: 6px 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 220px; font-size: 13px;">
+                            <button onclick="addDropboxFolderToAlbum(${model.id})" style="padding: 8px 12px; background: #0070e0; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                📁 Добавить папку
+                            </button>
+                        </div>
+                    </div>
 
-        <div class="album-scroll-window" style="display: none; max-height: 320px; overflow-y: auto; background: #1a1a1a; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-top: 10px;">
-            <div id="photos_container_${model.id}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
-                <span style="color: #666; font-size: 14px;">Альбом пуст. Нажмите «Открыть», чтобы загрузить фото.</span>
-            </div>
-        </div>
-    `;
-    container.appendChild(div);
-});
-            .catch(err => {
-                console.error("Ошибка загрузки моделей:", err);
-                const container = document.getElementById('adultModelsAlbumsList');
-                if (container) container.innerHTML = '<div style="color: #f44336;">Ошибка получения списка моделей с сервера</div>';
+                    <button class="toggle-album-btn" onclick="toggleAlbumWindow(this, ${model.id})" style="background: #444; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold;">
+                        📁 Открыть альбом модели
+                    </button>
+
+                    <div class="album-scroll-window" style="display: none; max-height: 320px; overflow-y: auto; background: #1a1a1a; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-top: 10px;">
+                        <div id="photos_container_${model.id}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
+                            <span style="color: #666; font-size: 14px;">Альбом пуст. Нажмите «Открыть», чтобы загрузить фото.</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
             });
-    }
-
+        }) // Вот эта скобка закрывает блок .then(models => {
+        .catch(err => {
+            console.error("Ошибка загрузки моделей:", err);
+            const container = document.getElementById('adultModelsAlbumsList');
+            if (container) container.innerHTML = '<div style="color: #f44336;">Ошибка получения списка моделей с сервера</div>';
+        });
+}
     function loadModelPhotos(modelId) {
         const pContainer = document.getElementById(`photos_container_${modelId}`);
         if (!pContainer) return;
