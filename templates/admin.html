@@ -524,8 +524,15 @@ function startEditAdultModel(id, name, age, status, isPaid) {
                                 </button>
                             </div>
                         </div>
-                        <div id="photos_container_${model.id}" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-                            <span style="color: #666; font-size: 14px;">Загрузка фото альбома...</span>
+
+                        <button class="toggle-album-btn" onclick="toggleAlbumWindow(this)" style="background: #444; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold;">
+                            📁 Открыть альбом модели
+                        </button>
+
+                        <div class="album-scroll-window" style="display: none; max-height: 320px; overflow-y: auto; background: #1a1a1a; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-top: 10px;">
+                            <div id="photos_container_${model.id}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
+                                <span style="color: #666; font-size: 14px;">Загрузка фото альбома...</span>
+                            </div>
                         </div>
                     `;
                     container.appendChild(div);
@@ -654,6 +661,21 @@ function startEditAdultModel(id, name, age, status, isPaid) {
                 tbody.appendChild(tr);
             });
         } catch (e) { tbody.innerHTML = '<tr><td colspan="4" class="loading-text" style="color:red;">Ошибка данных</td></tr>'; }
+    }
+
+    function toggleAlbumWindow(button) {
+        // Находим блок скролла, который идет сразу за кнопкой
+        const scrollWindow = button.nextElementSibling;
+        
+        if (scrollWindow.style.display === "none") {
+            scrollWindow.style.display = "block";
+            button.innerText = "❌ Закрыть альбом модели";
+            button.style.background = "#ff4757"; // Красный цвет при открытии
+        } else {
+            scrollWindow.style.display = "none";
+            button.innerText = "📁 Открыть альбом модели";
+            button.style.background = "#444"; // Исходный цвет
+        }
     }
 
     async function deleteContestant(id) {
