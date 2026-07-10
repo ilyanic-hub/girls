@@ -662,20 +662,24 @@ function startEditAdultModel(id, name, age, status, isPaid) {
         } catch (e) { tbody.innerHTML = '<tr><td colspan="4" class="loading-text" style="color:red;">Ошибка данных</td></tr>'; }
     }
 
-    function toggleAlbumWindow(button) {
-        // Находим блок скролла, который идет сразу за кнопкой
-        const scrollWindow = button.nextElementSibling;
+    function toggleAlbumWindow(button, modelId) {
+    const scrollWindow = button.nextElementSibling;
+    
+    if (scrollWindow.style.display === "none" || scrollWindow.style.display === "") {
+        scrollWindow.style.display = "block";
+        button.innerText = "❌ Закрыть альбом модели";
+        button.style.background = "#ff4757";
         
-        if (scrollWindow.style.display === "none") {
-            scrollWindow.style.display = "block";
-            button.innerText = "❌ Закрыть альбом модели";
-            button.style.background = "#ff4757"; // Красный цвет при открытии
-        } else {
-            scrollWindow.style.display = "none";
-            button.innerText = "📁 Открыть альбом модели";
-            button.style.background = "#444"; // Исходный цвет
+        // Загружаем фотки только сейчас
+        if (modelId) {
+            loadModelPhotos(modelId); 
         }
+    } else {
+        scrollWindow.style.display = "none";
+        button.innerText = "📁 Открыть альбом модели";
+        button.style.background = "#444";
     }
+}
 
     async function deleteContestant(id) {
         if (confirm('Удалить участницу?')) {
