@@ -525,20 +525,19 @@ function startEditAdultModel(id, name, age, status, isPaid) {
                             </div>
                         </div>
 
-                        <button class="toggle-album-btn" onclick="toggleAlbumWindow(this)" style="background: #444; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold;">
+                        <button class="toggle-album-btn" onclick="toggleAlbumWindow(this, ${model.id})" style="background: #444; color: white; border: none; padding: 6px 12px; font-size: 13px; border-radius: 4px; cursor: pointer; margin-top: 5px; font-weight: bold;">
                             📁 Открыть альбом модели
                         </button>
 
                         <div class="album-scroll-window" style="display: none; max-height: 320px; overflow-y: auto; background: #1a1a1a; padding: 12px; border-radius: 6px; border: 1px solid #333; margin-top: 10px;">
                             <div id="photos_container_${model.id}" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px;">
-                                <span style="color: #666; font-size: 14px;">Загрузка фото альбома...</span>
+                                <span style="color: #666; font-size: 14px;">Альбом пуст. Нажмите «Открыть», чтобы загрузить фото.</span>
                             </div>
                         </div>
                     `;
                     container.appendChild(div);
 
-                    // Сразу запрашиваем фотографии из правильной таблицы
-                    loadModelPhotos(model.id);
+                    // УДАЛИЛИ автоматическую загрузку loadModelPhotos отсюда, чтобы не тормозило!
                 });
             })
             .catch(err => {
