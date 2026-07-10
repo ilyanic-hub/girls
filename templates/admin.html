@@ -696,6 +696,8 @@ function startEditAdultModel(id, name, age, status, isPaid) {
 
     function addDropboxFolderToAlbum(modelId) {
     const input = document.getElementById(`albumLink_${modelId}`);
+    if (!input) return;
+    
     const url = input.value.trim();
 
     if (!url) {
@@ -703,7 +705,6 @@ function startEditAdultModel(id, name, age, status, isPaid) {
         return;
     }
 
-    // Показываем визуальный индикатор загрузки, так как парсинг папки может занять 2-4 секунды
     input.disabled = true;
     input.value = "⏳ Сканируем папку Dropbox...";
 
@@ -715,11 +716,10 @@ function startEditAdultModel(id, name, age, status, isPaid) {
     .then(res => res.json())
     .then(data => {
         input.disabled = false;
-        input.value = ""; // Очищаем поле
-        
+        input.value = "";
         if (data.status === "success") {
             alert(data.message);
-            loadModelPhotos(modelId); // Обновляем альбом, фотки сразу появятся на экране!
+            loadModelPhotos(modelId);
         } else {
             alert("Ошибка: " + data.message);
         }
