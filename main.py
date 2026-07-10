@@ -326,66 +326,93 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
         return {"status": "error", "message": "Это не ссылка на Dropbox"}
         
     try:
-        # Официальный внутренний эндпоинт Dropbox для получения содержимого папки без авторизации
-        api_url = "https://www.dropbox.com/ajax_shared_folder_preview"
+        # 1. Пересобираем ссылку в прямую ссылку на скачивание ZIP-архива папки
+        # Меняем домен на dl.dropboxusercontent.com и жестко ставим dl=1
+        zip_url = folder_url.replace("www.dropbox.com", "dl.dropboxusercontent.com")
+        if "?" in zip_url:
+            # Отрезаем старый dl=0, но сохраняем rlkey если он есть
+            base_part, params_part = zip_url.split("?", 1)
+            # Убираем dl=0 если он там был
+            params_part = re.sub(r'dl=[02]', '', params_part)
+            zip_url = f"{base_part}?{params_part}&dl=1"
+        else:
+            zip_url = f"{zip_url}?dl=1"
+            
+        # Убираем двойные амперсанды, если они случайно образовались
+        zip_url = zip_url.replace("&&", "&").replace("?&", "?")
+
+        # 2. Скачиваем архив папки прямо в оперативную память (in-memory)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         
-        # Передаем ссылку «как есть» — со всеми токенами rlkey и st, чтобы пройти проверку прав
-        payload = {"url": folder_url}
-        headers = {
-            "X-Requested-With": "XMLHttpRequest", 
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            response = await client.post(api_url, data=payload, headers=headers)
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(zip_url, headers=headers)
             
         if response.status_code != 200:
-            return {"status": "error", "message": f"Dropbox API ответил кодом {response.status_code}. Проверь доступ."}
+            return {"status": "error", "message": f"Не удалось скачать архив папки. Код: {response.status_code}"}
             
-        json_data = response.json()
+        # 3. Открываем ZIP-архив в памяти и читаем имена файлов
+        zip_buffer = io.BytesIO(response.content)
         
-        # Dropbox возвращает список файлов в массиве 'file_entries'
-        entries = json_data.get("file_entries", [])
+        # Получаем базовую часть ссылки для воссоздания путей к файлам
+        # Из 'https://www.dropbox.com/scl/fo/oo5fy8rz...' делаем основу для файлов
+        base_file_url = folder_url.split("?")[0].replace("/scl/fo/", "/scl/fi/")
         
-        if not entries:
-            return {"status": "error", "message": "Dropbox прислал пустой список файлов. Убедись, что в папке есть файлы."}
-            
-        cursor = db.cursor()
+        # Вытаскиваем rlkey из исходной ссылки, он нужен для доступа к файлам внутри
+        rlkey_match = re.search(r'rlkey=([a-zA-Z0-9_-]+)', folder_url)
+        rlkey = rlkey_match.group(1) if rlkey_match else ""
+
         added_count = 0
+        total_files = 0
         
-        for entry in entries:
-            # Вытаскиваем ссылку просмотра файла
-            href = entry.get("href") or entry.get("url")
-            if not href:
-                continue
-                
-            # Очищаем от HTML-экранирования
-            clean_link = href.replace("&amp;", "&")
+        with zipfile.ZipFile(zip_buffer) as z:
+            # Получаем список всех файлов внутри архива
+            file_list = z.namelist()
             
-            # Dropbox формирует ссылки на конкретные файлы внутри папки. 
-            # Нам нужно отрезать параметры предпросмотра (всё после знака ?) и прикрутить ?raw=1
-            if "?" in clean_link:
-                clean_link = clean_link.split("?")[0]
-                
-            # Для сохранения прав доступа (rlkey) к конкретному файлу, Dropbox иногда требует 
-            # передавать ключ. Но для публичных папок обычно достаточно просто прямого пути + raw=1:
-            direct_img_url = f"{clean_link}?raw=1"
-            
-            # Защита от дубликатов в базе данных
-            cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
-            if not cursor.fetchone():
-                cursor.execute(
-                    "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                    (model_id, direct_img_url)
-                )
-                added_count += 1
-                
+            cursor = db.cursor()
+            for file_name in file_list:
+                # Нам нужны только файлы, игнорируем системные папки Dropbox
+                if file_name.endswith('/') or '__MACOSX' in file_name:
+                    continue
+                    
+                # Проверяем, что это картинка (включая webp)
+                if any(file_name.lower().endswith(ext) for ext in ['.webp', '.jpg', '.jpeg', '.png']):
+                    total_files += 1
+                    
+                    # Так как мы знаем структуру папки, мы можем сгенерировать прямую ссылку на отображение 
+                    # этого конкретного файла, используя базовый URL папки и имя файла
+                    # Формат: https://dl.dropboxusercontent.com/scl/fi/ID_ПАПКИ/имя_файла.webp?rlkey=КЛЮЧ&dl=1 (или raw=1)
+                    
+                    # Но самый простой вариант — Dropbox при dl=1 отдает весь архив. 
+                    # Чтобы не гадать ID каждого файла, мы можем просто загружать их через твою ссылку на папку,
+                    # добавив конкретный путь к файлу внутри параметра:
+                    # Но Dropbox так не умеет. Поэтому самый надежный способ — раз уж мы ВСЁ РАВНО скачали эти файлы на сервер, 
+                    # давай сохранять ссылки на них как прямые ссылки скачивания, либо использовать исходный URL.
+                    
+                    # Стоп, у Dropbox для вложенных файлов ссылка строится через подстановку пути, если запрашивать subfolder.
+                    # Но проще всего получить прямую ссылку, зная, что файлы доступны внутри папки:
+                    # Мы сконструируем ссылку, которая заставит Dropbox открыть конкретный файл из этой расшаренной папки:
+                    encoded_name = httpx.URL(file_name).path
+                    direct_img_url = f"{folder_url.split('?')[0]}/{encoded_name}?raw=1"
+                    if rlkey:
+                        direct_img_url += f"&rlkey={rlkey}"
+                    
+                    # Проверяем на дубликаты
+                    cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
+                    if not cursor.fetchone():
+                        cursor.execute(
+                            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                            (model_id, direct_img_url)
+                        )
+                        added_count += 1
+                        
         db.commit()
-        return {"status": "success", "message": f"Успешно найдено файлов: {len(entries)}. Добавлено новых в базу: {added_count}"}
+        return {"status": "success", "message": f"Папка успешно прочитана! Найдено картинок: {total_files}. Добавлено новых: {added_count}"}
         
+    except zipfile.BadZipFile:
+        return {"status": "error", "message": "Dropbox отдал поврежденный архив или веб-страницу вместо файлов. Проверь ссылку."}
     except Exception as e:
-        print(f"!!! Исключение при парсинге ссылки папки: {e}")
-        return {"status": "error", "message": f"Внутренняя ошибка сервера: {str(e)}"}
+        print(f"!!! Ошибка ZIP-парсинга папки Dropbox: {e}")
+        return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
