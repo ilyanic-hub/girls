@@ -518,7 +518,7 @@ function startEditAdultModel(id, name, age, status, isPaid) {
                             <button onclick="startEditAdultModel(${model.id}, '${model.name.replace(/'/g, "\\'")}', ${model.age}, '${model.status.replace(/'/g, "\\'")}')" class="btn-edit" style="padding: 6px 12px;">✏️ Правка</button>
                             <button onclick="deleteAdultModel(${model.id})" class="btn-delete" style="padding: 6px 12px; margin-right: 15px;">🗑️ Удалить</button>
                             
-                            <input type="text" id="albumLink_${model.id}" placeholder="Вставь ссылку на ПАПКУ из Dropbox" style="padding: 6px 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 220px; font-size: 13px;">
+                            <input type="text" id="albumLink_${model.id}" placeholder="Вставь ссылку на ПАПКУ из Google Диска" style="padding: 6px 10px; background: #222; color: #fff; border: 1px solid #444; border-radius: 4px; width: 220px; font-size: 13px;">
                             <button onclick="addDropboxFolderToAlbum(${model.id})" style="padding: 8px 12px; background: #0070e0; color: #fff; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
                                 📁 Добавить папку
                             </button>
