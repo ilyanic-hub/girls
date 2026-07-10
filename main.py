@@ -319,99 +319,67 @@ class PhotoLinkSchema(BaseModel):
 
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
-async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
+async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
     folder_url = data.photo_url.strip()
     
-    if "dropbox.com" not in folder_url:
-        return {"status": "error", "message": "Это не ссылка на Dropbox"}
+    # 1. Проверяем, что это ссылка на Google Диск
+    if "drive.google.com" not in folder_url:
+        return {"status": "error", "message": "Пожалуйста, вставь ссылку на папку Google Диска!"}
         
     try:
-        # 1. Пересобираем ссылку в прямую ссылку на скачивание ZIP-архива папки
-        # Меняем домен на dl.dropboxusercontent.com и жестко ставим dl=1
-        zip_url = folder_url.replace("www.dropbox.com", "dl.dropboxusercontent.com")
-        if "?" in zip_url:
-            # Отрезаем старый dl=0, но сохраняем rlkey если он есть
-            base_part, params_part = zip_url.split("?", 1)
-            # Убираем dl=0 если он там был
-            params_part = re.sub(r'dl=[02]', '', params_part)
-            zip_url = f"{base_part}?{params_part}&dl=1"
-        else:
-            zip_url = f"{zip_url}?dl=1"
+        # 2. Вытаскиваем ID папки из ссылки
+        # Ссылки бывают вида: .../folders/ID_ПАПКИ или .../id=ID_ПАПКИ
+        match = re.search(r'/folders/([a-zA-Z0-9_-]+)', folder_url) or re.search(r'id=([a-zA-Z0-9_-]+)', folder_url)
+        if not match:
+            return {"status": "error", "message": "Не удалось распознать ID папки Google Диска. Проверь ссылку."}
             
-        # Убираем двойные амперсанды, если они случайно образовались
-        zip_url = zip_url.replace("&&", "&").replace("?&", "?")
-
-        # 2. Скачиваем архив папки прямо в оперативную память (in-memory)
+        folder_id = match.group(1)
+        
+        # 3. Делаем открытый запрос к веб-интерфейсу папки Google Drive
+        # Google отдает список файлов прямо в HTML коде страницы в структуре JSON
+        target_url = f"https://drive.google.com/drive/folders/{folder_id}"
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(zip_url, headers=headers)
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(target_url, headers=headers)
             
         if response.status_code != 200:
-            return {"status": "error", "message": f"Не удалось скачать архив папки. Код: {response.status_code}"}
+            return {"status": "error", "message": f"Google Диск вернул ошибку {response.status_code}. Проверь доступ к папке."}
             
-        # 3. Открываем ZIP-архив в памяти и читаем имена файлов
-        zip_buffer = io.BytesIO(response.content)
+        html_content = response.text
         
-        # Получаем базовую часть ссылки для воссоздания путей к файлам
-        # Из 'https://www.dropbox.com/scl/fo/oo5fy8rz...' делаем основу для файлов
-        base_file_url = folder_url.split("?")[0].replace("/scl/fo/", "/scl/fi/")
+        # 4. Ищем ID всех файлов внутри этой папки с помощью регулярного выражения
+        # Google Drive хранит ID файлов в разметке в определенном формате
+        # Этот паттерн находит ID документов/картинок, исключая ID самой папки
+        file_ids = re.findall(r'\["([a-zA-Z0-9_-]{25,45})",', html_content)
+        # Убираем ID самой папки, если он попал в список
+        file_ids = [fid for fid in set(file_ids) if fid != folder_id]
         
-        # Вытаскиваем rlkey из исходной ссылки, он нужен для доступа к файлам внутри
-        rlkey_match = re.search(r'rlkey=([a-zA-Z0-9_-]+)', folder_url)
-        rlkey = rlkey_match.group(1) if rlkey_match else ""
-
+        if not file_ids:
+            return {"status": "error", "message": "В папке не найдено файлов или доступ закрыт. Убедись, что доступ открыт 'Для всех, у кого есть ссылка'."}
+            
+        cursor = db.cursor()
         added_count = 0
-        total_files = 0
         
-        with zipfile.ZipFile(zip_buffer) as z:
-            # Получаем список всех файлов внутри архива
-            file_list = z.namelist()
+        # 5. Генерируем прямые ссылки отображения для сайта
+        for fid in file_ids:
+            # Ссылка экспорта/просмотра, по которой картинка (включая webp) идеально отображается в теге <img>
+            direct_img_url = f"https://drive.google.com/uc?export=view&id={fid}"
             
-            cursor = db.cursor()
-            for file_name in file_list:
-                # Нам нужны только файлы, игнорируем системные папки Dropbox
-                if file_name.endswith('/') or '__MACOSX' in file_name:
-                    continue
-                    
-                # Проверяем, что это картинка (включая webp)
-                if any(file_name.lower().endswith(ext) for ext in ['.webp', '.jpg', '.jpeg', '.png']):
-                    total_files += 1
-                    
-                    # Так как мы знаем структуру папки, мы можем сгенерировать прямую ссылку на отображение 
-                    # этого конкретного файла, используя базовый URL папки и имя файла
-                    # Формат: https://dl.dropboxusercontent.com/scl/fi/ID_ПАПКИ/имя_файла.webp?rlkey=КЛЮЧ&dl=1 (или raw=1)
-                    
-                    # Но самый простой вариант — Dropbox при dl=1 отдает весь архив. 
-                    # Чтобы не гадать ID каждого файла, мы можем просто загружать их через твою ссылку на папку,
-                    # добавив конкретный путь к файлу внутри параметра:
-                    # Но Dropbox так не умеет. Поэтому самый надежный способ — раз уж мы ВСЁ РАВНО скачали эти файлы на сервер, 
-                    # давай сохранять ссылки на них как прямые ссылки скачивания, либо использовать исходный URL.
-                    
-                    # Стоп, у Dropbox для вложенных файлов ссылка строится через подстановку пути, если запрашивать subfolder.
-                    # Но проще всего получить прямую ссылку, зная, что файлы доступны внутри папки:
-                    # Мы сконструируем ссылку, которая заставит Dropbox открыть конкретный файл из этой расшаренной папки:
-                    encoded_name = httpx.URL(file_name).path
-                    direct_img_url = f"{folder_url.split('?')[0]}/{encoded_name}?raw=1"
-                    if rlkey:
-                        direct_img_url += f"&rlkey={rlkey}"
-                    
-                    # Проверяем на дубликаты
-                    cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
-                    if not cursor.fetchone():
-                        cursor.execute(
-                            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                            (model_id, direct_img_url)
-                        )
-                        added_count += 1
-                        
+            # Проверяем на дубликаты в базе данных
+            cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                    (model_id, direct_img_url)
+                )
+                added_count += 1
+                
         db.commit()
-        return {"status": "success", "message": f"Папка успешно прочитана! Найдено картинок: {total_files}. Добавлено новых: {added_count}"}
+        return {"status": "success", "message": f"Папка Google Drive успешно прочитана! Добавлено новых фото: {added_count}"}
         
-    except zipfile.BadZipFile:
-        return {"status": "error", "message": "Dropbox отдал поврежденный архив или веб-страницу вместо файлов. Проверь ссылку."}
     except Exception as e:
-        print(f"!!! Ошибка ZIP-парсинга папки Dropbox: {e}")
+        print(f"!!! Ошибка парсинга папки Google Drive: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
 
