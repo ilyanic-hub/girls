@@ -27,6 +27,8 @@ from pydantic import BaseModel
 
 app = FastAPI()
 router = APIRouter()
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
@@ -1086,6 +1088,44 @@ async def get_adult_models_public(session_user: Optional[str] = Cookie(None), db
         return models
     except Exception as e:
         return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
+
+@app.post("/api/admin/adult-models/{model_id}/upload-photos")
+async def upload_model_photos(model_id: int, files: list[UploadFile] = File(...), db = Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        added_count = 0
+        
+        for file in files:
+            # Читаем расширение исходного файла (.webp, .jpg и т.д.)
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            if not file_extension:
+                file_extension = ".webp" # Запасной вариант
+                
+            # Генерируем случайное уникальное имя файла, чтобы картинки не перезаписывали друг друга
+            unique_filename = f"model_{model_id}_{os.urandom(6).hex()}{file_extension}"
+            file_path = os.path.join("uploads", unique_filename)
+            
+            # Сохраняем файл на диск сервера
+            with open(file_path, "wb") as f:
+                f.write(await file.read())
+                
+            # Формируем локальную ссылку для сайта
+            web_url = f"/uploads/{unique_filename}"
+            
+            # Записываем путь в базу данных
+            cursor.execute(
+                "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                (model_id, web_url)
+            )
+            added_count += 1
+            
+        db.commit()
+        return {"status": "success", "message": f"Успешно загружено и сохранено файлов: {added_count}"}
+        
+    except Exception as e:
+        print(f"!!! Ошибка при локальной загрузке фото: {e}")
+        return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
+        
 
 
 # ================= РАБОТА С ЗАЛОМ СЛАВЫ =================
