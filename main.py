@@ -313,16 +313,20 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
-@app.post("/api/admin//{model_id}/photos-link")
-def add_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
+@app.post("/api/admin/adult-models/{model_id}/photos-link")
+async def add_adult_model_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
     cursor = db.cursor()
-    # Просто сохраняем готовую ссылку на Dropbox в таблицу фотографий
-    cursor.execute(
-        "INSERT INTO adult_photos (model_id, photo_url) VALUES (?, ?)", 
-        (model_id, data.photo_url)
-    )
-    db.commit()
-    return {"status": "success"}
+    try:
+        # Записываем ссылку в твою таблицу adult_model_photos
+        cursor.execute(
+            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+            (model_id, data.photo_url)
+        )
+        db.commit()
+        return {"status": "success", "message": "Ссылка успешно сохранена!"}
+    except Exception as e:
+        print(f"Ошибка БД при сохранении ссылки: {e}")
+        return {"status": "error", "message": f"Ошибка базы данных: {str(e)}"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
