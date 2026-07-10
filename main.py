@@ -459,24 +459,7 @@ class PhotoLinkSchema(BaseModel):
     photo_url: str
 
 # 2. Создаем сам эндпоинт для сохранения ссылки в БД
-@app.post("/api/admin/adult-models/{model_id}/photos-link")
-def add_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
-    try:
-        cursor = db.cursor()
-        
-        # Записываем ссылку на Dropbox прямо в таблицу фотографий
-        # Убедись, что имя таблицы (adult_photos) и полей совпадает с твоей структурой!
-        cursor.execute(
-            "INSERT INTO adult_photos (model_id, photo_url) VALUES (?, ?)", 
-            (model_id, data.photo_url)
-        )
-        db.commit()
-        return {"status": "success", "message": "Ссылка успешно сохранена"}
-        
-    except Exception as e:
-        db.rollback()
-        print(f"Ошибка при сохранении ссылки Dropbox: {e}")
-        return {"status": "error", "message": str(e)}
+adult-models
 
 @app.get("/api/admin/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
