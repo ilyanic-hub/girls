@@ -325,14 +325,13 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
     if "dropbox.com" not in folder_url:
         return {"status": "error", "message": "Это не ссылка на Dropbox"}
     
-    # Всегда запрашиваем базовую ссылку без лишних параметров
+    # Отсекаем параметры, берем чистый URL папки
     if "?" in folder_url:
         base_url = folder_url.split("?")[0]
     else:
         base_url = folder_url
         
     try:
-        # Скачиваем страницу папки, притворяясь обычным браузером
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
@@ -344,50 +343,49 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
                 return {"status": "error", "message": f"Dropbox вернул ошибку {response.status_code}"}
                 
         html_content = response.text
-        
-        # 1. Пробуем найти скрытый JSON с метаданными файлов папки
-        # Dropbox складывает данные в глобальные переменные React на странице
-        added_count = 0
         direct_urls = []
         
-        # Ищем блок информации о файлах в скриптах Dropbox
+        # 1. Сначала пробуем вытащить данные из React JSON структуры Dropbox
         match = re.search(r'id="init_react_data"\s*>\s*([\s\S]*?)</script>', html_content)
         if match:
             try:
                 json_data = json.loads(match.group(1).strip())
-                # Идем в глубь структуры к списку файлов
-                entries = json_data.get("sharedFolder", {}).get("items", []) or json_data.get("browse", {}).get("items", [])
+                entries = json_data.get("sharedFolder", {}).get("items", []) or json_data.get("browse", {}).get("items", []) or []
                 for item in entries:
-                    # Вытягиваем прямую ссылку на скачивание или просмотр
                     href = item.get("href") or item.get("url")
-                    if href and any(ext in href.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                    if href:
                         direct_urls.append(href)
             except Exception as json_err:
-                print(f"Не удалось распарсить init_react_data JSON: {json_err}")
+                print(f"Ошибка чтения JSON структуры: {json_err}")
 
-        # 2. Если через JSON не вышло, используем запасной агрессивный поиск ссылок по всему тексту
+        # 2. ЗАПАСНОЙ ВАРИАНТ: Собираем вообще ВСЕ ссылки на файлы Dropbox со страницы,
+        # не привязываясь к расширениям .webp/.jpg в самом URL!
         if not direct_urls:
+            # Ищем любые ссылки на контент (fi = file, fo = folder, scl = новые общие ссылки)
             raw_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/[^"\s>]+', html_content)
             for link in raw_links:
                 clean_link = link.replace("&amp;", "&").split("?")[0]
-                if any(ext in clean_link.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-                    direct_urls.append(clean_link)
+                direct_urls.append(clean_link)
 
-        # Убираем дубликаты ссылок
+        # Очищаем массив от дубликатов
         direct_urls = list(set(direct_urls))
 
         if not direct_urls:
-            return {"status": "error", "message": "Файлы не найдены. Убедись, что ссылка ведет именно на ПАПКУ, а доступ открыт для всех («У кого есть ссылка»)"}
+            return {"status": "error", "message": "Внутри папки не найдено ссылок на файлы. Проверь права доступа папки."}
             
-        # 3. Сохраняем ссылки в базу данных
         cursor = db.cursor()
+        added_count = 0
+        
+        # 3. Сохраняем ссылки в базу данных
         for clean_link in direct_urls:
-            # Обрезаем параметры и принудительно ставим ?raw=1 для прямой отдачи картинки на сайте
+            # Отсекаем старые хвосты вроде ?dl=0
             if "?" in clean_link:
                 clean_link = clean_link.split("?")[0]
+                
+            # Добавляем ?raw=1, чтобы картинка (включая webp) открывалась напрямую на сайте
             direct_img_url = f"{clean_link}?raw=1"
             
-            # Проверяем, нет ли уже этой фотки в БД у данной модели
+            # Проверяем, нет ли уже этой ссылки у модели
             cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
             if not cursor.fetchone():
                 cursor.execute(
@@ -397,10 +395,10 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
                 added_count += 1
                 
         db.commit()
-        return {"status": "success", "message": f"Успешно добавлено новых фотографий: {added_count} (всего найдено: {len(direct_urls)})"}
+        return {"status": "success", "message": f"Успешно обработано файлов: {len(direct_urls)}. Добавлено новых в базу: {added_count}"}
         
     except Exception as e:
-        print(f"!!! Ошибка парсинга папки Dropbox: {e}")
+        print(f"!!! Ошибка парсинга: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
 
