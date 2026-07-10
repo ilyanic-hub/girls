@@ -5,6 +5,9 @@ import hashlib
 import dropbox
 import time
 import httpx
+import re
+import httpx
+from fastapi import HTTPException
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter
@@ -313,20 +316,72 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
-@app.post("/api/admin/adult-models/{model_id}/photos-link")
-async def add_adult_model_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
-    cursor = db.cursor()
+
+@app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
+async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
+    folder_url = data.photo_url.trim()
+    
+    if "dropbox.com" not in folder_url:
+        raise HTTPException(status_code=400, detail="Это не ссылка на Dropbox")
+    
+    # Меняем параметры в конце ссылки, чтобы Dropbox отдал превью папки без лишних скриптов
+    if "?" in folder_url:
+        base_url = folder_url.split("?")[0]
+    else:
+        base_url = folder_url
+        
+    # Формируем URL для парсинга
+    target_url = f"{base_url}?dl=0" 
+    
     try:
-        # Записываем ссылку в твою таблицу adult_model_photos
-        cursor.execute(
-            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-            (model_id, data.photo_url)
-        )
+        # Скачиваем содержимое страницы папки
+        async with httpx.AsyncClient() as client:
+            response = await client.get(target_url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+            if response.status_code != 200:
+                return {"status": "error", "message": f"Dropbox вернул ошибку {response.status_code}"}
+                
+        html_content = response.text
+        
+        # Регулярное выражение ищет ссылки на конкретные файлы внутри папки
+        # Dropbox хранит их в JSON-объектах на странице в таком формате
+        found_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/?[^"\s]+', html_content)
+        
+        if not found_links:
+            return {"status": "error", "message": "В папке не найдено доступных фотографий. Проверь, что папка открыта по ссылке."}
+            
+        cursor = db.cursor()
+        added_count = 0
+        saved_urls = set() # Чтобы избежать дубликатов одной и той же фотки
+        
+        for link in found_links:
+            # Очищаем ссылку от лишних символов кодирования HTML (если они есть)
+            clean_link = link.replace("&amp;", "&")
+            
+            # Нам нужны только файлы изображений (jpg, jpeg, png, webp)
+            if any(ext in clean_link.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                # Убираем старые параметры и жестко ставим ?raw=1
+                if "?" in clean_link:
+                    clean_link = clean_link.split("?")[0]
+                direct_img_url = f"{clean_link}?raw=1"
+                
+                if direct_img_url not in saved_urls:
+                    saved_urls.add(direct_img_url)
+                    
+                    # Проверяем, нет ли уже такой фотки у этой модели в БД
+                    cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
+                    if not cursor.fetchone():
+                        cursor.execute(
+                            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                            (model_id, direct_img_url)
+                        )
+                        added_count += 1
+                        
         db.commit()
-        return {"status": "success", "message": "Ссылка успешно сохранена!"}
+        return {"status": "success", "message": f"Успешно добавлено фотографий: {added_count}"}
+        
     except Exception as e:
-        print(f"Ошибка БД при сохранении ссылки: {e}")
-        return {"status": "error", "message": f"Ошибка базы данных: {str(e)}"}
+        print(f"Ошибка при парсинге папки Dropbox: {e}")
+        return {"status": "error", "message": f"Внутренняя ошибка сервера: {str(e)}"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
