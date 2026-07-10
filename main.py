@@ -326,94 +326,52 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
         return {"status": "error", "message": "Это не ссылка на Dropbox"}
         
     try:
-        # Извлекаем уникальный идентификатор папки (токен совместного доступа) из ссылки
-        # Ссылки бывают вида: https://www.dropbox.com/scl/fo/abc123xyz...
-        # Нам нужен кусок после /fo/ или /sh/
-        token_match = re.search(r'/scl/fo/([a-zA-Z0-9_-]+)', folder_url) or re.search(r'/sh/([a-zA-Z0-9_-]+)', folder_url)
+        # Официальный внутренний эндпоинт Dropbox для получения содержимого папки без авторизации
+        api_url = "https://www.dropbox.com/ajax_shared_folder_preview"
         
-        if not token_match:
-            # Если формат ссылки старый или другой, попробуем сделать обычный запрос к API метаданных папки
-            # Используем встроенный хак Dropbox: меняем www.dropbox.com на dl.dropboxusercontent.com не работает для папок,
-            # поэтому делаем POST запрос на их публичный внутренний API для отображения списков:
-            api_url = "https://www.dropbox.com/ajax_shared_folder_preview"
-            payload = {"url": folder_url}
-            headers = {"X-Requested-With": "XMLHttpRequest", "User-Agent": "Mozilla/5.0"}
-            
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.post(api_url, data=payload, headers=headers)
-                if response.status_code != 200:
-                    raise Exception(f"Dropbox API вернул код {response.status_code}")
-                json_data = response.json()
-                entries = json_data.get("file_entries", [])
-        else:
-            # Превращаем ссылку в официальный запрос метаданных папки
-            token = token_match.group(1)
-            api_url = f"https://www.dropbox.com/sh/{token}?dl=1" # dl=1 заставляет Dropbox отдать zip или метаданные в зависимости от заголовков
-            
-            # Но лучше и стабильнее всего использовать эндпоинт их аякс-клиента:
-            api_url = "https://www.dropbox.com/ajax_shared_folder_preview"
-            headers = {"X-Requested-With": "XMLHttpRequest", "User-Agent": "Mozilla/5.0"}
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.post(api_url, data={"url": folder_url}, headers=headers)
-                if response.status_code != 200:
-                     # Запасной вариант если ajax эндпоинт не ответил: берем саму страницу
-                     response = await client.get(folder_url, headers={"User-Agent": "Mozilla/5.0"})
-                     
-                if "application/json" in response.headers.get("content-type", "") or response.text.startswith("{"):
-                     json_data = response.json()
-                     entries = json_data.get("file_entries", []) or json_data.get("entries", [])
-                else:
-                     # Если вернулся HTML, вытаскиваем массив объектов через регулярку по ключевым полям Dropbox
-                     html_content = response.text
-                     # Ищем вообще любые строки, похожие на прямые ссылки на контент файлов в хранилище (scl/fi)
-                     found_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/[^"\s>]+', html_content)
-                     # Или старый формат ссылок /s/
-                     found_links += re.findall(r'https://www\.dropbox\.com/s/[a-zA-Z0-9_-]+/[^"\s>]+', html_content)
-                     
-                     entries = [{"url": l.replace("&amp;", "&")} for l in found_links]
-
-        direct_urls = []
+        # Передаем ссылку «как есть» — со всеми токенами rlkey и st, чтобы пройти проверку прав
+        payload = {"url": folder_url}
+        headers = {
+            "X-Requested-With": "XMLHttpRequest", 
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
         
-        # Обрабатываем полученные элементы папки
-        for entry in entries:
-            # Ссылка может лежать в разных полях в зависимости от того, какой метод сработал
-            url_path = entry.get("url") or entry.get("href") or entry.get("preview_url")
-            if not url_path and "scl_fo_token" in str(entry):
-                 continue
-                 
-            if url_path:
-                direct_urls.append(url_path)
-
-        # Удаляем дубликаты
-        direct_urls = list(set(direct_urls))
-
-        if not direct_urls:
-            # Финальный сверх-агрессивный поиск: вытаскиваем всё, что хоть отдаленно похоже на ссылки на файлы в Dropbox
-            raw_links = re.findall(r'https://[a-zA-Z0-9.-]+\.dropbox\.com/[^\s"\'>]+', html_content)
-            for link in raw_links:
-                if "/scl/fi/" in link or "/s/" in link:
-                    direct_urls.append(link.replace("&amp;", "&"))
-            direct_urls = list(set(direct_urls))
-
-        # Если даже так пусто — сообщаем
-        if not direct_urls:
-            return {"status": "error", "message": "Dropbox скрыл файлы разметкой. Убедись, что ссылка ведет на ПАПКУ, и тип доступа 'Доступно всем, у кого есть ссылка'."}
-
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.post(api_url, data=payload, headers=headers)
+            
+        if response.status_code != 200:
+            return {"status": "error", "message": f"Dropbox API ответил кодом {response.status_code}. Проверь доступ."}
+            
+        json_data = response.json()
+        
+        # Dropbox возвращает список файлов в массиве 'file_entries'
+        entries = json_data.get("file_entries", [])
+        
+        if not entries:
+            return {"status": "error", "message": "Dropbox прислал пустой список файлов. Убедись, что в папке есть файлы."}
+            
         cursor = db.cursor()
         added_count = 0
         
-        for clean_link in direct_urls:
-            # Убираем параметры
-            if "?" in clean_link:
-                clean_link = clean_link.split("?")[0]
-            
-            # Игнорируем ссылки, которые ведут на другие папки или веб-страницы, оставляем потенциальные файлы
-            if "/scl/fo/" in clean_link:
+        for entry in entries:
+            # Вытаскиваем ссылку просмотра файла
+            href = entry.get("href") or entry.get("url")
+            if not href:
                 continue
                 
+            # Очищаем от HTML-экранирования
+            clean_link = href.replace("&amp;", "&")
+            
+            # Dropbox формирует ссылки на конкретные файлы внутри папки. 
+            # Нам нужно отрезать параметры предпросмотра (всё после знака ?) и прикрутить ?raw=1
+            if "?" in clean_link:
+                clean_link = clean_link.split("?")[0]
+                
+            # Для сохранения прав доступа (rlkey) к конкретному файлу, Dropbox иногда требует 
+            # передавать ключ. Но для публичных папок обычно достаточно просто прямого пути + raw=1:
             direct_img_url = f"{clean_link}?raw=1"
             
-            # Проверяем на дубликаты в БД
+            # Защита от дубликатов в базе данных
             cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
             if not cursor.fetchone():
                 cursor.execute(
@@ -423,11 +381,11 @@ async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(
                 added_count += 1
                 
         db.commit()
-        return {"status": "success", "message": f"Успешно добавлено фотографий: {added_count} из этой папки."}
+        return {"status": "success", "message": f"Успешно найдено файлов: {len(entries)}. Добавлено новых в базу: {added_count}"}
         
     except Exception as e:
-        print(f"!!! Ошибка парсинга папки Dropbox: {e}")
-        return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
+        print(f"!!! Исключение при парсинге ссылки папки: {e}")
+        return {"status": "error", "message": f"Внутренняя ошибка сервера: {str(e)}"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
