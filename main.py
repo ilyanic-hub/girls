@@ -19,6 +19,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
+from pydantic import BaseModel
 
 app = FastAPI()
 router = APIRouter()
@@ -308,6 +309,20 @@ class AdultModelSchema(BaseModel):
 
 class BuyModelRequest(BaseModel):
     model_id: int
+
+class PhotoLinkSchema(BaseModel):
+    photo_url: str
+
+@app.post("/api/admin/adult-models/{model_id}/photos-link")
+def add_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
+    cursor = db.cursor()
+    # Просто сохраняем готовую ссылку на Dropbox в таблицу фотографий
+    cursor.execute(
+        "INSERT INTO adult_photos (model_id, photo_url) VALUES (?, ?)", 
+        (model_id, data.photo_url)
+    )
+    db.commit()
+    return {"status": "success"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
