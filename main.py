@@ -458,8 +458,7 @@ async def get_adult_models_list_for_admin(db=Depends(get_db)):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
-# 2. Создаем сам эндпоинт для сохранения ссылки в БД
-adult-models
+# 2. Создаем сам эндпоинт для сохранения ссылки в БД adult-models
 
 @app.get("/api/admin/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
