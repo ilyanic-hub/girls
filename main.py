@@ -313,7 +313,7 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
-@app.post("/api/admin/adult-models/{model_id}/photos-link")
+@app.post("/api/admin//{model_id}/photos-link")
 def add_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
     cursor = db.cursor()
     # Просто сохраняем готовую ссылку на Dropbox в таблицу фотографий
@@ -386,7 +386,7 @@ async def debug_users_table(db=Depends(get_db)):
     columns = [dict(row) for row in cursor.fetchall()]
     return {"columns": columns}
 
-@app.post("/api/adult-models/buy")
+@app.post("/api//buy")
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         raise HTTPException(status_code=401, detail="Не авторизован")
@@ -443,7 +443,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         db.rollback()
         return {"status": "error", "message": f"Ошибка на стороне сервера БД: {str(e)}"}
 
-@app.get("/api/admin/get-adult-models-list")
+@app.get("/api/admin/get--list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
     try:
         cursor = db.cursor()
@@ -453,6 +453,30 @@ async def get_adult_models_list_for_admin(db=Depends(get_db)):
         return [dict(row) for row in rows]
     except Exception as e:
         return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
+
+# 1. Создаем схему данных, которую ждет FastAPI от фронтенда
+class PhotoLinkSchema(BaseModel):
+    photo_url: str
+
+# 2. Создаем сам эндпоинт для сохранения ссылки в БД
+@app.post("/api/admin/adult-models/{model_id}/photos-link")
+def add_photo_link(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
+    try:
+        cursor = db.cursor()
+        
+        # Записываем ссылку на Dropbox прямо в таблицу фотографий
+        # Убедись, что имя таблицы (adult_photos) и полей совпадает с твоей структурой!
+        cursor.execute(
+            "INSERT INTO adult_photos (model_id, photo_url) VALUES (?, ?)", 
+            (model_id, data.photo_url)
+        )
+        db.commit()
+        return {"status": "success", "message": "Ссылка успешно сохранена"}
+        
+    except Exception as e:
+        db.rollback()
+        print(f"Ошибка при сохранении ссылки Dropbox: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.get("/api/admin/adult-models/{model_id}/photos")
 async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
