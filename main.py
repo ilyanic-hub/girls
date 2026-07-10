@@ -7,7 +7,8 @@ import time
 import httpx
 import re
 import httpx
-from fastapi import HTTPException
+import json
+from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter
@@ -319,66 +320,87 @@ class PhotoLinkSchema(BaseModel):
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
 async def add_dropbox_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
-    # ИСПОЛЬЗУЕМ .strip() ВМЕСТО .trim()
     folder_url = data.photo_url.strip()
     
     if "dropbox.com" not in folder_url:
         return {"status": "error", "message": "Это не ссылка на Dropbox"}
     
-    # Очищаем ссылку от лишних параметров
+    # Всегда запрашиваем базовую ссылку без лишних параметров
     if "?" in folder_url:
         base_url = folder_url.split("?")[0]
     else:
         base_url = folder_url
         
-    target_url = f"{base_url}?dl=0" 
-    
     try:
-        # Скачиваем страницу папки с таймаутом, чтобы сервер не зависал
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(target_url, headers={"User-Agent": "Mozilla/5.0"}, follow_redirects=True)
+        # Скачиваем страницу папки, притворяясь обычным браузером
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+        }
+        
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            response = await client.get(base_url, headers=headers)
             if response.status_code != 200:
-                return {"status": "error", "message": f"Dropbox вернул код ошибки: {response.status_code}"}
+                return {"status": "error", "message": f"Dropbox вернул ошибку {response.status_code}"}
                 
         html_content = response.text
         
-        # Ищем регуляркой ссылки на файлы
-        found_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/?[^"\s]+', html_content)
-        
-        if not found_links:
-            return {"status": "error", "message": "В папке не найдено доступных файлов. Проверь, открыт ли доступ."}
-            
-        cursor = db.cursor()
+        # 1. Пробуем найти скрытый JSON с метаданными файлов папки
+        # Dropbox складывает данные в глобальные переменные React на странице
         added_count = 0
-        saved_urls = set()
+        direct_urls = []
         
-        for link in found_links:
-            clean_link = link.replace("&amp;", "&")
+        # Ищем блок информации о файлах в скриптах Dropbox
+        match = re.search(r'id="init_react_data"\s*>\s*([\s\S]*?)</script>', html_content)
+        if match:
+            try:
+                json_data = json.loads(match.group(1).strip())
+                # Идем в глубь структуры к списку файлов
+                entries = json_data.get("sharedFolder", {}).get("items", []) or json_data.get("browse", {}).get("items", [])
+                for item in entries:
+                    # Вытягиваем прямую ссылку на скачивание или просмотр
+                    href = item.get("href") or item.get("url")
+                    if href and any(ext in href.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                        direct_urls.append(href)
+            except Exception as json_err:
+                print(f"Не удалось распарсить init_react_data JSON: {json_err}")
+
+        # 2. Если через JSON не вышло, используем запасной агрессивный поиск ссылок по всему тексту
+        if not direct_urls:
+            raw_links = re.findall(r'https://www\.dropbox\.com/scl/fi/[a-zA-Z0-9_-]+/[^"\s>]+', html_content)
+            for link in raw_links:
+                clean_link = link.replace("&amp;", "&").split("?")[0]
+                if any(ext in clean_link.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+                    direct_urls.append(clean_link)
+
+        # Убираем дубликаты ссылок
+        direct_urls = list(set(direct_urls))
+
+        if not direct_urls:
+            return {"status": "error", "message": "Файлы не найдены. Убедись, что ссылка ведет именно на ПАПКУ, а доступ открыт для всех («У кого есть ссылка»)"}
             
-            # Проверяем расширения картинок
-            if any(ext in clean_link.lower() for ext in [".jpg", ".jpeg", ".png", ".webp"]):
-                if "?" in clean_link:
-                    clean_link = clean_link.split("?")[0]
-                direct_img_url = f"{clean_link}?raw=1"
+        # 3. Сохраняем ссылки в базу данных
+        cursor = db.cursor()
+        for clean_link in direct_urls:
+            # Обрезаем параметры и принудительно ставим ?raw=1 для прямой отдачи картинки на сайте
+            if "?" in clean_link:
+                clean_link = clean_link.split("?")[0]
+            direct_img_url = f"{clean_link}?raw=1"
+            
+            # Проверяем, нет ли уже этой фотки в БД у данной модели
+            cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                    (model_id, direct_img_url)
+                )
+                added_count += 1
                 
-                if direct_img_url not in saved_urls:
-                    saved_urls.add(direct_img_url)
-                    
-                    # Проверяем на дубликаты в базе
-                    cursor.execute("SELECT id FROM adult_model_photos WHERE model_id = ? AND photo_url = ?", (model_id, direct_img_url))
-                    if not cursor.fetchone():
-                        cursor.execute(
-                            "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                            (model_id, direct_img_url)
-                        )
-                        added_count += 1
-                        
         db.commit()
-        return {"status": "success", "message": f"Успешно добавлено фотографий: {added_count}"}
+        return {"status": "success", "message": f"Успешно добавлено новых фотографий: {added_count} (всего найдено: {len(direct_urls)})"}
         
     except Exception as e:
-        # Логируем ошибку в консоль сервера, чтобы ты видела её в терминале
-        print(f"!!! КРИТИЧЕСКАЯ ОШИБКА БЭКЕНДА: {e}")
+        print(f"!!! Ошибка парсинга папки Dropbox: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
 
