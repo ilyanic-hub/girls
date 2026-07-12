@@ -36,9 +36,18 @@
         }
         .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Было скорее всего 250px+, уменьшили до 180px */
-    gap: 15px; /* Чуть уменьшили отступы между карточками */
+    /* ИСПРАВЛЕНО: заменили auto-fill на auto-fit */
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+    gap: 15px; 
     padding: 20px;
+    
+    /* ИСПРАВЛЕНО: выравниваем сами карточки по центру экрана */
+    justify-content: center; 
+    
+    /* Ограничиваем максимальную ширину сетки, чтобы на огромных мониторах 
+       карточки не растягивались до бесконечности, а контейнер оставался аккуратным */
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 /* Сама карточка становится компактнее */
