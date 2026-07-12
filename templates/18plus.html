@@ -448,72 +448,61 @@ async function openModelAlbum(modelId, modelName, isPaid) {
     }
 
     function confirmPurchase() {
-        const btn = document.querySelector('.buy-btn');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerText = "Обработка...";
-        }
-
-        fetch('/api/adult-models/buy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model_id: currentSelectedModelId })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                alert(data.message);
-                localPurchasedModels.push(currentSelectedModelId);
-                closeBuyModal();
-                loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
-            } else {
-                alert("Ошибка: " + data.message);
-            }
-        })
-        .catch(err => {
-            console.error("Ошибка сети:", err);
-            alert("Не удалось связаться с сервером.");
-        })
-        .finally(() => {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerText = "Открыть доступ";
-            }
-        });
+    const btn = document.querySelector('.buy-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Обработка...";
     }
 
-    // Закрытие окон по клику на фон
-    window.onclick = function(event) {
-        const albumModal = document.getElementById('albumModal');
-        const buyModal = document.getElementById('buyModal');
-        const fullModal = document.getElementById('fullScreenModal');
-        const fullImg = document.getElementById('fullScreenImage');
+    fetch('/api/adult-models/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model_id: currentSelectedModelId })
+    })
+    .then(async res => {
+        // Если бэкенд выбросил HTTPException (400, 401, 500)
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            // Берем сообщение из detail и прокидываем в catch
+            throw new Error(errData.detail || `Ошибка сервера (статус ${res.status})`);
+        }
+        return res.json();
+    })
+    .then(data => {
+        // Сюда попадаем ТОЛЬКО при успехе (статус 200 OK)
+        alert(data.message || "Доступ успешно разблокирован!");
         
-        if (event.target == albumModal) {
-            albumModal.style.display = 'none';
+        if (typeof localPurchasedModels !== 'undefined') {
+            localPurchasedModels.push(currentSelectedModelId);
         }
-        if (event.target == buyModal) {
-            buyModal.style.display = 'none';
+        
+        // Закрываем модалку (убедись, что функция closeBuyModal() объявлена выше)
+        if (typeof closeBuyModal === 'function') {
+            closeBuyModal();
+        } else {
+            document.getElementById('buyModal').style.display = 'none';
         }
-        // Закрываем галерею, только если кликнули по фону, а не по самой картинке
-        if (event.target == fullModal && event.target != fullImg) {
-            fullModal.style.display = 'none';
+        
+        // Загружаем фотки
+        loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
+        
+        // Обновляем баланс в шапке
+        if (typeof checkAuth === 'function') {
+            checkAuth();
         }
-    }
-
-    // Бонус: Управление с клавиатуры (стрелочки влево/вправо и Esc для закрытия)
-    document.addEventListener('keydown', function(event) {
-        const fullModal = document.getElementById('fullScreenModal');
-        if (fullModal && fullModal.style.display === 'block') {
-            if (event.key === 'ArrowLeft') {
-                changeImage(-1);
-            } else if (event.key === 'ArrowRight') {
-                changeImage(1);
-            } else if (event.key === 'Escape') {
-                closeFullScreenModal();
-            }
+    })
+    .catch(err => {
+        console.error("Ошибка при покупке:", err);
+        // ИСПРАВЛЕНО: выводим err.message. Больше никакого undefined!
+        alert(err.message);
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Открыть доступ";
         }
     });
+}
 </script>
 </body>
 </html>
