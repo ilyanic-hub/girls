@@ -189,6 +189,36 @@
         .buy-btn:hover {
             background: #ff2f43;
         }
+
+        /* Базовые стили для полноэкранного изображения */
+#fullScreenImage {
+    transition: transform 0.2s ease; /* Плавное увеличение */
+    cursor: zoom-in; /* Курсор в виде лупы с плюсом */
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+}
+
+/* Класс, который будет добавляться при клике для зума */
+#fullScreenImage.zoomed {
+    transform: scale(1.5); /* Коэффициент увеличения (можно поставить 2, если нужно сильнее) */
+    cursor: zoom-out; /* Курсор в виде лупы с минусом */
+}
+
+/* Ограничиваем контейнер модалки, чтобы увеличенная картинка не вылезала за экраны */
+#fullScreenModal {
+    overflow: auto; /* Появится прокрутка, если картинка станет больше экрана */
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    align-items: center;
+    justify-content: center;
+}
     </style>
 </head>
 <body>
@@ -503,6 +533,22 @@ async function openModelAlbum(modelId, modelName, isPaid) {
         }
     });
 }
+
+    // Логика увеличения картинки и закрытия модалки по клику на фон
+document.addEventListener('click', function(event) {
+    const fullModal = document.getElementById('fullScreenModal');
+    const fullImg = document.getElementById('fullScreenImage');
+    
+    // Если кликнули по самой картинке во весь экран — переключаем зум
+    if (event.target === fullImg) {
+        fullImg.classList.toggle('zoomed');
+    } 
+    // Если кликнули по темному фону вокруг картинки — закрываем и сбрасываем зум
+    else if (event.target === fullModal) {
+        fullModal.style.display = 'none';
+        if (fullImg) fullImg.classList.remove('zoomed');
+    }
+});
 </script>
 </body>
 </html>
