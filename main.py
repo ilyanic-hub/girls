@@ -446,15 +446,13 @@ async def debug_users_table(db=Depends(get_db)):
     columns = [dict(row) for row in cursor.fetchall()]
     return {"columns": columns}
 
-@app.post("/api//buy")
+@app.post("/api/buy")  # Убрали лишний слэш
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         raise HTTPException(status_code=401, detail="Не авторизован")
     
     cursor = db.cursor()
-    
     try:
-        # Автоматически создаем таблицу покупок, если её нет
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_purchases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -464,44 +462,42 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         """)
         db.commit()
 
-        # 1. Проверяем баланс пользователя (ИСПРАВЛЕНО: используем balance вместо tokens)
         cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
         user = cursor.fetchone()
         if not user:
             raise HTTPException(status_code=404, detail="Пользователь не найден")
         
-        # Проверяем, хватает ли средств (баланс из базы сравниваем с ценой в 50 единиц)
-        if user["balance"] < 50:
-            return {"status": "error", "message": "Недостаточно средств! Пополните баланс."}
+        balance = user["balance"] if isinstance(user, dict) else user[0]
         
-        # 2. Проверяем, не куплена ли модель уже ранее
+        if balance < 50:
+            # Вместо словаря возвращаем 400 Bad Request, чтобы фронтенд сразу шел в блок ошибки
+            raise HTTPException(status_code=400, detail="Недостаточно средств! Пополните баланс.")
+        
         cursor.execute(
             "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
             (session_user, data.model_id)
         )
-        already_bought = cursor.fetchone()
-        if already_bought:
+        if cursor.fetchone():
             return {"status": "success", "message": "Доступ уже был куплен ранее!"}
         
-        # 3. Списываем 50 единиц с баланса (ИСПРАВЛЕНО: обновляем поле balance)
         cursor.execute("UPDATE users SET balance = balance - 50 WHERE username = ?", (session_user,))
-        
-        # 4. Записываем покупку в базу
         cursor.execute(
             "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
             (session_user, data.model_id)
         )
-        
         db.commit()
-        
+
         if "upload_db_to_dropbox" in globals():
             upload_db_to_dropbox()
             
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
         
+    except HTTPException as http_err:
+        raise http_err
     except Exception as e:
         db.rollback()
-        return {"status": "error", "message": f"Ошибка на стороне сервера БД: {str(e)}"}
+        print(f"Ошибка покупки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
 @app.get("/api/admin/get--list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
@@ -533,14 +529,45 @@ async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
 
 # Этот роут будет отдавать фотографии альбома для обычной страницы сайта
 @app.get("/api/adult-models/{model_id}/photos")
-async def get_adult_model_photos_public(model_id: int, db=Depends(get_db)):
+async def get_adult_model_photos_public(model_id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     cursor = db.cursor()
     try:
+        # 1. Проверяем, платный ли это альбом
+        cursor.execute("SELECT is_paid FROM adult_models WHERE id = ?", (model_id,))
+        model = cursor.fetchone()
+        
+        if not model:
+            raise HTTPException(status_code=404, detail="Модель не найдена")
+            
+        # Проверяем флаг платности (учитываем, что row может быть dict или tuple)
+        is_paid = model["is_paid"] if isinstance(model, dict) else model[0]
+        
+        # 2. Если альбом платный — проверяем права доступа
+        if is_paid == 1 or is_paid is True:
+            if not session_user:
+                raise HTTPException(status_code=401, detail="🔒 Доступ ограничен. Пожалуйста, авторизуйтесь на сайте.")
+                
+            # Проверяем, купил ли этот пользователь доступ к модели
+            cursor.execute(
+                "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
+                (session_user, model_id)
+            )
+            purchase = cursor.fetchone()
+            
+            if not purchase:
+                raise HTTPException(status_code=403, detail="💰 Этот альбом платный. Разблокируйте его за баланс!")
+
+        # 3. Если альбом бесплатный или доступ куплен — отдаем фотографии
         cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+        
+    except HTTPException as http_err:
+        # Пробрасываем ошибку авторизации/доступа, чтобы FastAPI вернул правильный статус (401 или 403)
+        raise http_err
     except Exception as e:
-        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
+        print(f"!!! Ошибка бэкенда при запросе фото: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка сервера БД: {str(e)}")
 
 @app.delete("/api/admin/adult-photos/{photo_id}")
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
