@@ -1346,18 +1346,19 @@ async def get_balance(request: Request, db=Depends(get_db)):
 @app.post("/api/adult-models/buy")
 async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
+        raise HTTPException(status_code=401, detail="🔒 Доступ ограничен. Пожалуйста, войдите в аккаунт.")
     
     cursor = db.cursor()
     
-    # 1. Проверяем баланс пользователя
-    cursor.execute("SELECT tokens FROM users WHERE username = ?", (session_user,))
+    # 1. Проверяем баланс пользователя (работаем с колонкой balance!)
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     
-    if user["tokens"] < 50:
-        return {"status": "error", "message": "Недостаточно токенов! Пополните баланс."}
+    # Сравниваем с балансом
+    if user["balance"] < 50:
+        raise HTTPException(status_code=400, detail="💰 Недостаточно средств! Пополните баланс.")
     
     # 2. Проверяем, не куплена ли модель уже
     cursor.execute(
@@ -1369,22 +1370,27 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         return {"status": "success", "message": "Доступ уже был куплен ранее"}
     
     try:
-        # 3. Списываем 50 токенов
-        cursor.execute("UPDATE users SET tokens = tokens - 50 WHERE username = ?", (session_user,))
+        # 3. Списываем 50 коинов со счета balance
+        cursor.execute("UPDATE users SET balance = balance - 50 WHERE username = ?", (session_user,))
         
-        # 4. Записываем покупку в базу (убедись, что у тебя есть таблица user_purchases)
+        # 4. Записываем покупку в таблицу user_purchases
         cursor.execute(
             "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
             (session_user, data.model_id)
         )
         
         db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success", "message": "Доступ успешно разблокирован!"}
+        
+        # Синхронизация с Dropbox, если функция подключена
+        if "upload_db_to_dropbox" in globals():
+            upload_db_to_dropbox()
+            
+        return {"status": "success", "message": "🎉 Доступ успешно разблокирован!"}
         
     except Exception as e:
         db.rollback()
-        return {"status": "error", "message": f"Ошибка транзакции: {str(e)}"}
+        print(f"Ошибка транзакции покупки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка на сервере при проведении оплаты: {str(e)}")
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
