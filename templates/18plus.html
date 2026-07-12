@@ -5,230 +5,207 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Страница 18+</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-        }А
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-top: 40px;
-        }
-        h1 {
-            color: #ff4757;
-            font-size: 36px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-        .warning-badge {
-            background: #ff4757;
-            color: #fff;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 40px;
-        }
-        .grid {
-    display: grid;
-    /* ИСПРАВЛЕНО: заменили auto-fill на auto-fit */
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
-    gap: 15px; 
-    padding: 20px;
+    body {
+        background-color: #121212;
+        color: #ffffff;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        text-align: center;
+    }
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding-top: 40px;
+    }
+    h1 {
+        color: #ff4757;
+        font-size: 36px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+    }
+    .warning-badge {
+        background: #ff4757;
+        color: #fff;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 40px;
+    }
     
-    /* ИСПРАВЛЕНО: выравниваем сами карточки по центру экрана */
-    justify-content: center; 
+    /* Сетка главных карточек (выровнена по центру сайта) */
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); 
+        gap: 15px; 
+        padding: 20px;
+        justify-content: center; 
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .card {
+        background: #1e1e1e;
+        border-radius: 10px;
+        overflow: hidden; 
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid #2a2a2a;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 71, 87, 0.2); 
+    }
+
+    .card img {
+        width: 100%;
+        height: 220px; 
+        object-fit: cover; 
+    }
+
+    .card-info {
+        padding: 10px; 
+        background: #1e1e1e;
+    }
+
+    .card-name {
+        font-size: 15px; 
+        font-weight: bold;
+        color: #fff;
+        margin: 0 0 4px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .card-meta {
+        font-size: 12px;
+        color: #ff4757; 
+        margin: 0;
+    }
+
+    .blur-effect {
+        filter: blur(8px); 
+        transform: scale(1.05); 
+        transition: filter 0.3s ease;
+    }
+
+    .back-btn {
+        display: inline-block;
+        margin-top: 50px;
+        color: #a4b0be;
+        text-decoration: none;
+        border: 1px solid #57606f;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .back-btn:hover {
+        background: #ff4757;
+        color: white;
+        border-color: #ff4757;
+        box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
+    }
+
+    /* Общие стили для модальных окон */
+    .modal {
+        display: none; 
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.9);
+    }
     
-    /* Ограничиваем максимальную ширину сетки, чтобы на огромных мониторах 
-       карточки не растягивались до бесконечности, а контейнер оставался аккуратным */
-    max-width: 1200px;
-    margin: 0 auto;
-}
+    /* ИСПРАВЛЕНО: Специфический фикс для полноэкранного режима отображения фотки */
+    #fullScreenModal {
+        z-index: 2000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-content {
+        background-color: #1e1e1e;
+        margin: 5% auto;
+        padding: 25px;
+        border: 1px solid #333;
+        width: 80%;
+        max-width: 900px;
+        border-radius: 12px;
+        position: relative;
+    }
+    .close-modal {
+        position: absolute;
+        right: 20px;
+        top: 15px;
+        color: #aaa;
+        font-size: 35px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    .close-modal:hover {
+        color: #ff4757;
+    }
+    
+    /* Сетка фотографий внутри обычного альбома */
+    .album-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    .album-grid img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 1px solid #333;
+        transition: transform 0.2s;
+    }
+    .album-grid img:hover {
+        transform: scale(1.03);
+        border-color: #ff4757;
+    }
+    
+    .buy-btn {
+        background: #ff4757;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 100%;
+        font-size: 16px;
+        transition: background 0.2s;
+    }
+    .buy-btn:hover {
+        background: #ff2f43;
+    }
 
-/* Сама карточка становится компактнее */
-.card {
-    background: #1e1e1e;
-    border-radius: 10px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #2a2a2a;
-}
+    /* Базовые стили для полноэкранного изображения (ЗУМ) */
+    #fullScreenImage {
+        transition: transform 0.2s ease; 
+        cursor: zoom-in; 
+        max-width: 90vw;
+        max-height: 90vh;
+        object-fit: contain;
+    }
 
-.card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(255, 71, 87, 0.2); /* Лёгкое свечение при наведении */
-}
-
-/* Ограничиваем высоту аватарки, чтобы карточка не растягивалась вниз */
-.card img {
-    width: 100%;
-    height: 220px; /* Фиксированная уменьшенная высота для аккуратного вида */
-    object-fit: cover; /* Картинка не деформируется, а красиво подрезается */
-}
-
-/* Название модели и статус делаем чуть компактнее */
-.card-info {
-    padding: 10px; /* Уменьшили внутренние отступы */
-    background: #1e1e1e;
-}
-
-.card-name {
-    font-size: 15px; /* Чуть уменьшили шрифт */
-    font-weight: bold;
-    color: #fff;
-    margin: 0 0 4px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.card-meta {
-    font-size: 12px;
-    color: #ff4757; /* Розово-красный акцент для статуса */
-    margin: 0;
-}
-
-        /* Эффект размытия для платных моделей */
-.blur-effect {
-    filter: blur(8px); /* Сила размытия (можно сделать 10px для большей приватности) */
-    transform: scale(1.05); /* Слегка увеличиваем, чтобы из-за размытия не было видно белых краев */
-    transition: filter 0.3s ease;
-}
-
-/* На всякий случай: контейнер карточки не должен выпускать увеличенную картинку за свои границы */
-.card {
-    background: #1e1e1e;
-    border-radius: 10px;
-    overflow: hidden; /* Этот параметр как раз прячет вылезающие края размытой фотки */
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    border: 1px solid #2a2a2a;
-}
-        .back-btn {
-            display: inline-block;
-            margin-top: 50px;
-            color: #a4b0be;
-            text-decoration: none;
-            border: 1px solid #57606f;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: all 0.2s;
-        }
-        .back-btn:hover {
-            background: #ff4757;
-            color: white;
-            border-color: #ff4757;
-            box-shadow: 0 0 10px rgba(255, 71, 87, 0.4);
-        }
-
-        /* Общие стили для модальных окон */
-        .modal {
-            display: none; 
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.9);
-        }
-        .modal-content {
-            background-color: #1e1e1e;
-            margin: 5% auto;
-            padding: 25px;
-            border: 1px solid #333;
-            width: 80%;
-            max-width: 900px;
-            border-radius: 12px;
-            position: relative;
-        }
-        .close-modal {
-            position: absolute;
-            right: 20px;
-            top: 15px;
-            color: #aaa;
-            font-size: 35px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-        .close-modal:hover {
-            color: #ff4757;
-        }
-        .album-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 20px;
-        }
-        .album-grid img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid #333;
-            transition: transform 0.2s;
-        }
-        .album-grid img:hover {
-            transform: scale(1.03);
-            border-color: #ff4757;
-        }
-        
-        /* Специфические кнопки для окна оплаты */
-        .buy-btn {
-            background: #ff4757;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            width: 100%;
-            font-size: 16px;
-            transition: background 0.2s;
-        }
-        .buy-btn:hover {
-            background: #ff2f43;
-        }
-
-        /* Базовые стили для полноэкранного изображения */
-#fullScreenImage {
-    transition: transform 0.2s ease; /* Плавное увеличение */
-    cursor: zoom-in; /* Курсор в виде лупы с плюсом */
-    max-width: 90vw;
-    max-height: 90vh;
-    object-fit: contain;
-}
-
-/* Класс, который будет добавляться при клике для зума */
-#fullScreenImage.zoomed {
-    transform: scale(1.5); /* Коэффициент увеличения (можно поставить 2, если нужно сильнее) */
-    cursor: zoom-out; /* Курсор в виде лупы с минусом */
-}
-
-/* Ограничиваем контейнер модалки, чтобы увеличенная картинка не вылезала за экраны */
-#fullScreenModal {
-    overflow: auto; /* Появится прокрутка, если картинка станет больше экрана */
-    display: none;
-    position: fixed;
-    z-index: 2000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.9);
-    align-items: center;
-    justify-content: center;
-}
-    </style>
+    #fullScreenImage.zoomed {
+        transform: scale(1.5); 
+        cursor: zoom-out; 
+    }
+</style>
 </head>
 <body>
     <div class="container">
