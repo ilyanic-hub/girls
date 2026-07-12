@@ -308,38 +308,52 @@ async function openModelAlbum(modelId, modelName, isPaid) {
     currentSelectedModelName = modelName;
 
     // Если модель уже покупалась в этой сессии, убираем платный статус
-    if (localPurchasedModels.includes(modelId)) {
+    if (typeof localPurchasedModels !== 'undefined' && localPurchasedModels.includes(modelId)) {
         isPaid = 0;
     }
 
-    // КРИТИЧЕСКИЙ БЛОК: Проверка клика по платной карточке
+    // КРИТИЧЕСКИЙ БЛОК: Если фронтенд изначально знает, что карточка платная
     if (isPaid === 1) {
-        let isUserLoggedIn = false;
-
-        // ДИНАМИЧЕСКАЯ ПРОВЕРКА: Спрашиваем бэкенд напрямую через API
+        // Делаем проверочный запрос к бэкенду альбома, чтобы узнать реальный статус доступа
         try {
-            let res = await fetch('/api/me');
-            if (res.ok) {
-                isUserLoggedIn = true; // Сервер подтвердил сессию
+            let res = await fetch(`/api/adult-models/${modelId}/photos`);
+            
+            if (!res.ok) {
+                let errData = await res.json().catch(() => ({}));
+                
+                // Вариант 1: Не авторизован (Бэкенд вернул 401)
+                if (res.status === 401) {
+                    alert(errData.detail || "Этот альбом приватный. Пожалуйста, зарегистрируйтесь или войдите в аккаунт, чтобы открыть доступ!");
+                    window.location.href = '/#register'; // Уводим на главную в модалку регистрации
+                    return;
+                }
+                
+                // Вариант 2: Авторизован, но альбом не куплен (Бэкенд вернул 403)
+                if (res.status === 403) {
+                    // Показываем стандартное окно покупки за 50 токенов/коинов
+                    if (document.getElementById('buyModal')) {
+                        document.getElementById('buyModal').style.display = 'block';
+                    } else {
+                        alert(errData.detail || "Этот альбом платный. Требуется покупка доступа.");
+                    }
+                    return;
+                }
+                
+                // Любая другая ошибка сервера
+                throw new Error(errData.detail || `Ошибка сервера (Статус ${res.status})`);
             }
+            
+            // Если res.ok === true, значит доступ ЕСТЬ (уже куплен или юзер админ)
+            // Проваливаемся дальше к загрузке фоток
+            
         } catch (err) {
-            console.error("Ошибка проверки авторизации:", err);
-            isUserLoggedIn = false;
+            console.error("Ошибка проверки доступа к альбому:", err);
+            alert(err.message);
+            return;
         }
-
-        // Если проверка не прошла
-        if (!isUserLoggedIn) {
-            alert("Этот альбом приватный. Пожалуйста, зарегистрируйтесь или войдите в аккаунт, чтобы открыть доступ!");
-            window.location.href = '/#register'; // Наша новая рабочая модалка на главной
-            return; // Блокируем дальнейший код
-        }
-
-        // Если авторизован и модель платная — показываем стандартное окно покупки за 50 токенов
-        document.getElementById('buyModal').style.display = 'block';
-        return; 
     }
 
-    // Если модель бесплатная (isPaid === 0) — её может смотреть КТО УГОДНО (и гость, и юзер)
+    // Если модель бесплатная ИЛИ бэкенд подтвердил успешный доступ (res.ok)
     loadPhotosFromServer(modelId, modelName);
 }
 
