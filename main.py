@@ -10,6 +10,8 @@ import httpx
 import json
 import base64
 import uuid
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
