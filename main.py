@@ -1161,35 +1161,58 @@ async def upload_model_photos(model_id: int, files: list[UploadFile] = File(...)
         cursor = db.cursor()
         added_count = 0
         
+        # Получаем клиент Dropbox один раз перед циклом
+        dbx = get_dropbox_client()
+        if not dbx:
+            return {"status": "error", "message": "Dropbox клиент не инициализирован"}
+            
         for file in files:
             # Читаем расширение исходного файла (.webp, .jpg и т.д.)
             file_extension = os.path.splitext(file.filename)[1].lower()
             if not file_extension:
-                file_extension = ".webp" # Запасной вариант
+                file_extension = ".webp"
                 
-            # Генерируем случайное уникальное имя файла, чтобы картинки не перезаписывали друг друга
+            # Генерируем случайное уникальное имя файла для Dropbox
             unique_filename = f"model_{model_id}_{os.urandom(6).hex()}{file_extension}"
-            file_path = os.path.join("uploads", unique_filename)
+            dropbox_path = f"/uploads/{unique_filename}"
             
-            # Сохраняем файл на диск сервера
-            with open(file_path, "wb") as f:
-                f.write(await file.read())
-                
-            # Формируем локальную ссылку для сайта
-            web_url = f"/uploads/{unique_filename}"
+            # Читаем содержимое файла в оперативную память
+            file_bytes = await file.read()
             
-            # Записываем путь в базу данных
+            print(f"🔄 БЭКЕНД: Отправка {unique_filename} в Dropbox...")
+            # 1. Загружаем файл напрямую из памяти в Dropbox
+            dbx.files_upload(file_bytes, path=dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+            
+            # 2. Создаем или получаем публичную ссылку
+            try:
+                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                url = shared_link_metadata.url
+            except dropbox.exceptions.ApiError:
+                # Если ссылка уже существует
+                links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                url = links.links[0].url
+
+            # 3. Трансформируем ссылку в прямую (?raw=1)
+            direct_photo_url = url.replace("?dl=0", "?raw=1")
+            
+            # 4. Записываем прямую ссылку на Dropbox в базу данных
             cursor.execute(
                 "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                (model_id, web_url)
+                (model_id, direct_photo_url)
             )
             added_count += 1
             
+        # Фиксируем изменения в SQLite
         db.commit()
-        return {"status": "success", "message": f"Успешно загружено и сохранено файлов: {added_count}"}
+        
+        # 5. Синхронизируем обновленную базу данных SQLite с Dropbox
+        upload_db_to_dropbox()
+        
+        print(f"🎉 БЭКЕНД: Успешно загружено в облако файлов: {added_count}")
+        return {"status": "success", "message": f"Успешно загружено и сохранено в Dropbox файлов: {added_count}"}
         
     except Exception as e:
-        print(f"!!! Ошибка при локальной загрузке фото: {e}")
+        print(f"!!! Ошибка при облачной загрузке фото в Dropbox: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
         
 
