@@ -1155,68 +1155,83 @@ async def get_adult_models_public(session_user: Optional[str] = Cookie(None), db
     except Exception as e:
         return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
 
+executor = ThreadPoolExecutor(max_workers=10)
+
+def process_single_photo_sync(dbx, file_bytes: bytes, model_id: int, file_extension: str) -> str:
+    """Вспомогательная функция (выполняется в отдельном потоке) для одного файла"""
+    try:
+        unique_filename = f"model_{model_id}_{os.urandom(6).hex()}{file_extension}"
+        dropbox_path = f"/uploads/{unique_filename}"
+        
+        # 1. Загружаем
+        dbx.files_upload(file_bytes, path=dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+        
+        # 2. Создаем ссылку
+        try:
+            shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+            url = shared_link_metadata.url
+        except dropbox.exceptions.ApiError:
+            links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+            url = links.links[0].url
+
+        # 3. Трансформируем домен и параметры
+        return url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("&dl=0", "&raw=1").replace("?dl=0", "?raw=1")
+    except Exception as e:
+        print(f"❌ Ошибка загрузки отдельного файла: {e}")
+        return ""
+
 @app.post("/api/admin/adult-models/{model_id}/upload-photos")
 async def upload_model_photos(model_id: int, files: list[UploadFile] = File(...), db = Depends(get_db)):
     try:
         cursor = db.cursor()
-        added_count = 0
-        
-        # Получаем клиент Dropbox один раз перед циклом
         dbx = get_dropbox_client()
         if not dbx:
             return {"status": "error", "message": "Dropbox клиент не инициализирован"}
             
+        loop = asyncio.get_running_loop()
+        tasks = []
+        
+        # Готовим задачи для одновременного выполнения
         for file in files:
-            # Читаем расширение исходного файла (.webp, .jpg и т.д.)
             file_extension = os.path.splitext(file.filename)[1].lower()
             if not file_extension:
                 file_extension = ".webp"
                 
-            # Генерируем случайное уникальное имя файла для Dropbox
-            unique_filename = f"model_{model_id}_{os.urandom(6).hex()}{file_extension}"
-            dropbox_path = f"/uploads/{unique_filename}"
-            
-            # Читаем содержимое файла в оперативную память
             file_bytes = await file.read()
             
-            print(f"🔄 БЭКЕНД: Отправка {unique_filename} в Dropbox...")
-            # 1. Загружаем файл напрямую из памяти в Dropbox
-            dbx.files_upload(file_bytes, path=dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-            
-            # 2. Создаем или получаем публичную ссылку
-            try:
-                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-                url = shared_link_metadata.url
-            except dropbox.exceptions.ApiError:
-                # Если ссылка уже существует
-                links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
-                url = links.links[0].url
-
-            # 3. Трансформируем ссылку в прямую (?raw=1)
-            # 3. Трансформируем ссылку Dropbox в 100% прямую ссылку для тега img
-            # Заменяем стандартный домен на dl.dropboxusercontent.com и убираем лишние параметры
-            # 3. Трансформируем ссылку Dropbox в 100% прямую ссылку для тега img
-            # Меняем домен на прямой и заменяем параметр dl=0 на raw=1, сохраняя rlkey
-            direct_photo_url = url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("&dl=0", "&raw=1").replace("?dl=0", "?raw=1")
-            
-            # 4. Записываем прямую ссылку на Dropbox в базу данных
-            cursor.execute(
-                "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                (model_id, direct_photo_url)
+            # Запускаем задачу в пуле потоков (параллельно)
+            task = loop.run_in_executor(
+                executor, 
+                process_single_photo_sync, 
+                dbx, file_bytes, model_id, file_extension
             )
-            added_count += 1
+            tasks.append(task)
             
-        # Фиксируем изменения в SQLite
+        print(f"🔄 БЭКЕНД: Запуск параллельной загрузки {len(files)} файлов...")
+        
+        # Ждем выполнения ВСЕХ загрузок одновременно
+        photo_urls = await asyncio.gather(*tasks)
+        
+        # Записываем результаты в базу данных
+        added_count = 0
+        for photo_url in photo_urls:
+            if photo_url:  # Если файл успешно загрузился и ссылка получена
+                cursor.execute(
+                    "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
+                    (model_id, photo_url)
+                )
+                added_count += 1
+                
         db.commit()
         
-        # 5. Синхронизируем обновленную базу данных SQLite с Dropbox
+        # Выталкиваем обновленную БД в облако
         upload_db_to_dropbox()
         
-        print(f"🎉 БЭКЕНД: Успешно загружено в облако файлов: {added_count}")
-        return {"status": "success", "message": f"Успешно загружено и сохранено в Dropbox файлов: {added_count}"}
+        print(f"🎉 БЭКЕНД: Параллельная загрузка завершена. Успешно: {added_count}")
+        return {"status": "success", "message": f"Успешно загружено в Dropbox: {added_count}"}
         
     except Exception as e:
-        print(f"!!! Ошибка при облачной загрузке фото в Dropbox: {e}")
+        print(f"!!! Ошибка при параллельной загрузке: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
         
 
