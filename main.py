@@ -8,6 +8,8 @@ import httpx
 import re
 import httpx
 import json
+import base64
+import uuid
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -126,8 +128,39 @@ def upload_db_to_dropbox():
 # Сначала СКАЧИВАЕМ базу, чтобы не затереть данные!
 download_db_from_dropbox()
 
+def upload_photo_to_dropbox_and_get_link(local_path: str, dropbox_path: str) -> str:
+    """Загружает фото в Dropbox и возвращает прямую ссылку (?raw=1)"""
+    dbx = get_dropbox_client()
+    if not dbx:
+        print("Dropbox клиент не готов для загрузки фото.")
+        return ""
+    try:
+        print(f"Отправка фото {local_path} в Dropbox...")
+        # 1. Загружаем файл
+        with open(local_path, "rb") as f:
+            dbx.files_upload(f.read(), path=dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+        
+        # 2. Создаем или получаем публичную ссылку
+        try:
+            shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+            url = shared_link_metadata.url
+        except dropbox.exceptions.ApiError:
+            # Если ссылка уже существует, берем её из списка
+            links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+            url = links.links[0].url
 
+        # 3. Превращаем в прямую ссылку на саму картинку
+        direct_url = url.replace("?dl=0", "?raw=1")
+        print(f"Фото успешно загружено. Ссылка: {direct_url}")
+        return direct_url
+
+    except Exception as e:
+        print(f"Ошибка загрузки фото в Dropbox: {e}")
+        return ""
+        
 # ================= РАБОТА С БАЗОЙ ДАННЫХ =================
+
+
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     db.row_factory = sqlite3.Row
@@ -1060,28 +1093,57 @@ async def admin_upload_adult_model_photo(model_id: int, data: AlbumFileSchema, s
         raise HTTPException(status_code=403, detail="Доступ запрещен")
         
     try:
-        file_url = data.file_base64.replace("\n", "").replace("\r", "").strip()
-        if file_url:
+        # Очищаем строку от лишних переносов
+        b64_string = data.file_base64.replace("\n", "").replace("\r", "").strip()
+        
+        if b64_string:
+            # Если строка содержит заголовок типа "data:image/png;base64,", отрезаем его
+            if "," in b64_string:
+                b64_string = b64_string.split(",")[1]
+            
+            # 1. Декодируем Base64 строку обратно в бинарные байты картинки
+            image_data = base64.b64decode(b64_string)
+            
+            # 2. Генерируем уникальное имя файла для Dropbox, чтобы картинки не перезаписывали друг друга
+            unique_filename = f"model_{model_id}_{uuid.uuid4().hex[:8]}.webp"
+            dropbox_path = f"/uploads/{unique_filename}"
+            
+            # 3. Загружаем напрямую в Dropbox через наш клиент
+            dbx = get_dropbox_client()
+            if not dbx:
+                raise HTTPException(status_code=500, detail="Dropbox клиент не инициализирован")
+                
+            print(f"Отправка фото {unique_filename} в Dropbox...")
+            dbx.files_upload(image_data, path=dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+            
+            # 4. Создаем публичную ссылку в Dropbox
+            try:
+                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                url = shared_link_metadata.url
+            except dropbox.exceptions.ApiError:
+                # Если ссылка вдруг уже есть
+                links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                url = links.links[0].url
+
+            # 5. Превращаем в прямую ссылку на саму картинку (?raw=1)
+            direct_photo_url = url.replace("?dl=0", "?raw=1")
+            
+            # 6. Сохраняем в локальную БД SQLite уже вечную ссылку из Dropbox
             cursor.execute(
                 "INSERT INTO adult_model_photos (model_id, photo_url) VALUES (?, ?)", 
-                (int(model_id), str(file_url))
+                (int(model_id), str(direct_photo_url))
             )
             db.commit()
+            
+            # 7. Синхронизируем обновленную БД с Dropbox
             upload_db_to_dropbox()
-            return {"status": "success", "message": "Фото успешно добавлено в альбом модели!"}
+            
+            return {"status": "success", "message": "Фото успешно загружено в Dropbox и добавлено в альбом!"}
         else:
             return {"status": "error", "message": "Пустая строка Base64"}
+            
     except Exception as err:
         raise HTTPException(status_code=500, detail=str(err))
-
-# 4. Получение всех фотографий из альбома конкретной модели (для пользователей и админки)
-@app.get("/api/adult-models/{model_id}/photos")
-async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
-    cursor = db.cursor()
-    # ИСПРАВЛЕНО: возвращаем id и photo_url словарём, чтобы фронтенд (p.photo_url) корректно читал данные
-    cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
-    rows = cursor.fetchall()
-    return [dict(row) for row in rows]
 
 # 5. Эндпоинт для отображения списка моделей в админке
 @app.get("/api/admin/get-adult-models-list")
