@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>🔥 PHOTO RATING</title>
 
     <style>
@@ -26,7 +26,7 @@
             min-height: 100vh;
         }
 
-        /* --- БОКОВОЕ МЕНЮ --- */
+        /* --- БОКОВОЕ МЕНЮ (ПК версия) --- */
         .sidebar {
             width: 240px;
             background: #ffffff;
@@ -69,12 +69,52 @@
             color: var(--accent);
         }
 
+        /* --- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) --- */
+        .mobile-nav {
+            display: none; /* Скрыто на ПК */
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #ffffff;
+            border-top: 1px solid #e2e8f0;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+            justify-content: space-around;
+            align-items: center;
+            padding-bottom: env(safe-area-inset-bottom); /* Поддержка айфонов с "челкой" снизу */
+        }
+
+        .mobile-nav-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 600;
+            gap: 3px;
+            flex: 1;
+            height: 100%;
+        }
+
+        .mobile-nav-link span {
+            font-size: 1.2rem;
+        }
+
+        .mobile-nav-link:active {
+            color: var(--accent);
+        }
+
         /* --- ОСНОВНОЙ КОНТЕЙНЕР ДЛЯ КОНТЕНТА --- */
         .main-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             min-width: 0; 
+            padding-bottom: 0; /* Будет перезаписано на мобилках */
         }
 
         .heart-particle {
@@ -109,21 +149,14 @@
             font-weight: 800;
             font-family: 'Comic Sans MS', 'Inter', sans-serif;
             text-align: center;
-            color: #ffffff; /* Белый цвет для темного фона страницы */
+            color: #ffffff;
             text-shadow: 0 0 10px rgba(255, 71, 87, 1), 
                 0 0 20px rgba(255, 71, 87, 0.8), 
-                0 0 30px rgba(255, 71, 87, 0.6); /* Красивое неоновое свечение */
+                0 0 30px rgba(255, 71, 87, 0.6);
             margin: 35px 0 15px 0;
             letter-spacing: -1px;
             display: block;
             width: 100%;
-        }
-
-        @media (max-width: 768px) {
-            .main-promo-title {
-                font-size: 2.2rem;
-                margin: 20px 0;
-            }
         }
 
         /* --- СЕТКА ДЛЯ ФОТОГРАФИЙ --- */
@@ -164,7 +197,9 @@
             border-bottom: 1px solid #edf2f7;
         }
 
-        .contestant-info { padding: 12px 10px 0 10px; }
+        .contestant-info { 
+            padding: 12px 10px 0 10px;
+        }
 
         .contestant-name {
             font-size: 1.1rem;
@@ -310,7 +345,8 @@
 
         .auth-box h2 { margin-bottom: 25px; font-weight: 800; }
         .auth-box input {
-            width: 100%; padding: 12px 16px; margin-bottom: 15px;
+            width: 100%;
+            padding: 12px 16px; margin-bottom: 15px;
             border: 1px solid #e2e8f0; border-radius: 10px;
             font-size: 1rem; box-sizing: border-box; outline: none; background: #f7fafc;
         }
@@ -318,13 +354,16 @@
 
         /* --- МОДАЛЬНОЕ ОКНО ПОПОЛНЕНИЯ --- */
         .deposit-modal {
-            display: none; position: fixed;
+            display: none;
+            position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.6); z-index: 2000;
-            justify-content: center; align-items: center;
+            justify-content: center;
+            align-items: center;
         }
         .deposit-modal-content {
-            background: #fff; padding: 30px; border-radius: 16px;
+            background: #fff;
+            padding: 30px; border-radius: 16px;
             max-width: 400px; width: 100%; text-align: center;
             position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.15);
         }
@@ -332,22 +371,150 @@
         .deposit-close:hover { color: #4a5568; }
         .deposit-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
         .deposit-opt-btn {
-            background: #f7fafc; border: 2px solid #e2e8f0; padding: 12px 5px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0; padding: 12px 5px;
             border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s;
         }
         .deposit-opt-btn:hover { border-color: #ff4757; background: #fff5f5; }
         .deposit-opt-btn.active { border-color: #ff4757; background: #ff4757; color: white; }
         .btn-pay-submit {
-            background: #2ed573; color: white; border: none; width: 100%;
+            background: #2ed573;
+            color: white; border: none; width: 100%;
             padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold;
             cursor: pointer; margin-top: 20px; transition: 0.2s;
         }
         .btn-pay-submit:hover { background: #26af5f; }
+
+        /* --- ОКНО ПРОВЕРКИ ВОЗРАСТА 18+ (Модалка) --- */
+        .age-verify-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 3000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .age-verify-content {
+            background: #1a1d24;
+            color: #ffffff;
+            padding: 40px 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 25px rgba(255, 71, 87, 0.4);
+        }
+
+        /* ========================================================== */
+        /* === МЕДИА-ЗАПРОСЫ ДЛЯ СУПЕР-МОБИЛЬНОСТИ (Экран < 768px) === */
+        /* ========================================================== */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column; /* Потоком сверху вниз */
+            }
+
+            /* 1. Скрываем компьютерное меню */
+            .sidebar {
+                display: none !important;
+            }
+
+            /* 2. Показываем нижнюю навигацию */
+            .mobile-nav {
+                display: flex;
+            }
+
+            /* Добавляем отступ внизу контента, чтобы нижняя панель не закрывала его */
+            .main-wrapper {
+                padding-bottom: 75px; 
+            }
+
+            /* 3. Адаптируем Шапку */
+            header {
+                padding: 10px 15px;
+                flex-direction: column; /* Элементы в два ряда */
+                gap: 10px;
+            }
+
+            header > div {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            /* Уменьшаем бонусный блок */
+            .bonus-container {
+                width: 100%;
+                box-sizing: border-box;
+                padding: 8px 12px;
+                gap: 10px;
+                justify-content: space-between;
+            }
+
+            #countdown-timer {
+                font-size: 14px;
+            }
+
+            #bonus-button {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+
+            /* 4. Заголовок сайта */
+            .main-promo-title {
+                font-size: 2.2rem;
+                margin: 20px 0;
+            }
+
+            /* 5. Сетка карточек — ГЛАВНЫЙ МОБИЛЬНЫЙ ВИД (2 колонки) */
+            .contestants-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                padding: 10px;
+            }
+
+            /* Корректируем размеры фоток на мобильных */
+            .contestant-img {
+                height: 220px; /* Идеальный размер для плитки из 2х колонок */
+            }
+
+            .contestant-name {
+                font-size: 0.95rem;
+            }
+
+            .contestant-votes {
+                font-size: 0.8rem;
+                margin-bottom: 8px;
+            }
+
+            /* Делаем кнопки на мобилках чуть меньше, чтобы помещались */
+            .contestant-card .btn {
+                font-size: 0.8rem;
+                padding: 6px 10px;
+                width: 95%;
+            }
+
+            .btn-comment-toggle {
+                font-size: 0.75rem;
+                padding: 4px 8px;
+            }
+
+            /* Кнопка "Пополнить" в шапке */
+            .btn-deposit {
+                padding: 6px 12px;
+                font-size: 0.85rem;
+            }
+
+            /* Окно авторизации */
+            .auth-box {
+                padding: 25px 20px;
+                max-width: 90%;
+            }
+        }
     </style>
 </head>
 <body>
     
-
     <aside class="sidebar" id="main-sidebar" style="display: none;">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
@@ -355,25 +522,44 @@
             <a href="/models">📸 Моделям</a>
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
-            <!-- Кнопка в боковом меню -->
+    
             <a href="#" onclick="checkAge(event)" style="
-    color: #ff4757; 
-    background-color: transparent; 
-    border: 2px solid #ff4757; 
-    font-weight: bold; 
-    text-align: center; 
-    padding: 10px 20px; 
-    margin-top: 50px; 
-    border-radius: 8px; 
-    display: block; 
-    text-decoration: none; 
-    box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
-    transition: all 0.3s ease;
-" onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='#fff'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
-    🔞 Контент 18+
-</a>
+                color: #ff4757; 
+                background-color: transparent; 
+                border: 2px solid #ff4757; 
+                font-weight: bold; 
+                text-align: center; 
+                padding: 10px 20px; 
+                margin-top: 50px; 
+                border-radius: 8px; 
+                display: block; 
+                text-decoration: none; 
+                box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
+                transition: all 0.3s ease;
+            " onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='#fff'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';"
+               onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
+                🔞 Контент 18+
+            </a>
         </nav>
     </aside>
+
+    <div class="mobile-nav" id="mobile-nav-bar">
+        <a href="/" class="mobile-nav-link">
+            <span>🏠</span>Главная
+        </a>
+        <a href="/models" class="mobile-nav-link">
+            <span>📸</span>Моделям
+        </a>
+        <a href="/top" class="mobile-nav-link">
+            <span>👑</span>Топ
+        </a>
+        <a href="/history" class="mobile-nav-link" style="color: #b8860b;">
+            <span>🏆</span>Слава
+        </a>
+        <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
+            <span>🔞</span>18+
+        </a>
+    </div>
 
     <div class="main-wrapper">
 
@@ -386,6 +572,7 @@
 
                     <input type="text" id="username" placeholder="Логин" autocomplete="off">
                     <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+      
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
                     
                     <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
@@ -403,36 +590,32 @@
                         <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
                     </div>
                     <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
-                        🎁 Ежедневный бонус
+                        🎁 Бонус
                     </button>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админ-панель ➡️</a></span>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a></span>
                     
-                    <!-- Кликабельный блок профиля для смены аватарки -->
-                    <div style="display: flex; align-items: center; gap: 12px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 16px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
-                            <span id="user-avatar-default" style="font-size: 16px;">👤</span>
+                    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
+                            <span id="user-avatar-default" style="font-size: 14px;">👤</span>
                             <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                         </div>
-                        <!-- Скрытый инпут выбора файла -->
                         <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
-                        
-                        <div style="font-size: 0.95rem; color: var(--text-main); font-weight: 500;">
-                            Привет, <b id="user-name" style="color: var(--accent);">Гость</b>! 
-                            <span style="margin: 0 8px; color: #cbd5e0;">|</span> 
-                            Баланс: <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span> коинов
+            
+                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+                            <b id="user-name" style="color: var(--accent);">Гость</b> 
+                            <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
+                            💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
                         </div>
                     </div>
 
                     <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                    <div id="auth-buttons-container" style="display: flex; gap: 10px;">
-    </div>
+                    <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
                 </div>
-
-                
             </header>
+
             <h1 class="main-promo-title">Кого разденем?</h1>
             <main class="contestants-grid" id="gallery"></main>
 
@@ -467,10 +650,24 @@
 
             <div style="margin-top: 20px;">
                 <label style="display:block; text-align:left; margin-bottom:5px; font-weight:bold; color:#4a5568;">Своя сумма (в коинах):</label>
-                <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px;">
+                <input type="number" id="customAmount" placeholder="Минимум 100" min="100" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; font-size:16px; box-sizing: border-box;">
             </div>
 
             <button id="payBtn" class="btn-pay-submit" onclick="sendPaymentRequest()">Перейти к оплате криптой</button>
+        </div>
+    </div>
+
+    <div id="ageVerifyModal" class="age-verify-modal">
+        <div class="age-verify-content">
+            <span style="font-size: 3.5rem;">🔞</span>
+            <h2 style="color: var(--accent); margin: 15px 0 10px 0; font-weight: 800;">ВАМ ЕСТЬ 18 ЛЕТ?</h2>
+            <p style="color: #a0aec0; font-size: 0.95rem; line-height: 1.5; margin-bottom: 25px;">
+                Этот раздел содержит материалы только для взрослых. Получая доступ к разделу, вы подтверждаете, что достигли совершеннолетия.
+            </p>
+            <div style="display: flex; gap: 15px; justify-content: center;">
+                <button class="btn" onclick="confirmAge(true)" style="flex: 1; padding: 12px;">Да, мне есть 18</button>
+                <button class="btn btn-sec" onclick="confirmAge(false)" style="flex: 1; padding: 12px; background: #2d3748; color: #a0aec0; border: none;">Нет</button>
+            </div>
         </div>
     </div>
 
@@ -502,47 +699,31 @@
             }, 4000);
         }
 
-        // Функция, которая срабатывает при клике на "Контент 18+"
-function checkAge(event) {
-    event.preventDefault(); // Отменяем стандартный переход по ссылке
+        function checkAge(event) {
+            event.preventDefault();
+            const isAdult = localStorage.getItem('isAdultConfirmed');
+            if (isAdult === 'true') {
+                goToAdultContent();
+            } else {
+                document.getElementById('ageVerifyModal').style.display = 'flex';
+            }
+        }
 
-    // Проверяем, подтверждал ли пользователь возраст ранее
-    const isAdult = localStorage.getItem('isAdultConfirmed');
+        function confirmAge(isOfAge) {
+            if (isOfAge) {
+                localStorage.setItem('isAdultConfirmed', 'true');
+                document.getElementById('ageVerifyModal').style.display = 'none';
+                goToAdultContent();
+            } else {
+                alert("Доступ ограничен. Вам должно быть больше 18 лет.");
+                window.location.href = "/"; 
+            }
+        }
 
-    if (isAdult === 'true') {
-        // Если уже подтверждал — сразу пускаем в раздел
-        goToAdultContent();
-    } else {
-        // Если зашёл впервые — показываем окно проверки
-        document.getElementById('ageVerifyModal').style.display = 'flex';
-    }
-}
-
-// Обработка выбора пользователя
-function confirmAge(isOfAge) {
-    if (isOfAge) {
-        // Запоминаем в браузере, что пользователю есть 18
-        localStorage.setItem('isAdultConfirmed', 'true');
-        // Закрываем окно
-        document.getElementById('ageVerifyModal').style.display = 'none';
-        // Переходим в раздел
-        goToAdultContent();
-    } else {
-        // Если нет 18 — перенаправляем на главную страницу или закрываем окно
-        alert("Доступ ограничен. Вам должно быть больше 18 лет.");
-        window.location.href = "/"; // Уводим на главную
-    }
-}
-
-// Функция перехода в сам раздел 18+
-function goToAdultContent() {
-    // Сюда впиши логику перехода: например, открытие вкладки или редирект
-    // Вызовем функцию, которая скрывает обычных участниц и показывает горячих, 
-    // либо просто перенаправим на другую страницу:
-    window.location.href = "/18plus"; // Например, на страницу моделей
-}
+        function goToAdultContent() {
+            window.location.href = "/18plus";
+        }
     
-        
         function toggleAuthMode() {
             const form = document.getElementById('auth-form');
             if (form) form.reset();
@@ -562,28 +743,27 @@ function goToAdultContent() {
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
         }
-    function openAuthModal(mode) {
-        // Показываем блок с формой
-        const authPage = document.getElementById('auth-page');
-        if (authPage) authPage.style.display = 'flex';
-    
-        // Переключаем заголовок и инпуты в зависимости от того, что нажали
-        if (mode === 'register') {
-            authMode = 'register';
-            document.getElementById('auth-title').innerText = "Регистрация";
-            document.getElementById('password').placeholder = "Придумайте пароль";
-            document.getElementById('secret_answer').style.display = 'block';
-            document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-            document.getElementById('auth-reset-text').style.display = 'none';
-        } else if (mode === 'login') {
-            authMode = 'login';
-            document.getElementById('auth-title').innerText = "Вход в аккаунт";
-            document.getElementById('password').placeholder = "Пароль";
-            document.getElementById('secret_answer').style.display = 'none';
-            document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-            document.getElementById('auth-reset-text').style.display = 'block';
+
+        function openAuthModal(mode) {
+            const authPage = document.getElementById('auth-page');
+            if (authPage) authPage.style.display = 'flex';
+        
+            if (mode === 'register') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else if (mode === 'login') {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
         }
-    }
 
         function enableResetMode() {
             authMode = 'reset';
@@ -598,107 +778,92 @@ function goToAdultContent() {
         }
 
         async function checkAuth() {
-    try {
-        let res = await fetch('/api/me');
-        
-        // Всегда показываем главную страницу и сайдбар для всех
-        document.getElementById('auth-page').style.display = 'none';
-        document.getElementById('main-sidebar').style.display = 'flex';
-        document.getElementById('main-page').style.display = 'flex';
+            try {
+                let res = await fetch('/api/me');
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-sidebar').style.display = 'flex';
+                document.getElementById('main-page').style.display = 'flex';
 
-        const buttonsContainer = document.getElementById('auth-buttons-container');
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                if (res.ok) {
+                    let user = await res.json();
+                    if (user.username && user.username !== "Гость") {
+                        document.getElementById('user-name').innerText = user.username;
+                        document.getElementById('user-balance').innerText = user.balance;
+                        
+                        let avatarUrl = user.avatar_url || user.avatar;
+                        let avatarImg = document.getElementById('user-avatar-img');
+                        let avatarDefault = document.getElementById('user-avatar-default');
+                        if (avatarUrl) {
+                            avatarImg.src = avatarUrl;
+                            avatarImg.style.display = 'block';
+                            avatarDefault.style.display = 'none';
+                        } else {
+                            avatarImg.style.display = 'none';
+                            avatarDefault.style.display = 'block';
+                        }
+                        
+                        if (user.is_admin === 1) {
+                            document.getElementById('admin-link').style.display = 'inline';
+                        } else {
+                            document.getElementById('admin-link').style.display = 'none';
+                        }
 
-        if (res.ok) {
-            let user = await res.json();
-            
-            // === ВАРИАНТ 1: ЗАШЕЛ АВТОРИЗОВАННЫЙ ПОЛЬЗОВАТЕЛЬ ===
-            if (user.username && user.username !== "Гость") {
-                document.getElementById('user-name').innerText = user.username;
-                document.getElementById('user-balance').innerText = user.balance;
-                
-                let avatarUrl = user.avatar_url || user.avatar;
-                let avatarImg = document.getElementById('user-avatar-img');
-                let avatarDefault = document.getElementById('user-avatar-default');
-                
-                if (avatarUrl) {
-                    avatarImg.src = avatarUrl;
-                    avatarImg.style.display = 'block';
-                    avatarDefault.style.display = 'none';
-                } else {
-                    avatarImg.style.display = 'none';
-                    avatarDefault.style.display = 'block';
+                        if (buttonsContainer) {
+                            buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
+                        }
+                    } else {
+                        document.getElementById('user-name').innerText = "Гость";
+                        document.getElementById('user-balance').innerText = "0";
+                        document.getElementById('admin-link').style.display = 'none';
+                        document.getElementById('user-avatar-img').style.display = 'none';
+                        document.getElementById('user-avatar-default').style.display = 'block';
+                        if (buttonsContainer) {
+                            buttonsContainer.innerHTML = `
+                                <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
+                                <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
+                            `;
+                        }
+                    }
                 }
                 
-                if (user.is_admin === 1) {
-                    document.getElementById('admin-link').style.display = 'inline';
-                } else {
-                    document.getElementById('admin-link').style.display = 'none';
+                loadContestants();
+
+                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+                    history.replaceState(null, null, ' ');
+                    
+                    const authPage = document.getElementById('auth-page');
+                    if (authPage) authPage.style.display = 'flex';
+                    
+                    const authTitle = document.getElementById('auth-title');
+                    const passwordInput = document.getElementById('password');
+                    const secretAnswer = document.getElementById('secret_answer');
+                    const toggleText = document.getElementById('auth-toggle-text');
+                    const resetText = document.getElementById('auth-reset-text');
+                    
+                    if (typeof authMode !== 'undefined') authMode = 'register';
+                    if (authTitle) authTitle.innerText = "Регистрация";
+                    if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
+                    if (secretAnswer) secretAnswer.style.display = 'block';
+                    if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
+                    if (resetText) resetText.style.display = 'none';
                 }
 
-                // Показываем кнопку "Выйти"
-                if (buttonsContainer) {
-                    buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
-                }
-
-            // === ВАРИАНТ 2: ЗАШЕЛ ГОСТЬ ===
-            } else {
-                document.getElementById('user-name').innerText = "Гость";
-                document.getElementById('user-balance').innerText = "0";
-                document.getElementById('admin-link').style.display = 'none';
-                document.getElementById('user-avatar-img').style.display = 'none';
-                document.getElementById('user-avatar-default').style.display = 'block';
-                
-                // Показываем кнопки "Войти" и "Регистрация" для Гостя
-                if (buttonsContainer) {
-                    buttonsContainer.innerHTML = `
-                        <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
-                        <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
-                    `;
-                }
+            } catch (err) {
+                console.error("Ошибка при проверке статуса:", err);
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-sidebar').style.display = 'flex';
+                document.getElementById('main-page').style.display = 'flex';
+                loadContestants();
             }
         }
-        
-        // Загружаем карточки участников для всех
-        loadContestants();
 
-        // === ВОТ СЮДА ВСТАВЛЯЕМ ПРОВЕРКУ ХЭША ===
-        if (window.location.hash === '#register' || window.location.href.includes('#register')) {
-            history.replaceState(null, null, ' '); // Чистим адресную строку
-            
-            const authPage = document.getElementById('auth-page');
-            if (authPage) authPage.style.display = 'flex';
-            
-            const authTitle = document.getElementById('auth-title');
-            const passwordInput = document.getElementById('password');
-            const secretAnswer = document.getElementById('secret_answer');
-            const toggleText = document.getElementById('auth-toggle-text');
-            const resetText = document.getElementById('auth-reset-text');
-            
-            if (typeof authMode !== 'undefined') authMode = 'register';
-            if (authTitle) authTitle.innerText = "Регистрация";
-            if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
-            if (secretAnswer) secretAnswer.style.display = 'block';
-            if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
-            if (resetText) resetText.style.display = 'none';
-        }
-
-    } catch (err) {
-        console.error("Ошибка при проверке статуса:", err);
-        document.getElementById('auth-page').style.display = 'none';
-        document.getElementById('main-sidebar').style.display = 'flex';
-        document.getElementById('main-page').style.display = 'flex';
-        loadContestants();
-    }
-}
-
-        /* Функция отправки новой аватарки на сервер */
         async function uploadAvatar() {
             const fileInput = document.getElementById('avatar-input');
             if (fileInput.files.length === 0) return;
 
             const formData = new FormData();
             formData.append('avatar', fileInput.files[0]);
-
             try {
                 let res = await fetch('/api/user/avatar', {
                     method: 'POST',
@@ -757,34 +922,24 @@ function goToAdultContent() {
                         <div class="contestant-info">
                             <div class="contestant-name">${girl.name}</div>
                             <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
-                            <button class="btn" onclick="vote(${girl.id}, event)">Проголосовать (10 коинов)</button>
+                            <button class="btn" onclick="vote(${girl.id}, event)">Голосовать (10)</button>
                             <br>
-                            <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 Комментарии (${cCount})</button>
+                            <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 (${cCount})</button>
                         </div>
                         
                         <div class="card-comments-box" id="comments-box-${girl.id}">
-    <div class="mini-comment-form" style="display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px;">
-        
-        <input type="text" 
-               id="comment-input-${girl.id}" 
-               class="mini-comment-input" 
-               placeholder="Ваш комментарий..." 
-               style="flex-grow: 1; min-width: 0; box-sizing: border-box;">
-        
-        <button class="mini-comment-btn" 
-                onclick="sendComment(${girl.id})" 
-                style="flex-shrink: 0; background: none; border: none; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-        
-    </div>
-    
-    <div class="card-comments-list" id="comments-list-${girl.id}">
-        <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
-    </div>
-</div>
+                            <div class="mini-comment-form" style="display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                                <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий..." style="flex-grow: 1; min-width: 0; box-sizing: border-box;">
+                                <button class="mini-comment-btn" onclick="sendComment(${girl.id})" style="flex-shrink: 0; background: none; border: none; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="card-comments-list" id="comments-list-${girl.id}">
+                                <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
+                            </div>
+                        </div>
                     </div>`;
             });
         }
@@ -808,7 +963,7 @@ function goToAdultContent() {
                     listContainer.innerHTML = '';
 
                     if (comments.length === 0) {
-                        listContainer.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted)">Комментариев пока нет.</span>';
+                        listContainer.innerHTML = '<span style="font-size:0.8rem; color:var(--text-muted)">Комментариев нет.</span>';
                         return;
                     }
 
@@ -839,37 +994,30 @@ function goToAdultContent() {
                 if (res.ok) {
                     input.value = '';
                     loadComments(contestantId);
-                    // Обновляем счетчик на кнопке
                     let btn = document.getElementById(`comment-btn-${contestantId}`);
                     let parts = btn.innerText.split('(');
                     let count = parseInt(parts[1]) + 1;
-                    btn.innerText = `💬 Комментарии (${count})`;
+                    btn.innerText = `💬 (${count})`;
                 }
             } catch (err) { console.error("Ошибка отправки комментария:", err); }
         }
 
         async function vote(contestantId, event) {
-    try {
-        // ИСПРАВЛЕНО: привели адрес в соответствие с Python роутом /api/vote?contestant_id=...
-        let res = await fetch(`/api/vote?contestant_id=${contestantId}`, { method: 'POST' });
-        let data = await res.json();
-        
-        if (res.ok) {
-            // Создаем анимацию сердечка в месте клика
-            createHeart(event.clientX, event.clientY);
-            
-            // Вызываем проверку авторизации, чтобы баланс в шапке гарантированно обновился
-            checkAuth(); 
-            
-            // Перезагружаем карточки, чтобы обновился счётчик голосов
-            loadContestants();
-        } else {
-            alert(data.detail || "Ошибка при голосовании");
+            try {
+                let res = await fetch(`/api/vote?contestant_id=${contestantId}`, { method: 'POST' });
+                let data = await res.json();
+                
+                if (res.ok) {
+                    createHeart(event.clientX, event.clientY);
+                    checkAuth(); 
+                    loadContestants();
+                } else {
+                    alert(data.detail || "Ошибка при голосовании");
+                }
+            } catch (err) { 
+                alert("Ошибка сети.");
+            }
         }
-    } catch (err) { 
-        alert("Ошибка сети."); 
-    }
-}
 
         function createHeart(x, y) {
             const heart = document.createElement('div');
@@ -877,7 +1025,6 @@ function goToAdultContent() {
             heart.innerHTML = '❤️';
             heart.style.left = `${x - 12}px`;
             heart.style.top = `${y - 12}px`;
-            
             const angle = Math.random() * Math.PI * 2;
             const velocity = Math.random() * 60 + 40;
             heart.style.setProperty('--x', `${Math.cos(angle) * velocity}px`);
@@ -890,6 +1037,7 @@ function goToAdultContent() {
 
         function openDepositModal() { document.getElementById('depositModal').style.display = 'flex'; }
         function closeDepositModal() { document.getElementById('depositModal').style.display = 'none'; }
+        
         function selectDepositAmount(amount) {
             selectedAmount = amount;
             document.getElementById('customAmount').value = '';
@@ -898,103 +1046,84 @@ function goToAdultContent() {
         }
 
         async function sendPaymentRequest() {
-    let amount = document.getElementById('customAmount').value || selectedAmount;
-    if (!amount || amount < 100) { alert("Минимальная сумма — 100 коинов"); return; }
-    
-    try {
-        let res = await fetch('/api/deposit', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ amount: parseInt(amount) })
-        });
-        
-        let data = await res.json();
-        
-        // ИСПРАВЛЕНО: Проверяем data.payment_url вместо data.pay_url
-        if (res.ok && data.payment_url) {
-            // Перенаправляем в этой же вкладке, чтобы браузер не заблокировал окно
-            window.location.href = data.payment_url;
+            let amount = document.getElementById('customAmount').value || selectedAmount;
+            if (!amount || amount < 100) { alert("Минимальная сумма — 100 коинов"); return; }
             
-            if (typeof startCheckingBalance === 'function') {
-                startCheckingBalance();
+            try {
+                let res = await fetch('/api/deposit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ amount: parseInt(amount) })
+                });
+                let data = await res.json();
+                
+                if (res.ok && data.payment_url) {
+                    window.location.href = data.payment_url;
+                    if (typeof startCheckingBalance === 'function') {
+                        startCheckingBalance();
+                    }
+                } else { 
+                    alert("Ошибка: " + (data.detail || "Не удалось получить ссылку на оплату"));
+                }
+            } catch (err) { 
+                alert("Ошибка сервера платежей");
             }
-        } else { 
-            alert("Ошибка: " + (data.detail || "Не удалось получить ссылку на оплату")); 
         }
-    } catch (err) { 
-        alert("Ошибка сервера платежей"); 
-    }
-}
 
         async function getDailyBonus() {
-    try {
-        // ИСПРАВЛЕНО: убрали "-daily", теперь адрес совпадает с бэкендом
-        let res = await fetch('/api/bonus', { method: 'POST' });
-        let data = await res.json();
-        
-        if (res.ok) {
-            // ИСПРАВЛЕНО: берем data.message, так как бэкенд возвращает именно его
-            alert(data.message); 
-            checkAuth(); // Обновляем баланс в шапке
-        } else { 
-            alert(data.detail || "Не удалось получить бонус"); 
+            try {
+                let res = await fetch('/api/bonus', { method: 'POST' });
+                let data = await res.json();
+                
+                if (res.ok) {
+                    alert(data.message);
+                    checkAuth(); 
+                } else { 
+                    alert(data.detail || "Не удалось получить бонус");
+                }
+            } catch (e) { 
+                alert("Ошибка при получении бонуса");
+            }
         }
-    } catch (e) { 
-        alert("Ошибка при получении бонуса"); 
-    }
-}
-
-
-
-        // Запуск проверки авторизации при загрузке страницы
 
         window.onload = function() {
-    checkAuth();
-    if (typeof startTimer === 'function') startTimer();
-};
-
-
+            checkAuth();
+            if (typeof startTimer === 'function') startTimer();
+        };
     </script>
     <script>
-function startTimer() {
-    let timerEl = document.getElementById('countdown-timer');
-    if (!timerEl) return;
+        function startTimer() {
+            let timerEl = document.getElementById('countdown-timer');
+            if (!timerEl) return;
 
-    // Функция, которая находит 1-е число следующего месяца, 00:00:00
-    function getNextMonthTarget() {
-        let now = new Date();
-        // Создаем дату: текущий год, следующий месяц (now.getMonth() + 1), 1-е число, 00:00:00
-        let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
-        return targetDate;
-    }
+            function getNextMonthTarget() {
+                let now = new Date();
+                let targetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+                return targetDate;
+            }
 
-    let target = getNextMonthTarget();
+            let target = getNextMonthTarget();
+            setInterval(() => {
+                let now = new Date();
+                let diff = target - now;
 
-    setInterval(() => {
-        let now = new Date();
-        let diff = target - now;
+                if (diff <= 0) {
+                    target = getNextMonthTarget();
+                    diff = target - now;
+                }
 
-        // Если месяц кончился, переключаемся на следующий
-        if (diff <= 0) {
-            target = getNextMonthTarget();
-            diff = target - now;
+                let days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                let mins = Math.floor((diff / (1000 * 60)) % 60);
+                let secs = Math.floor((diff / 1000) % 60);
+
+                timerEl.innerText = `${String(days).padStart(2, '0')}д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
+            }, 1000);
         }
 
-        // Вычисляем дни, часы, минуты и секунды
-        let days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-        let mins = Math.floor((diff / (1000 * 60)) % 60);
-        let secs = Math.floor((diff / 1000) % 60);
-
-        // Форматируем вывод, включая реальные дни вместо "00д"
-        timerEl.innerText = `${String(days).padStart(2, '0')}д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
-    }, 1000);
-}
-
-// Автозапуск при загрузке страницы
-document.addEventListener("DOMContentLoaded", () => {
-    startTimer();
-});
-</script>
+        document.addEventListener("DOMContentLoaded", () => {
+            startTimer();
+        });
+    </script>
 </body>
 </html>
