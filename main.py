@@ -74,7 +74,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_REFRESH_TOKEN = "ApXJY9sYu1MAAAAAAAAAAYk7D9NmgMi88qboNhpKNSGsh1conF6E4kBJicP4Web6"
+DROPBOX_REFRESH_TOKEN = "_WgJ5t--cYkAAAAAAAAAAZ5DdohYivqI_AUgdnlIh-iMtRK4CL3UYdgBoFB2HUG0"
 DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
 DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
 
