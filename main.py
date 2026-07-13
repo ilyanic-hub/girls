@@ -1193,7 +1193,11 @@ async def upload_model_photos(model_id: int, files: list[UploadFile] = File(...)
                 url = links.links[0].url
 
             # 3. Трансформируем ссылку в прямую (?raw=1)
-            direct_photo_url = url.replace("?dl=0", "?raw=1")
+            # 3. Трансформируем ссылку Dropbox в 100% прямую ссылку для тега img
+            # Заменяем стандартный домен на dl.dropboxusercontent.com и убираем лишние параметры
+            # 3. Трансформируем ссылку Dropbox в 100% прямую ссылку для тега img
+            # Меняем домен на прямой и заменяем параметр dl=0 на raw=1, сохраняя rlkey
+            direct_photo_url = url.replace("www.dropbox.com", "dl.dropboxusercontent.com").replace("&dl=0", "&raw=1").replace("?dl=0", "?raw=1")
             
             # 4. Записываем прямую ссылку на Dropbox в базу данных
             cursor.execute(
