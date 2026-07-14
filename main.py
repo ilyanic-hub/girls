@@ -316,6 +316,12 @@ init_db()
 
 
 # ================= СХЕМЫ ДАННЫХ =================
+class UserRegister(BaseModel):
+        username: str
+        password: str
+        secret_answer: str
+        role: str = "user"  # По умолчанию регистрируем как обычного пользователя
+    
 class UserAuthSchema(BaseModel):
     username: str
     password: str
@@ -908,13 +914,33 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
     secret_answer = data.secret_answer.strip() if data.secret_answer else ""
+    # Очищаем от пробелов и приводим к нижнему регистру (user или model)
+    role = data.role.strip().lower() if data.role else "user" 
     
+    # Безопасность: разрешаем только валидные роли
+    if role not in ["user", "model"]:
+        role = "user"
+
     if len(username) < 3 or len(password) < 4:
         raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
     if not secret_answer:
         raise HTTPException(status_code=400, detail="Укажите секретное слово для восстановления")
         
     cursor = db.cursor()
+
+    # Авто-миграция: проверяем, есть ли колонка "role" в таблице users.
+    # Если нет — автоматически добавляем её, чтобы база данных не выдала ошибку.
+    try:
+        cursor.execute("SELECT role FROM users LIMIT 1")
+    except Exception:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+            db.commit()
+            print("🚀 База данных успешно обновлена: добавлена колонка 'role'")
+        except Exception as err:
+            print(f"⚠️ Ошибка при добавлении колонки 'role': {err}")
+
+    # Проверяем, существует ли пользователь
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="Пользователь уже существует")
@@ -923,14 +949,17 @@ async def api_register(data: UserAuthSchema, db=Depends(get_db)):
     answer_hash = hash_password(secret_answer.lower())
     
     try:
+        # Вставляем пользователя вместе с его ролью
         cursor.execute(
-            "INSERT INTO users (username, password, balance, is_admin, secret_answer) VALUES (?, ?, 0.0, 0, ?)", 
-            (username, password_hash, answer_hash)
+            "INSERT INTO users (username, password, balance, is_admin, secret_answer, role) VALUES (?, ?, 0.0, 0, ?, ?)", 
+            (username, password_hash, answer_hash, role)
         )
         db.commit()
         
-        # === ВСТАВЛЯЕМ ОТПРАВКУ УВЕДОМЛЕНИЯ ТУТ ===
-        send_telegram_notification(username)
+        # === ОТПРАВКА УВЕДОМЛЕНИЯ В ТЕЛЕГРАМ ===
+        # Можем добавить роль в уведомление, чтобы ты сразу видела, кто зарегистрировался!
+        notification_text = f"👤 Новый пользователь: {username} (Роль: {role.upper()})"
+        send_telegram_notification(notification_text)
         
         upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
