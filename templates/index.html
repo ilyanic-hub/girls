@@ -574,7 +574,22 @@
                     <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
       
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                    
+                    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
+                        
+    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; font-weight: bold;">Кто вы?</label>
+    <div style="display: flex; gap: 10px;">
+        <label style="flex: 1; border: 1px solid #cbd5e0; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; display: block;" id="label-role-user">
+            <input type="radio" name="role" value="user" checked style="display: none;" onclick="selectRole('user')">
+            <span style="font-size: 1.2rem; display: block;">👤</span>
+            <span style="font-size: 0.8rem; font-weight: bold;">Зритель</span>
+        </label>
+        <label style="flex: 1; border: 1px solid #cbd5e0; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; display: block;" id="label-role-model">
+            <input type="radio" name="role" value="model" style="display: none;" onclick="selectRole('model')">
+            <span style="font-size: 1.2rem; display: block;">📸</span>
+            <span style="font-size: 0.8rem; font-weight: bold;">Модель</span>
+        </label>
+    </div>
+</div>
                     <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
                 </form>
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
@@ -675,6 +690,7 @@
         let authMode = 'login'; 
         let selectedAmount = 0;
         let balanceCheckInterval;
+        let selectedRole = 'user'; // По умолчанию
 
         function startCheckingBalance() {
             if (balanceCheckInterval) return;
@@ -723,26 +739,50 @@
         function goToAdultContent() {
             window.location.href = "/18plus";
         }
+
+        function selectRole(role) {
+    selectedRole = role;
+    const userLabel = document.getElementById('label-role-user');
+    const modelLabel = document.getElementById('label-role-model');
+    
+    if (role === 'user') {
+        userLabel.style.borderColor = '#ff4757';
+        userLabel.style.background = '#fff5f5';
+        modelLabel.style.borderColor = '#cbd5e0';
+        modelLabel.style.background = 'transparent';
+    } else {
+        modelLabel.style.borderColor = '#ff4757';
+        modelLabel.style.background = '#fff5f5';
+        userLabel.style.borderColor = '#cbd5e0';
+        userLabel.style.background = 'transparent';
+    }
+}
     
         function toggleAuthMode() {
-            const form = document.getElementById('auth-form');
-            if (form) form.reset();
-            if (authMode === 'login') {
-                authMode = 'register';
-                document.getElementById('auth-title').innerText = "Регистрация";
-                document.getElementById('password').placeholder = "Придумайте пароль";
-                document.getElementById('secret_answer').style.display = 'block';
-                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-                document.getElementById('auth-reset-text').style.display = 'none';
-            } else {
-                authMode = 'login';
-                document.getElementById('auth-title').innerText = "Вход в аккаунт";
-                document.getElementById('password').placeholder = "Пароль";
-                document.getElementById('secret_answer').style.display = 'none';
-                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-                document.getElementById('auth-reset-text').style.display = 'block';
-            }
-        }
+    const form = document.getElementById('auth-form');
+    if (form) form.reset();
+    
+    const roleContainer = document.getElementById('role-selection-container');
+    
+    if (authMode === 'login') {
+        authMode = 'register';
+        document.getElementById('auth-title').innerText = "Регистрация";
+        document.getElementById('password').placeholder = "Придумайте пароль";
+        document.getElementById('secret_answer').style.display = 'block';
+        if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
+        selectRole('user'); // Сбрасываем на зрителя
+        document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+        document.getElementById('auth-reset-text').style.display = 'none';
+    } else {
+        authMode = 'login';
+        document.getElementById('auth-title').innerText = "Вход в аккаунт";
+        document.getElementById('password').placeholder = "Пароль";
+        document.getElementById('secret_answer').style.display = 'none';
+        if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
+        document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+        document.getElementById('auth-reset-text').style.display = 'block';
+    }
+}
 
         function openAuthModal(mode) {
             const authPage = document.getElementById('auth-page');
@@ -888,6 +928,11 @@
             let url = '/api/login';
             let bodyData = { username: u, password: p };
 
+            if (authMode === 'register') { 
+    url = '/api/register'; 
+    bodyData.secret_answer = s; 
+    bodyData.role = selectedRole; // Передаем выбранную роль (user или model)
+}
             if (authMode === 'register') { url = '/api/register'; bodyData.secret_answer = s; }
             else if (authMode === 'reset') { url = '/api/reset-password'; bodyData = { username: u, secret_answer: s, new_password: p }; }
 
