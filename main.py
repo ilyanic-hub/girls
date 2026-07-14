@@ -326,6 +326,7 @@ class UserAuthSchema(BaseModel):
     username: str
     password: str
     secret_answer: Optional[str] = None
+    role: Optional[str] = "user"  # Добавляем роль ("user" или "model"), по умолчанию "user"
 
 class ContestantSchema(BaseModel):
     name: str
