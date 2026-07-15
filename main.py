@@ -12,6 +12,7 @@ import base64
 import uuid
 import asyncio
 import shutil
+import secrets
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
@@ -165,6 +166,21 @@ def upload_photo_to_dropbox_and_get_link(local_path: str, dropbox_path: str) -> 
         
 # ================= РАБОТА С БАЗОЙ ДАННЫХ =================
 
+# Запусти этот код один раз при старте приложения, чтобы создать таблицу
+def init_tg_auth_db():
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_auth_sessions (
+            code TEXT PRIMARY KEY,
+            tg_user_id INTEGER,
+            username TEXT,
+            status TEXT DEFAULT 'pending', -- pending, success, failed
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
+    db.close()
 
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
@@ -316,6 +332,8 @@ def init_db():
         cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
+
+    
 
     # === ДОБАВИТЬ В КОНЕЦ ФУНКЦИИ init_db() ===
     cursor.execute("""
@@ -1057,6 +1075,72 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
+
+@app.post("/api/auth/tg-generate")
+async def generate_tg_link():
+    # Генерируем случайный уникальный токен из 16 символов
+    code = secrets.token_hex(8) 
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO telegram_auth_sessions (code, status) VALUES (?, 'pending')", 
+        (code,)
+    )
+    db.commit()
+    db.close()
+    
+    # Ссылка, которая ведет в твоего бота сразу с кодом старта
+    bot_username = "ТВОЙ_БОТ_BOT"  # Укажи юзернейм своего бота без @
+    link = f"https://t.me/{bot_username}?start={code}"
+    
+    return {"code": code, "link": link}
+
+
+# 2. Опрос статуса авторизации сайтом
+@app.get("/api/auth/tg-status/{code}")
+async def check_tg_status(code: str, response: Response):
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    
+    cursor.execute(
+        "SELECT status, tg_user_id, username FROM telegram_auth_sessions WHERE code = ?", 
+        (code,)
+    )
+    session = cursor.fetchone()
+    
+    if not session:
+        db.close()
+        raise HTTPException(status_code=404, detail="Сессия не найдена")
+        
+    if session["status"] == "success":
+        # Пользователь успешно нажал Старт и подписан!
+        username = session["username"]
+        
+        # Здесь твоя логика авторизации: например, создаем пользователя в таблице users,
+        # если его там еще нет, и прописываем ему роль 'model' или 'user'.
+        cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+        user_exists = cursor.fetchone()
+        
+        if not user_exists:
+            # Создаем нового пользователя
+            cursor.execute(
+                "INSERT INTO users (username, role, is_admin) VALUES (?, 'user', 0)", 
+                (username,)
+            )
+            db.commit()
+            upload_db_to_dropbox() # Синхронизируем базу
+            
+        db.close()
+        
+        # Устанавливаем куку сессии авторизации (как у тебя сейчас реализовано)
+        response.set_cookie(key="session_user", value=username, max_age=2592000, httponly=True)
+        return {"status": "success", "username": username}
+        
+    db.close()
+    return {"status": "pending"}
+    
 @app.get("/api/me")
 async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
