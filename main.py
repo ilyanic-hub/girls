@@ -1246,9 +1246,13 @@ async def generate_tg_link():
 # 2. Опрос статуса авторизации сайтом
 @app.get("/api/auth/tg-status/{code}")
 async def check_tg_status(code: str, response: Response):
+    # Флаг, который скажет нам, нужно ли запускать загрузку в Dropbox ПОСЛЕ закрытия БД
+    need_dropbox_upload = False
+    username_to_auth = None
+
     try:
-        # 1. ОБЯЗАТЕЛЬНО добавляем безопасность для потоков
-        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
+        # Добавляем timeout=10 (если база занята, процесс подождет до 10 секунд, а не упадет сразу)
+        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False, timeout=10)
         db.row_factory = sqlite3.Row
         cursor = db.cursor()
         
@@ -1263,39 +1267,41 @@ async def check_tg_status(code: str, response: Response):
             raise HTTPException(status_code=404, detail="Сессия не найдена")
             
         if session["status"] == "success":
-            username = session["username"]
+            username_to_auth = session["username"]
             
             # Проверяем, есть ли юзер
-            cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+            cursor.execute("SELECT username FROM users WHERE username = ?", (username_to_auth,))
             user_exists = cursor.fetchone()
             
             if not user_exists:
                 # Создаем нового пользователя
                 cursor.execute(
                     "INSERT INTO users (username, role, is_admin) VALUES (?, 'user', 0)", 
-                    (username,)
+                    (username_to_auth,)
                 )
                 db.commit()
-                
+                # Базу изнутри НЕ выгружаем, а просто ставим флаг:
+                need_dropbox_upload = True
+            
+            # Закрываем базу данных ДО выполнения долгих сетевых операций!
+            db.close()
+            
+            # Теперь, когда база 100% свободна и закрыта, делаем синхронизацию
+            if need_dropbox_upload:
                 try:
-                    upload_db_to_dropbox() # Синхронизируем базу безопасным образом
+                    upload_db_to_dropbox()
                 except Exception as dropbox_err:
                     logging.error(f"Ошибка выгрузки в Dropbox: {dropbox_err}")
             
-            # 2. Закрываем базу ОДИН раз строго перед выдачей ответа
-            db.close()
+            # Устанавливаем куку и пускаем на сайт
+            response.set_cookie(key="session_user", value=username_to_auth, max_age=2592000, httponly=True)
+            return {"status": "success", "username": username_to_auth}
             
-            # Устанавливаем куку
-            response.set_cookie(key="session_user", value=username, max_age=2592000, httponly=True)
-            return {"status": "success", "username": username}
-            
-        # Если статус еще pending
         db.close()
         return {"status": "pending"}
 
     except Exception as e:
         logging.error(f"Ошибка в эндпоинте статуса: {e}")
-        # На случай непредвиденной ошибки возвращаем pending, чтобы фронтенд не падал, а продолжал опрашивать
         return {"status": "pending"}
     
 @app.get("/api/me")
