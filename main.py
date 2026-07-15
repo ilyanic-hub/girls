@@ -573,9 +573,17 @@ async def upload_avatar(
 async def check_channel_subscription(user_id: int) -> bool:
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        return member.status in ["creator", "administrator", "member"]
+        logging.info(f"Статус пользователя {user_id} в канале: {member.status}")
+        
+        # Разрешаем вход только реальным подписчикам и админам
+        if member.status in ["creator", "administrator", "member"]:
+            return True
+            
+        return False
     except Exception as e:
-        logging.error(f"Ошибка проверки подписки: {e}")
+        # Если пользователя нет в канале, Telegram вернет ошибку "Chat member not found".
+        # Возвращаем False — вход запрещен!
+        logging.warning(f"Ошибка проверки подписки для {user_id}: {e}")
         return False
 
 @dp.message(CommandStart())
