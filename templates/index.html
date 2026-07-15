@@ -83,7 +83,7 @@
             z-index: 1000;
             justify-content: space-around;
             align-items: center;
-            padding-bottom: env(safe-area-inset-bottom); /* Поддержка айфонов с "челкой" снизу */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .mobile-nav-link {
@@ -114,7 +114,7 @@
             display: flex;
             flex-direction: column;
             min-width: 0; 
-            padding-bottom: 0; /* Будет перезаписано на мобилках */
+            padding-bottom: 0;
         }
 
         .heart-particle {
@@ -385,7 +385,7 @@
         }
         .btn-pay-submit:hover { background: #26af5f; }
 
-        /* --- ОКНО ПРОВЕРКИ ВОЗРАСТА 18+ (Модалка) --- */
+        /* --- ОКНО ПРОВЕРКИ ВОЗРАСТА 18+ --- */
         .age-verify-modal {
             display: none;
             position: fixed;
@@ -407,33 +407,29 @@
             box-shadow: 0 0 25px rgba(255, 71, 87, 0.4);
         }
 
-        /* ========================================================== */
-        /* === МЕДИА-ЗАПРОСЫ ДЛЯ СУПЕР-МОБИЛЬНОСТИ (Экран < 768px) === */
-        /* ========================================================== */
+        /* ========================================== */
+        /* === МЕДИА-ЗАПРОСЫ ДЛЯ МОБИЛЬНОЙ ВЕРСИИ === */
+        /* ========================================== */
         @media (max-width: 768px) {
             body {
-                flex-direction: column; /* Потоком сверху вниз */
+                flex-direction: column;
             }
 
-            /* 1. Скрываем компьютерное меню */
             .sidebar {
                 display: none !important;
             }
 
-            /* 2. Показываем нижнюю навигацию */
             .mobile-nav {
                 display: flex;
             }
 
-            /* Добавляем отступ внизу контента, чтобы нижняя панель не закрывала его */
             .main-wrapper {
                 padding-bottom: 75px; 
             }
 
-            /* 3. Адаптируем Шапку */
             header {
                 padding: 10px 15px;
-                flex-direction: column; /* Элементы в два ряда */
+                flex-direction: column;
                 gap: 10px;
             }
 
@@ -442,7 +438,6 @@
                 justify-content: space-between;
             }
 
-            /* Уменьшаем бонусный блок */
             .bonus-container {
                 width: 100%;
                 box-sizing: border-box;
@@ -460,22 +455,19 @@
                 padding: 6px 12px;
             }
 
-            /* 4. Заголовок сайта */
             .main-promo-title {
                 font-size: 2.2rem;
                 margin: 20px 0;
             }
 
-            /* 5. Сетка карточек — ГЛАВНЫЙ МОБИЛЬНЫЙ ВИД (2 колонки) */
             .contestants-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 10px;
             }
 
-            /* Корректируем размеры фотки на мобильных */
             .contestant-img {
-                height: 220px; /* Идеальный размер для плитки из 2х колонок */
+                height: 220px;
             }
 
             .contestant-name {
@@ -487,7 +479,6 @@
                 margin-bottom: 8px;
             }
 
-            /* Делаем кнопки на мобилках чуть меньше, чтобы помещались */
             .contestant-card .btn {
                 font-size: 0.8rem;
                 padding: 6px 10px;
@@ -499,13 +490,11 @@
                 padding: 4px 8px;
             }
 
-            /* Кнопка "Пополнить" в шапке */
             .btn-deposit {
                 padding: 6px 12px;
                 font-size: 0.85rem;
             }
 
-            /* Окно авторизации */
             .auth-box {
                 padding: 25px 20px;
                 max-width: 90%;
@@ -691,17 +680,17 @@
         let authMode = 'login'; 
         let selectedAmount = 0;
         let balanceCheckInterval;
-        let selectedRole = 'user'; // По умолчанию
+        let selectedRole = 'user';
 
         function startCheckingBalance() {
             if (balanceCheckInterval) return;
             balanceCheckInterval = setInterval(async () => {
                 try {
-                    const response = await fetch('/api/user/me'); 
+                    const response = await fetch('/api/me'); 
                     if (response.ok) {
                         const userData = await response.json();
                         const balanceElement = document.getElementById('user-balance');
-                        if (balanceElement) {
+                        if (balanceElement && userData.username !== "Гость") {
                             const currentBalance = parseFloat(balanceElement.innerText);
                             const newBalance = parseFloat(userData.balance);
                             if (newBalance !== currentBalance) {
@@ -770,8 +759,8 @@
                 document.getElementById('auth-title').innerText = "Регистрация";
                 document.getElementById('password').placeholder = "Придумайте пароль";
                 document.getElementById('secret_answer').style.display = 'block';
-                if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
-                selectRole('user'); // Сбрасываем визуальный выбор на Зрителя
+                if (roleContainer) roleContainer.style.display = 'block';
+                selectRole('user');
                 document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
                 document.getElementById('auth-reset-text').style.display = 'none';
             } else {
@@ -779,7 +768,7 @@
                 document.getElementById('auth-title').innerText = "Вход в аккаунт";
                 document.getElementById('password').placeholder = "Пароль";
                 document.getElementById('secret_answer').style.display = 'none';
-                if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
+                if (roleContainer) roleContainer.style.display = 'none';
                 document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
@@ -790,7 +779,7 @@
             const mainPage = document.getElementById('main-page');
             
             if (authPage) authPage.style.display = 'flex';
-            if (mainPage) mainPage.style.display = 'none'; // Прячем главную при входе
+            if (mainPage) mainPage.style.display = 'none';
 
             const roleContainer = document.getElementById('role-selection-container');
 
@@ -799,7 +788,7 @@
                 document.getElementById('auth-title').innerText = "Регистрация";
                 document.getElementById('password').placeholder = "Придумайте пароль";
                 document.getElementById('secret_answer').style.display = 'block';
-                if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
+                if (roleContainer) roleContainer.style.display = 'block';
                 selectRole('user');
                 document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
                 document.getElementById('auth-reset-text').style.display = 'none';
@@ -808,7 +797,7 @@
                 document.getElementById('auth-title').innerText = "Вход в аккаунт";
                 document.getElementById('password').placeholder = "Пароль";
                 document.getElementById('secret_answer').style.display = 'none';
-                if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
+                if (roleContainer) roleContainer.style.display = 'none';
                 document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
@@ -826,46 +815,52 @@
             document.getElementById('auth-reset-text').style.display = 'none';
         }
 
-        async function checkAuth() {
-    try {
-        let res = await fetch('/api/me');
-        
-        // Показываем сайдбар и основную страницу
-        const mainSidebar = document.getElementById('main-sidebar');
-        const mainPage = document.getElementById('main-page');
-        const authPage = document.getElementById('auth-page');
-        if (authPage) authPage.style.display = 'none';
-        if (mainSidebar) mainSidebar.style.display = 'flex';
-        if (mainPage) mainPage.style.display = 'flex';
-        
-        const buttonsContainer = document.getElementById('auth-buttons-container');
-        
-        if (res.ok) {
-            let user = await res.json();
-            
-            // Если сервер вернул Гостя (то есть нет куки)
-            if (!user || user.username === "Гость") {
-                showGuestUI(buttonsContainer);
-                loadContestants();
-                return;
-            }
-            
-            // Заполняем данные вошедшего пользователя
+        // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
+        function showGuestUI(buttonsContainer) {
             const userNameEl = document.getElementById('user-name');
             const userBalanceEl = document.getElementById('user-balance');
             const adminLink = document.getElementById('admin-link');
             const avatarImg = document.getElementById('user-avatar-img');
             const avatarDefault = document.getElementById('user-avatar-default');
-            
+
+            if (userNameEl) userNameEl.innerText = "Гость";
+            if (userBalanceEl) userBalanceEl.innerText = "0";
+            if (adminLink) adminLink.style.display = 'none';
+            if (avatarImg) avatarImg.style.display = 'none';
+            if (avatarDefault) avatarDefault.style.display = 'block';
+
+            const depositBtn = document.querySelector('.btn-deposit');
+            if (depositBtn) {
+                depositBtn.innerText = "+ Пополнить";
+                depositBtn.setAttribute('onclick', 'openDepositModal()');
+                depositBtn.style.background = '#f1f5f9';
+                depositBtn.style.color = '#1e293b';
+                depositBtn.style.borderColor = '#0f172a';
+            }
+
+            if (buttonsContainer) {
+                buttonsContainer.innerHTML = `
+                    <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
+                    <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
+                `;
+            }
+        }
+
+        function showUserUI(user, buttonsContainer) {
+            const userNameEl = document.getElementById('user-name');
+            const userBalanceEl = document.getElementById('user-balance');
+            const adminLink = document.getElementById('admin-link');
+            const avatarImg = document.getElementById('user-avatar-img');
+            const avatarDefault = document.getElementById('user-avatar-default');
+
             if (userNameEl) userNameEl.innerText = user.username;
             if (userBalanceEl) userBalanceEl.innerText = user.balance;
-            
-            // Показываем админку, если админ
+
             if (adminLink) {
-                adminLink.style.display = user.is_admin ? 'flex' : 'none';
+                adminLink.style.display = (user.is_admin === 1) ? 'inline' : 'none';
             }
-            
-            // Устанавливаем аватарку
+
+            // Рендер аватарки
             if (user.avatar) {
                 if (avatarImg) {
                     avatarImg.src = user.avatar;
@@ -876,19 +871,17 @@
                 if (avatarImg) avatarImg.style.display = 'none';
                 if (avatarDefault) avatarDefault.style.display = 'block';
             }
-            
-            // КНОПКА ПОПОЛНЕНИЯ / ВЫВОДА В ЗАВИСИМОСТИ ОТ РОЛИ
+
+            // Настройка кнопки пополнения/вывода
             const depositBtn = document.querySelector('.btn-deposit');
             if (depositBtn) {
                 if (user.role === 'model') {
-                    // Если вошла модель, превращаем кнопку в «Вывод»
                     depositBtn.innerText = "💸 Вывод";
-                    depositBtn.style.background = '#22c55e'; // Зеленая кнопка
+                    depositBtn.style.background = '#22c55e';
                     depositBtn.style.color = '#ffffff';
                     depositBtn.style.borderColor = '#15803d';
-                    depositBtn.setAttribute('onclick', 'openWithdrawModal()'); // Открывает модалку вывода
+                    depositBtn.setAttribute('onclick', 'openWithdrawModal()');
                 } else {
-                    // Обычный зритель
                     depositBtn.innerText = "+ Пополнить";
                     depositBtn.style.background = '#f1f5f9';
                     depositBtn.style.color = '#1e293b';
@@ -896,38 +889,66 @@
                     depositBtn.setAttribute('onclick', 'openDepositModal()');
                 }
             }
-            
-            // Отрисовываем кнопку «Выйти»
+
             if (buttonsContainer) {
                 buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
             }
-            
-            // Если вошел зритель, запускаем интервал отслеживания пополнения баланса
+
             if (user.role !== 'model') {
                 startCheckingBalance();
             }
-            
-        } else {
-            showGuestUI(buttonsContainer);
         }
-        
-        loadContestants();
-        
-    } catch (err) {
-        console.error("Ошибка при проверке статуса:", err);
-        const buttonsContainer = document.getElementById('auth-buttons-container');
-        showGuestUI(buttonsContainer);
-        loadContestants();
-    }
-}
+
+        async function checkAuth() {
+            try {
+                let res = await fetch('/api/me');
+                
+                const mainSidebar = document.getElementById('main-sidebar');
+                const mobileNav = document.getElementById('mobile-nav-bar');
+                const mainPage = document.getElementById('main-page');
+                const authPage = document.getElementById('auth-page');
+                
+                if (authPage) authPage.style.display = 'none';
+                if (mainSidebar) mainSidebar.style.display = 'flex';
+                if (mobileNav) mobileNav.style.display = 'flex';
+                if (mainPage) mainPage.style.display = 'flex';
+
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                
+                if (res.ok) {
+                    let user = await res.json();
+                    if (user && user.username && user.username !== "Гость") {
+                        showUserUI(user, buttonsContainer);
+                    } else {
+                        showGuestUI(buttonsContainer);
+                    }
+                } else {
+                    showGuestUI(buttonsContainer);
+                }
+                
+                loadContestants();
+
+                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+                    history.replaceState(null, null, ' ');
+                    openAuthModal('register');
+                }
+
+            } catch (err) {
+                console.error("Ошибка при проверке статуса:", err);
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                showGuestUI(buttonsContainer);
+                loadContestants();
+            }
+        }
+
         function openWithdrawModal() {
-            let amount = prompt("Введите сумму коинов для вывода:");
-            if (!amount) return;
-            
-            let wallet = prompt("Введите ваш USDT кошелек (TRC-20):");
-            if (!wallet) return;
-            
-            alert(`Заявка создана!\nВывод: ${amount} коинов\nКошелек: ${wallet}\nСтатус ожидания проверки администратором.`);
+            let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
+            if (wallet) {
+                let amount = prompt("Какую сумму вы хотите вывести?");
+                if (amount) {
+                    alert(`Заявка на вывод ${amount} коинов на кошелек ${wallet} успешно создана и отправлена администрации!`);
+                }
+            }
         }
 
         async function uploadAvatar() {
@@ -963,7 +984,7 @@
             if (authMode === 'register') { 
                 url = '/api/register'; 
                 bodyData.secret_answer = s;
-                bodyData.role = selectedRole; // Передаем выбранную роль (user или model)
+                bodyData.role = selectedRole;
             }
             else if (authMode === 'reset') { 
                 url = '/api/reset-password';
@@ -997,6 +1018,7 @@
 
         async function loadContestants() {
             let res = await fetch('/api/contestants');
+            if (!res.ok) return;
             let list = await res.json();
             let g = document.getElementById('gallery');
             g.innerHTML = '';
@@ -1097,7 +1119,6 @@
                 if (res.ok) {
                     createHeart(event.clientX, event.clientY);
                     checkAuth(); 
-                    loadContestants();
                 } else {
                     alert(data.detail || "Ошибка при голосовании");
                 }
@@ -1146,9 +1167,7 @@
                 
                 if (res.ok && data.payment_url) {
                     window.location.href = data.payment_url;
-                    if (typeof startCheckingBalance === 'function') {
-                        startCheckingBalance();
-                    }
+                    startCheckingBalance();
                 } else { 
                     alert("Ошибка: " + (data.detail || "Не удалось получить ссылку на оплату"));
                 }
@@ -1175,6 +1194,7 @@
 
         window.onload = function() {
             checkAuth();
+            if (typeof startTimer === 'function') startTimer();
         };
     </script>
     <script>
@@ -1206,10 +1226,6 @@
                 timerEl.innerText = `${String(days).padStart(2, '0')}д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
             }, 1000);
         }
-
-        document.addEventListener("DOMContentLoaded", () => {
-            startTimer();
-        });
     </script>
 </body>
 </html>
