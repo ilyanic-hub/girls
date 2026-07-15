@@ -11,6 +11,7 @@ import json
 import base64
 import uuid
 import asyncio
+import shutil
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
