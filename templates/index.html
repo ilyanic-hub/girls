@@ -827,141 +827,99 @@
         }
 
         async function checkAuth() {
-            try {
-                let res = await fetch('/api/me');
-                
-                // Элементы интерфейса
-                const mainSidebar = document.getElementById('main-sidebar');
-                const mobileNav = document.getElementById('mobile-nav-bar');
-                const mainPage = document.getElementById('main-page');
-                const authPage = document.getElementById('auth-page');
-                
-                if (authPage) authPage.style.display = 'none';
-                if (mainSidebar) mainSidebar.style.display = 'flex';
-                if (mobileNav) mobileNav.style.display = 'flex';
-                if (mainPage) mainPage.style.display = 'flex';
-
-                const buttonsContainer = document.getElementById('auth-buttons-container');
-                
-                if (res.ok) {
-                    let user = await res.json();
-                    
-                    if (user && user.username && user.username !== "Гость") {
-                        // 1. Заполняем данные пользователя
-                        const userNameEl = document.getElementById('user-name');
-                        const userBalanceEl = document.getElementById('user-balance');
-                        if (userNameEl) userNameEl.innerText = user.username;
-                        if (userBalanceEl) userBalanceEl.innerText = user.balance;
-                        
-                        // 2. Управляем аватаркой
-                        let avatarUrl = user.avatar_url || user.avatar;
-                        let avatarImg = document.getElementById('user-avatar-img');
-                        let avatarDefault = document.getElementById('user-avatar-default');
-                        if (avatarImg && avatarDefault) {
-                            if (avatarUrl) {
-                                avatarImg.src = avatarUrl;
-                                avatarImg.style.display = 'block';
-                                avatarDefault.style.display = 'none';
-                            } else {
-                                avatarImg.style.display = 'none';
-                                avatarDefault.style.display = 'block';
-                            }
-                        }
-                        
-                        // 3. Ссылка на админку
-                        const adminLink = document.getElementById('admin-link');
-                        if (adminLink) {
-                            adminLink.style.display = (user.is_admin === 1) ? 'inline' : 'none';
-                        }
-
-                        // 4. Кнопка вывода для моделей / пополнения для зрителей
-                        const depositBtn = document.querySelector('.btn-deposit');
-                        if (depositBtn) {
-                            if (user.role === 'model') {
-                                depositBtn.innerText = "💸 Вывод";
-                                depositBtn.setAttribute('onclick', 'openWithdrawModal()');
-                                depositBtn.style.background = '#2ed573';
-                                depositBtn.style.color = '#ffffff';
-                                depositBtn.style.borderColor = '#2ed573';
-                            } else {
-                                depositBtn.innerText = "+ Пополнить";
-                                depositBtn.setAttribute('onclick', 'openDepositModal()');
-                                depositBtn.style.background = '#f1f5f9';
-                                depositBtn.style.color = '#1e293b';
-                                depositBtn.style.borderColor = '#0f172a';
-                            }
-                        }
-
-                        // 5. Отрисовываем кнопку "Выйти"
-                        if (buttonsContainer) {
-                            buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
-                        }
-                    } else {
-                        showGuestUI(buttonsContainer);
-                    }
-                } else {
-                    showGuestUI(buttonsContainer);
-                }
-                
-                // Загружаем галерею
-                loadContestants();
-
-                // Проверка хэша регистрации
-                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
-                    history.replaceState(null, null, ' ');
-                    openAuthModal('register');
-                }
-
-            } catch (err) {
-                console.error("Ошибка при проверке статуса:", err);
-                // При любой ошибке сети показываем гостевой интерфейс, чтобы сайт открылся
-                const mainSidebar = document.getElementById('main-sidebar');
-                const mobileNav = document.getElementById('mobile-nav-bar');
-                const mainPage = document.getElementById('main-page');
-                const authPage = document.getElementById('auth-page');
-                
-                if (authPage) authPage.style.display = 'none';
-                if (mainSidebar) mainSidebar.style.display = 'flex';
-                if (mobileNav) mobileNav.style.display = 'flex';
-                if (mainPage) mainPage.style.display = 'flex';
-                
-                const buttonsContainer = document.getElementById('auth-buttons-container');
+    try {
+        let res = await fetch('/api/me');
+        
+        // Показываем сайдбар и основную страницу
+        const mainSidebar = document.getElementById('main-sidebar');
+        const mainPage = document.getElementById('main-page');
+        const authPage = document.getElementById('auth-page');
+        if (authPage) authPage.style.display = 'none';
+        if (mainSidebar) mainSidebar.style.display = 'flex';
+        if (mainPage) mainPage.style.display = 'flex';
+        
+        const buttonsContainer = document.getElementById('auth-buttons-container');
+        
+        if (res.ok) {
+            let user = await res.json();
+            
+            // Если сервер вернул Гостя (то есть нет куки)
+            if (!user || user.username === "Гость") {
                 showGuestUI(buttonsContainer);
                 loadContestants();
+                return;
             }
-        }
-
-        // Вспомогательная функция, которая гарантированно отрисует кнопки входа для гостя
-        function showGuestUI(buttonsContainer) {
+            
+            // Заполняем данные вошедшего пользователя
             const userNameEl = document.getElementById('user-name');
             const userBalanceEl = document.getElementById('user-balance');
             const adminLink = document.getElementById('admin-link');
             const avatarImg = document.getElementById('user-avatar-img');
             const avatarDefault = document.getElementById('user-avatar-default');
-
-            if (userNameEl) userNameEl.innerText = "Гость";
-            if (userBalanceEl) userBalanceEl.innerText = "0";
-            if (adminLink) adminLink.style.display = 'none';
-            if (avatarImg) avatarImg.style.display = 'none';
-            if (avatarDefault) avatarDefault.style.display = 'block';
-
+            
+            if (userNameEl) userNameEl.innerText = user.username;
+            if (userBalanceEl) userBalanceEl.innerText = user.balance;
+            
+            // Показываем админку, если админ
+            if (adminLink) {
+                adminLink.style.display = user.is_admin ? 'flex' : 'none';
+            }
+            
+            // Устанавливаем аватарку
+            if (user.avatar) {
+                if (avatarImg) {
+                    avatarImg.src = user.avatar;
+                    avatarImg.style.display = 'block';
+                }
+                if (avatarDefault) avatarDefault.style.display = 'none';
+            } else {
+                if (avatarImg) avatarImg.style.display = 'none';
+                if (avatarDefault) avatarDefault.style.display = 'block';
+            }
+            
+            // КНОПКА ПОПОЛНЕНИЯ / ВЫВОДА В ЗАВИСИМОСТИ ОТ РОЛИ
             const depositBtn = document.querySelector('.btn-deposit');
             if (depositBtn) {
-                depositBtn.innerText = "+ Пополнить";
-                depositBtn.setAttribute('onclick', 'openDepositModal()');
-                depositBtn.style.background = '#f1f5f9';
-                depositBtn.style.color = '#1e293b';
-                depositBtn.style.borderColor = '#0f172a';
+                if (user.role === 'model') {
+                    // Если вошла модель, превращаем кнопку в «Вывод»
+                    depositBtn.innerText = "💸 Вывод";
+                    depositBtn.style.background = '#22c55e'; // Зеленая кнопка
+                    depositBtn.style.color = '#ffffff';
+                    depositBtn.style.borderColor = '#15803d';
+                    depositBtn.setAttribute('onclick', 'openWithdrawModal()'); // Открывает модалку вывода
+                } else {
+                    // Обычный зритель
+                    depositBtn.innerText = "+ Пополнить";
+                    depositBtn.style.background = '#f1f5f9';
+                    depositBtn.style.color = '#1e293b';
+                    depositBtn.style.borderColor = '#0f172a';
+                    depositBtn.setAttribute('onclick', 'openDepositModal()');
+                }
             }
-
+            
+            // Отрисовываем кнопку «Выйти»
             if (buttonsContainer) {
-                buttonsContainer.innerHTML = `
-                    <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
-                    <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
-                `;
+                buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
             }
+            
+            // Если вошел зритель, запускаем интервал отслеживания пополнения баланса
+            if (user.role !== 'model') {
+                startCheckingBalance();
+            }
+            
+        } else {
+            showGuestUI(buttonsContainer);
         }
-
+        
+        loadContestants();
+        
+    } catch (err) {
+        console.error("Ошибка при проверке статуса:", err);
+        const buttonsContainer = document.getElementById('auth-buttons-container');
+        showGuestUI(buttonsContainer);
+        loadContestants();
+    }
+}
         function openWithdrawModal() {
             let amount = prompt("Введите сумму коинов для вывода:");
             if (!amount) return;
