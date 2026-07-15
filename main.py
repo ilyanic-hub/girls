@@ -30,6 +30,7 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 from pydantic import BaseModel
 
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 app = FastAPI()
 router = APIRouter()
 os.makedirs("uploads", exist_ok=True)
