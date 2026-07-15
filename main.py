@@ -894,20 +894,22 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 @app.get("/api/me")
-async def api_get_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        return {"username": "Гость", "balance": 0, "is_admin": 0}
-    
+async def get_current_user(db=Depends(get_db), token: str = Depends(oauth2_scheme)):
+    # ... твой код получения пользователя по токену/сессии ...
+    # Допустим, ты делаешь запрос к базе:
     cursor = db.cursor()
-    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
-    row = cursor.fetchone()
-    if not row:
-        return {"username": "Гость", "balance": 0, "is_admin": 0}
+    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (current_username,))
+    user_row = cursor.fetchone()
+    
+    if not user_row:
+        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
         
     return {
-        "username": row[0],
-        "balance": row[1],
-        "is_admin": row[2]
+        "id": user_row[0],
+        "username": user_row[1],
+        "balance": user_row[2],
+        "is_admin": user_row[3],
+        "role": user_row[4] if user_row[4] else "user"  # Если роль пустая, отдаем "user"
     }
 
 @app.post("/api/register")
