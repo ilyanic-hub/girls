@@ -34,6 +34,8 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
 from pydantic import BaseModel
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
 logging.basicConfig(level=logging.INFO)
@@ -581,16 +583,12 @@ async def check_channel_subscription(user_id: int) -> bool:
             
         return False
     except Exception as e:
-        # Если пользователя нет в канале, Telegram вернет ошибку "Chat member not found".
-        # Возвращаем False — вход запрещен!
         logging.warning(f"Ошибка проверки подписки для {user_id}: {e}")
         return False
 
-@dp.message(CommandStart())
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
-@dp.message(CommandStart())
+@dp.message(CommandStart())  # <-- Оставляем ОДИН декоратор БЕЗ импортов под ним
 async def handle_start(message: types.Message, command: CommandObject):
     code = command.args
     user_id = message.from_user.id
