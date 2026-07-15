@@ -1531,6 +1531,18 @@ async function submitAnnouncement(event) {
             
             loadAnnouncements(); // Перезапускаем рендер с учетом фильтра
         }
+
+        // Функция для безопасного вывода текста (экранирование спецсимволов)
+function escapeHtml(text) {
+    if (!text) return '';
+    return text
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
     </script>
 </body>
 </html>
