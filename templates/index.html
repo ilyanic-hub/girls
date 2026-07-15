@@ -563,35 +563,33 @@
 
     <div class="main-wrapper">
 
-        <div id="auth-page" class="auth-container" style="display: none;">
-            <div class="auth-box">
-                <h2 id="auth-title">Вход в аккаунт</h2>
-                <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
-                    <input type="text" name="fake_username_remembered" style="display:none;">
-                    <input type="password" name="fake_password_remembered" style="display:none;">
+        <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+    <input type="text" name="fake_username_remembered" style="display:none;">
+    <input type="password" name="fake_password_remembered" style="display:none;">
 
-                    <input type="text" id="username" placeholder="Логин" autocomplete="off">
-                    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+    <input type="text" id="username" placeholder="Логин" autocomplete="off">
+    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
       
-                    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-                        
-    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; font-weight: bold;">Кто вы?</label>
-    <div style="display: flex; gap: 10px;">
-        <label style="flex: 1; border: 1px solid #cbd5e0; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; display: block;" id="label-role-user">
-            <input type="radio" name="role" value="user" checked style="display: none;" onclick="selectRole('user')">
-            <span style="font-size: 1.2rem; display: block;">👤</span>
-            <span style="font-size: 0.8rem; font-weight: bold;">Зритель</span>
-        </label>
-        <label style="flex: 1; border: 1px solid #cbd5e0; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; display: block;" id="label-role-model">
-            <input type="radio" name="role" value="model" style="display: none;" onclick="selectRole('model')">
-            <span style="font-size: 1.2rem; display: block;">📸</span>
-            <span style="font-size: 0.8rem; font-weight: bold;">Модель</span>
-        </label>
+    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+                    
+    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
+        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
+        <div style="display: flex; gap: 10px;">
+            <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
+                <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
+                <span style="font-size: 1.5rem; display: block;">👤</span>
+                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
+            </label>
+            <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
+                <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
+                <span style="font-size: 1.5rem; display: block;">📸</span>
+                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
+            </label>
+        </div>
     </div>
-</div>
-                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
-                </form>
+
+    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+</form>
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
             </div>
