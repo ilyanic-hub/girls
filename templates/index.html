@@ -639,16 +639,22 @@
                         <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: var(--text-main);">📢 Объявления от моделей</h1>
                         <p style="margin: 5px 0 0 0; color: var(--text-muted);">Актуальные предложения, кастинги и приватные встречи</p>
                     </div>
-                    <!-- Эта кнопка видна только моделям -->
                     <button id="model-create-btn" class="btn" onclick="openAnnouncementModal()" style="display: none; background: #2ed573;">
                         ✨ Создать объявление
                     </button>
                 </div>
 
-                <!-- Лента объявлений -->
-                <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-                    <!-- Сюда будут загружаться объявления из базы -->
+                <div id="announcements-filter-container" style="display: none; gap: 10px; margin-bottom: 20px;">
+                    <button id="btn-filter-all" class="btn" onclick="filterAnnouncements('all')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: var(--accent); color: white;">
+                        🌍 Все объявления
+                    </button>
+                    <button id="btn-filter-my" class="btn btn-sec" onclick="filterAnnouncements('my')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: #f1f5f9; color: #1e293b;">
+                        👤 Мои объявления
+                    </button>
                 </div>
+
+                <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+                    </div>
             </div>
 
             <h1 class="main-promo-title">Кого разденем?</h1>
@@ -880,6 +886,12 @@
     const avatarImg = document.getElementById('user-avatar-img');
     const avatarDefault = document.getElementById('user-avatar-default');
 
+            
+    const filterContainer = document.getElementById('announcements-filter-container');
+    if (filterContainer) {
+        filterContainer.style.display = 'none';
+    }
+
     if (userNameEl) userNameEl.innerText = "Гость";
     if (userBalanceEl) userBalanceEl.innerText = "0";
     if (adminLink) adminLink.style.display = 'none';
@@ -954,9 +966,16 @@ function showUserUI(user, buttonsContainer) {
     }
 
     // Безопасное отображение кнопки создания объявлений только для моделей
+    // Безопасное отображение кнопки создания объявлений и фильтров только для моделей
     const userModelBtn = document.getElementById('model-create-btn');
-    if (userModelBtn) {
-        userModelBtn.style.display = (user.role === 'model') ? 'block' : 'none';
+    const filterContainer = document.getElementById('announcements-filter-container');
+    
+    if (user.role === 'model') {
+        if (userModelBtn) userModelBtn.style.display = 'block';
+        if (filterContainer) filterContainer.style.display = 'flex'; // Показываем фильтры для моделей
+    } else {
+        if (userModelBtn) userModelBtn.style.display = 'none';
+        if (filterContainer) filterContainer.style.display = 'none'; // Скрываем для обычных юзеров
     }
 
     if (buttonsContainer) {
@@ -1445,6 +1464,30 @@ async function submitAnnouncement(event) {
 
         function openChatWithModel(username) {
             alert(`Функция чата в разработке. Скоро вы сможете написать напрямую пользователю @${username}!`);
+        }
+
+        let currentAnnouncementFilter = 'all'; // 'all' или 'my'
+
+        // Функция переключения фильтров
+        function filterAnnouncements(filterType) {
+            currentAnnouncementFilter = filterType;
+            
+            const btnAll = document.getElementById('btn-filter-all');
+            const btnMy = document.getElementById('btn-filter-my');
+            
+            if (filterType === 'all') {
+                btnAll.style.backgroundColor = 'var(--accent)';
+                btnAll.style.color = 'white';
+                btnMy.style.backgroundColor = '#f1f5f9';
+                btnMy.style.color = '#1e293b';
+            } else {
+                btnMy.style.backgroundColor = 'var(--accent)';
+                btnMy.style.color = 'white';
+                btnAll.style.backgroundColor = '#f1f5f9';
+                btnAll.style.color = '#1e293b';
+            }
+            
+            loadAnnouncements(); // Перезапускаем рендер с учетом фильтра
         }
     </script>
 </body>
