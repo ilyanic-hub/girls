@@ -925,61 +925,41 @@ async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=De
     }
 
 @app.post("/api/register")
-async def api_register(data: UserAuthSchema, db=Depends(get_db)):
+async def api_register(data: UserRegister, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
-    secret_answer = data.secret_answer.strip() if data.secret_answer else ""
-    # Очищаем от пробелов и приводим к нижнему регистру (user или model)
-    role = data.role.strip().lower() if data.role else "user" 
-    
-    # Безопасность: разрешаем только валидные роли
-    if role not in ["user", "model"]:
-        role = "user"
+    secret_answer = data.secret_answer.strip()
+    role = data.role.strip() if data.role else "user"
 
-    if len(username) < 3 or len(password) < 4:
-        raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
-    if not secret_answer:
-        raise HTTPException(status_code=400, detail="Укажите секретное слово для восстановления")
-        
+    if not username or not password or not secret_answer:
+        raise HTTPException(status_code=400, detail="Все поля обязательны для заполнения")
+
     cursor = db.cursor()
-
-    # Авто-миграция: проверяем, есть ли колонка "role" в таблице users.
-    # Если нет — автоматически добавляем её, чтобы база данных не выдала ошибку.
-    try:
-        cursor.execute("SELECT role FROM users LIMIT 1")
-    except Exception:
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
-            db.commit()
-            print("🚀 База данных успешно обновлена: добавлена колонка 'role'")
-        except Exception as err:
-            print(f"⚠️ Ошибка при добавлении колонки 'role': {err}")
-
-    # Проверяем, существует ли пользователь
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Пользователь уже существует")
-        
-    password_hash = hash_password(password)
-    answer_hash = hash_password(secret_answer.lower())
-    
+        raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
+
+    hashed_pw = hash_password(password)
     try:
-        # Вставляем пользователя вместе с его ролью
         cursor.execute(
-            "INSERT INTO users (username, password, balance, is_admin, secret_answer, role) VALUES (?, ?, 0.0, 0, ?, ?)", 
-            (username, password_hash, answer_hash, role)
+            "INSERT INTO users (username, password, secret_answer, balance, role) VALUES (?, ?, ?, 0.0, ?)",
+            (username, hashed_pw, secret_answer, role)
         )
         db.commit()
-        
-        # === ОТПРАВКА УВЕДОМЛЕНИЯ В ТЕЛЕГРАМ ===
-        # Можем добавить роль в уведомление, чтобы ты сразу видела, кто зарегистрировался!
-        notification_text = f"👤 Новый пользователь: {username} (Роль: {role.upper()})"
-        send_telegram_notification(notification_text)
-        
         upload_db_to_dropbox()
+        
+        # Отправляем уведомление в Telegram о регистрации новой модели или юзера
+        role_emoji = "📸" if role == "model" else "👤"
+        try:
+            message = f"🎉 **Новая регистрация на сайте!**\n{role_emoji} Роль: `{role}`\n👤 Логин: `{username}`"
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+            requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}, timeout=3)
+        except Exception as telegram_err:
+            print(f"Ошибка Telegram: {telegram_err}")
+
         return {"status": "success", "message": "Регистрация успешна!"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
         
 @app.post("/api/login")
 @limiter.limit("5 per minute")
