@@ -1246,46 +1246,57 @@ async def generate_tg_link():
 # 2. Опрос статуса авторизации сайтом
 @app.get("/api/auth/tg-status/{code}")
 async def check_tg_status(code: str, response: Response):
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-    
-    cursor.execute(
-        "SELECT status, tg_user_id, username FROM telegram_auth_sessions WHERE code = ?", 
-        (code,)
-    )
-    session = cursor.fetchone()
-    
-    if not session:
-        db.close()
-        raise HTTPException(status_code=404, detail="Сессия не найдена")
+    try:
+        # 1. ОБЯЗАТЕЛЬНО добавляем безопасность для потоков
+        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
+        db.row_factory = sqlite3.Row
+        cursor = db.cursor()
         
-    if session["status"] == "success":
-        # Пользователь успешно нажал Старт и подписан!
-        username = session["username"]
+        cursor.execute(
+            "SELECT status, tg_user_id, username FROM telegram_auth_sessions WHERE code = ?", 
+            (code,)
+        )
+        session = cursor.fetchone()
         
-        # Здесь твоя логика авторизации: например, создаем пользователя в таблице users,
-        # если его там еще нет, и прописываем ему роль 'model' или 'user'.
-        cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
-        user_exists = cursor.fetchone()
-        
-        if not user_exists:
-            # Создаем нового пользователя
-            cursor.execute(
-                "INSERT INTO users (username, role, is_admin) VALUES (?, 'user', 0)", 
-                (username,)
-            )
-            db.commit()
-            upload_db_to_dropbox() # Синхронизируем базу
+        if not session:
+            db.close()
+            raise HTTPException(status_code=404, detail="Сессия не найдена")
             
+        if session["status"] == "success":
+            username = session["username"]
+            
+            # Проверяем, есть ли юзер
+            cursor.execute("SELECT username FROM users WHERE username = ?", (username,))
+            user_exists = cursor.fetchone()
+            
+            if not user_exists:
+                # Создаем нового пользователя
+                cursor.execute(
+                    "INSERT INTO users (username, role, is_admin) VALUES (?, 'user', 0)", 
+                    (username,)
+                )
+                db.commit()
+                
+                try:
+                    upload_db_to_dropbox() # Синхронизируем базу безопасным образом
+                except Exception as dropbox_err:
+                    logging.error(f"Ошибка выгрузки в Dropbox: {dropbox_err}")
+            
+            # 2. Закрываем базу ОДИН раз строго перед выдачей ответа
+            db.close()
+            
+            # Устанавливаем куку
+            response.set_cookie(key="session_user", value=username, max_age=2592000, httponly=True)
+            return {"status": "success", "username": username}
+            
+        # Если статус еще pending
         db.close()
-        
-        # Устанавливаем куку сессии авторизации (как у тебя сейчас реализовано)
-        response.set_cookie(key="session_user", value=username, max_age=2592000, httponly=True)
-        return {"status": "success", "username": username}
-        
-    db.close()
-    return {"status": "pending"}
+        return {"status": "pending"}
+
+    except Exception as e:
+        logging.error(f"Ошибка в эндпоинте статуса: {e}")
+        # На случай непредвиденной ошибки возвращаем pending, чтобы фронтенд не падал, а продолжал опрашивать
+        return {"status": "pending"}
     
 @app.get("/api/me")
 async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
