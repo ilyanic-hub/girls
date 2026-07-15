@@ -768,7 +768,7 @@
         document.getElementById('password').placeholder = "Придумайте пароль";
         document.getElementById('secret_answer').style.display = 'block';
         if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
-        selectRole('user'); // Сбрасываем на зрителя
+        selectRole('user'); // Сбрасываем визуальный выбор на Зрителя
         document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
         document.getElementById('auth-reset-text').style.display = 'none';
     } else {
@@ -783,25 +783,30 @@
 }
 
         function openAuthModal(mode) {
-            const authPage = document.getElementById('auth-page');
-            if (authPage) authPage.style.display = 'flex';
-        
-            if (mode === 'register') {
-                authMode = 'register';
-                document.getElementById('auth-title').innerText = "Регистрация";
-                document.getElementById('password').placeholder = "Придумайте пароль";
-                document.getElementById('secret_answer').style.display = 'block';
-                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-                document.getElementById('auth-reset-text').style.display = 'none';
-            } else if (mode === 'login') {
-                authMode = 'login';
-                document.getElementById('auth-title').innerText = "Вход в аккаунт";
-                document.getElementById('password').placeholder = "Пароль";
-                document.getElementById('secret_answer').style.display = 'none';
-                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-                document.getElementById('auth-reset-text').style.display = 'block';
-            }
-        }
+    const authPage = document.getElementById('auth-page');
+    if (authPage) authPage.style.display = 'flex';
+
+    const roleContainer = document.getElementById('role-selection-container');
+
+    if (mode === 'register') {
+        authMode = 'register';
+        document.getElementById('auth-title').innerText = "Регистрация";
+        document.getElementById('password').placeholder = "Придумайте пароль";
+        document.getElementById('secret_answer').style.display = 'block';
+        if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
+        selectRole('user');
+        document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+        document.getElementById('auth-reset-text').style.display = 'none';
+    } else if (mode === 'login') {
+        authMode = 'login';
+        document.getElementById('auth-title').innerText = "Вход в аккаунт";
+        document.getElementById('password').placeholder = "Пароль";
+        document.getElementById('secret_answer').style.display = 'none';
+        if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
+        document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+        document.getElementById('auth-reset-text').style.display = 'block';
+    }
+}
 
         function enableResetMode() {
             authMode = 'reset';
@@ -920,31 +925,41 @@
         }
 
         async function submitAuth() {
-            let u = document.getElementById('username').value;
-            let p = document.getElementById('password').value;
-            let s = document.getElementById('secret_answer').value;
-            let url = '/api/login';
-            let bodyData = { username: u, password: p };
+    let u = document.getElementById('username').value;
+    let p = document.getElementById('password').value;
+    let s = document.getElementById('secret_answer').value;
+    let url = '/api/login';
+    let bodyData = { username: u, password: p };
 
-            if (authMode === 'register') { 
-    url = '/api/register'; 
-    bodyData.secret_answer = s; 
-    bodyData.role = selectedRole; // Передаем выбранную роль (user или model)
-}
-            if (authMode === 'register') { url = '/api/register'; bodyData.secret_answer = s; }
-            else if (authMode === 'reset') { url = '/api/reset-password'; bodyData = { username: u, secret_answer: s, new_password: p }; }
+    if (authMode === 'register') { 
+        url = '/api/register'; 
+        bodyData.secret_answer = s;
+        bodyData.role = selectedRole; // <-- Передаем выбранную роль (user или model)
+    }
+    else if (authMode === 'reset') { 
+        url = '/api/reset-password';
+        bodyData = { username: u, secret_answer: s, new_password: p };
+    }
 
-            let res = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(bodyData)
-            });
-            let data = await res.json();
-            if (res.ok) {
-                if (authMode === 'register' || authMode === 'reset') { alert("Успешно! Теперь войдите."); authMode = 'login'; toggleAuthMode(); }
-                else { window.location.reload(); }
-            } else { alert("Ошибка: " + data.detail); }
+    let res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(bodyData)
+    });
+    let data = await res.json();
+    if (res.ok) {
+        if (authMode === 'register' || authMode === 'reset') { 
+            alert("Успешно! Теперь войдите.");
+            authMode = 'login'; 
+            toggleAuthMode(); 
         }
+        else { 
+            window.location.reload();
+        }
+    } else { 
+        alert("Ошибка: " + data.detail);
+    }
+}
 
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
