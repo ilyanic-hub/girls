@@ -503,44 +503,71 @@
 
         /* Адаптивные стили для мобильной версии раздела объявлений */
 @media (max-width: 600px) {
-    /* 1. Делаем сетку более компактной */
+    /* 1. Выстраиваем строго по 2 карточки в ряд */
     #announcements-list {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
-        gap: 12px !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important; /* Уменьшаем расстояние между карточками */
     }
 
-    /* 2. Уменьшаем саму карточку */
+    /* 2. Делаем карточки компактными */
     #announcements-list .contestant-card {
-        border-radius: 10px !important;
+        border-radius: 8px !important;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
     }
 
-    /* 3. Уменьшаем высоту картинки в объявлении, чтобы она не занимала весь экран */
+    /* 3. Уменьшаем высоту картинок под сетку 2х2 */
     #announcements-list .contestant-img {
-        height: 180px !important; /* Было 260px, уменьшили до 180px */
+        height: 140px !important; /* Высота подстроена под половину экрана */
         object-fit: cover;
+        width: 100%;
     }
 
-    /* 4. Делаем отступы внутри карточки и тексты поменьше */
+    /* 4. Сжимаем внутренние отступы, чтобы текст не занимал много места */
     #announcements-list .contestant-card > div {
-        padding: 10px !important; /* Меньше пустых полей */
-        gap: 5px !important;
+        padding: 8px !important; 
+        gap: 4px !important;
     }
 
-    /* Имя модели */
+    /* Заголовок объявления (Имя) */
     #announcements-list .contestant-card h3 {
-        font-size: 1rem !important; 
+        font-size: 0.9rem !important; 
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Если имя длинное, оно красиво сократится точками */
+    }
+
+    /* Бейдж "Модель" */
+    #announcements-list .contestant-card span[style*="background"] {
+        font-size: 0.65rem !important;
+        padding: 2px 4px !important;
     }
 
     /* Текст описания */
     #announcements-list .contestant-card p {
-        font-size: 0.8rem !important;
-        -webkit-line-clamp: 2 !important; /* Ограничиваем описание двумя строчками вместо трех */
+        font-size: 0.75rem !important;
+        line-height: 1.2 !important;
+        -webkit-line-clamp: 2 !important; /* Строго 2 строчки */
     }
 
-    /* Кнопки управления (Редактировать / Удалить / Написать) */
+    /* Дата публикации */
+    #announcements-list .contestant-card span[style*="font-size: 0.75rem"] {
+        font-size: 0.65rem !important;
+    }
+
+    /* Кнопки управления (Редактировать, Удалить, Написать) */
     #announcements-list .btn {
-        font-size: 0.75rem !important;
-        padding: 5px 10px !important;
+        font-size: 0.7rem !important;
+        padding: 4px 6px !important;
+        text-align: center;
+        justify-content: center;
+    }
+
+    /* Контейнер кнопок редактирования/удаления */
+    #announcements-list .contestant-card div[style*="display: flex; gap: 8px;"] {
+        flex-direction: column !important; /* На мобилках кнопки встанут друг под друга, чтобы не сжиматься в ширину */
+        gap: 4px !important;
     }
 }
     </style>
