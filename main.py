@@ -186,7 +186,7 @@ def init_tg_auth_db():
     """)
     db.commit()
     db.close()
-    @app.on_event("startup")
+@app.on_event("startup")
 async def startup_event():
     init_tg_auth_db()
 
