@@ -1189,7 +1189,7 @@ async def generate_tg_link():
             detail=f"Ошибка записи в базу данных. Обратитесь к администратору. Текст: {str(e)}"
         )
     
-    bot_username = "ТВОЙ_БОТ_BOT" # ⚠️ Убедись, что тут имя твоего бота без @
+    bot_username = "photo_rating_auth_bot" # ⚠️ Убедись, что тут имя твоего бота без @
     link = f"https://t.me/{bot_username}?start={code}"
     
     return {"code": code, "link": link}
