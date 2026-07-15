@@ -186,6 +186,9 @@ def init_tg_auth_db():
     """)
     db.commit()
     db.close()
+    @app.on_event("startup")
+async def startup_event():
+    init_tg_auth_db()
 
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
