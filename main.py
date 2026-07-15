@@ -709,7 +709,6 @@ async def create_announcement(
     if not session_user:
         raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
     
-    # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
     cursor = db.cursor()
     cursor.execute("SELECT id, role FROM users WHERE username = ?", (session_user,))
@@ -724,26 +723,36 @@ async def create_announcement(
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
 
-    # 2. Сохраняем загруженное фото локально (в папку static/uploads)
-    UPLOAD_DIR = os.path.join("static", "uploads")
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    
+    # Читаем бинарный контент файла
+    file_content = await photo.read()
     file_extension = os.path.splitext(photo.filename)[1]
     unique_filename = f"announce_{user_id}_{int(time.time())}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # Путь, куда сохранится файл в твоем Dropbox
+    dropbox_path = f"/uploads/{unique_filename}"
     
     try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(photo.file, buffer)
+        # Инициализируем клиент Dropbox (убедись, что DROPBOX_ACCESS_TOKEN задан в твоем main.py)
+        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+        
+        # Загружаем файл в Dropbox
+        dbx.files_upload(file_content, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+        
+        # Создаем публичную ссылку на файл
+        shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+        raw_url = shared_link_metadata.url
+        
+        # Превращаем ссылку вида "dl=0" в прямую ссылку для тега img "raw=1"
+        photo_url = raw_url.replace("?dl=0", "?raw=1")
+        
     except Exception as e:
         db.close()
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении фото: {str(e)}")
+        print(f"Ошибка загрузки в Dropbox: {e}")
+        raise HTTPException(status_code=500, detail=f"Не удалось сохранить фото в облако: {str(e)}")
 
-    # Относительный путь к фото для отображения на фронтенде
-    photo_url = f"/static/uploads/{unique_filename}"
     created_at = datetime.now().isoformat()
 
-    # 3. Записываем объявление в базу данных
+    # Записываем объявление в базу данных (теперь с вечной ссылкой из Dropbox)
     cursor.execute("""
         INSERT INTO announcements (user_id, name, description, photo_url, created_at)
         VALUES (?, ?, ?, ?, ?)
@@ -751,11 +760,10 @@ async def create_announcement(
     db.commit()
     db.close()
 
-    # Синхронизируем базу с Dropbox (если настроено в твоем проекте)
     try:
         upload_db_to_dropbox()
     except Exception as e:
-        print(f"Ошибка бекапа в Dropbox: {e}")
+        print(f"Ошибка бекапа БД в Dropbox: {e}")
 
     return {"status": "success", "message": "Объявление успешно опубликовано!"}
 
