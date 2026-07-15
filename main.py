@@ -732,8 +732,8 @@ async def create_announcement(
     dropbox_path = f"/uploads/{unique_filename}"
     
     try:
-        # Инициализируем клиент Dropbox (убедись, что DROPBOX_ACCESS_TOKEN задан в твоем main.py)
-        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
+        # Инициализируем клиент Dropbox (убедись, что DROPBOX_REFRESH_TOKEN задан в твоем main.py)
+        dbx = dropbox.Dropbox(DROPBOX_REFRESH_TOKEN)
         
         # Загружаем файл в Dropbox
         dbx.files_upload(file_content, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
