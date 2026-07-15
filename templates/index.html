@@ -1298,15 +1298,31 @@ async function submitAnnouncement(event) {
         return;
     }
 
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('description', description);
-    formData.append('photo', photoFile);
+    // Функция-помощник для перевода файла в Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 
     try {
+        // Конвертируем картинку в строку Base64
+        const base64Photo = await toBase64(photoFile);
+
+        // Формируем JSON-пакет для отправки
+        const payload = {
+            name: name,
+            description: description,
+            photo_base64: base64Photo
+        };
+
         const response = await fetch('/api/announcements', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json' // Отправляем как JSON
+            },
+            body: JSON.stringify(payload)
         });
 
         const data = await response.json();
@@ -1318,8 +1334,8 @@ async function submitAnnouncement(event) {
             alert("Ошибка при публикации: " + (data.detail || "Что-то пошло не так"));
         }
     } catch (error) {
-        console.error("Ошибка сети:", error);
-        alert("Произошла ошибка при отправке данных на сервер.");
+        console.error("Ошибка:", error);
+        alert("Произошла ошибка при обработке или отправке файла.");
     }
 }
     </script>
