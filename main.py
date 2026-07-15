@@ -792,6 +792,51 @@ async def get_announcements():
         
     return announcements
 
+@app.delete("/api/announcements/{announcement_id}")
+async def delete_announcement(
+    announcement_id: int,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    
+    # 1. Проверяем, существует ли объявление и кто его владелец
+    cursor.execute("""
+        SELECT a.id, u.username, u.is_admin 
+        FROM announcements a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = ?
+    """, (announcement_id,))
+    announcement = cursor.fetchone()
+    
+    if not announcement:
+        db.close()
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+        
+    owner_username = announcement[1]
+    is_admin = announcement[2]
+    
+    # Удалить может только владелец объявления или администратор
+    if session_user != owner_username and not is_admin:
+        db.close()
+        raise HTTPException(status_code=403, detail="Вы можете удалять только свои объявления")
+
+    # 2. Удаляем объявление из базы данных
+    cursor.execute("DELETE FROM announcements WHERE id = ?", (announcement_id,))
+    db.commit()
+    db.close()
+
+    # Синхронизируем изменения с Dropbox
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бэкапа базы в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно удалено!"}
+
 
 @app.get("/", response_class=HTMLResponse)
 async def get_main_page(request: Request, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
