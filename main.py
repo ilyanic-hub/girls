@@ -16,6 +16,22 @@ DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN", "_WgJ5t--cYkAAAAAAAAAAZ
 
 app = FastAPI(title="Photo Rating & Models Platform API")
 
+# Получаем абсолютный путь к директории, где лежит сам main.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Настраиваем папки относительно базовой директории
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+UPLOAD_DIR = os.path.join(BASE_DIR, "static", "avatars")
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(TEMPLATES_DIR, exist_ok=True)
+
+# Инициализируем шаблоны по абсолютному пути
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+# Монтирование статических файлов по абсолютному пути
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.mount("/uploads", StaticFiles(directory=os.path.join(BASE_DIR, "uploads")), name="uploads")
 # Настройка CORS (при необходимости)
 app.add_middleware(
     CORSMiddleware,
