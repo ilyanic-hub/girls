@@ -86,7 +86,12 @@ DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
 
 PLISIO_API_TOKEN = "u1JWmqyQBwnA6kuvp1PbOl5UKvt4a2i9oIk5CzD5GfiyThtj9RcYPsg2nroOgzsu"
 
-DB_LOCAL_PATH = "database.db"
+# Получаем абсолютный путь к папке, в которой лежит сам запускаемый скрипт
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Объединяем его с именем базы данных. 
+# Теперь путь ВСЕГДА будет вести в одну и ту же папку, откуда бы ты ни запускала код!
+DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
 DB_DROPBOX_PATH = "/database.db"
 
 def get_dropbox_client():
