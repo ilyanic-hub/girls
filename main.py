@@ -176,6 +176,18 @@ def get_db():
 def init_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     cursor = db.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            photo_url TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    """)
     
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
@@ -683,6 +695,99 @@ def check_and_rotate_round(db):
         except Exception as e:
             db.rollback()
             print(f"Ошибка при автоматической смене раунда: {e}")
+
+# Эндпоинт для создания объявления моделью
+@app.post("/api/announcements")
+async def create_announcement(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(...),
+    photo: UploadFile = File(...),
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+    
+    # 1. Проверяем роль пользователя в БД
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("SELECT id, role FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        db.close()
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+        
+    user_id, role = user[0], user[1]
+    if role != "model":
+        db.close()
+        raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
+
+    # 2. Сохраняем загруженное фото локально (в папку static/uploads)
+    UPLOAD_DIR = os.path.join("static", "uploads")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    file_extension = os.path.splitext(photo.filename)[1]
+    unique_filename = f"announce_{user_id}_{int(time.time())}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(photo.file, buffer)
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении фото: {str(e)}")
+
+    # Относительный путь к фото для отображения на фронтенде
+    photo_url = f"/static/uploads/{unique_filename}"
+    created_at = datetime.now().isoformat()
+
+    # 3. Записываем объявление в базу данных
+    cursor.execute("""
+        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, name, description, photo_url, created_at))
+    db.commit()
+    db.close()
+
+    # Синхронизируем базу с Dropbox (если настроено в твоем проекте)
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бекапа в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно опубликовано!"}
+
+
+# Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
+@app.get("/api/announcements")
+async def get_announcements():
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row  # чтобы возвращать данные в виде удобных словарей
+    cursor = db.cursor()
+    
+    # Объединяем таблицы, чтобы получить имя пользователя модели (username)
+    cursor.execute("""
+        SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
+        FROM announcements a
+        JOIN users u ON a.user_id = u.id
+        ORDER BY a.id DESC
+    """)
+    rows = cursor.fetchall()
+    db.close()
+
+    announcements = []
+    for row in rows:
+        announcements.append({
+            "id": row["id"],
+            "name": row["name"],
+            "description": row["description"],
+            "photo_url": row["photo_url"],
+            "created_at": row["created_at"],
+            "username": row["username"]
+        })
+        
+    return announcements
 
 
 @app.get("/", response_class=HTMLResponse)
