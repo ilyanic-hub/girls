@@ -1299,10 +1299,26 @@ function closeAnnouncementModal() {
     if (modal) {
         modal.style.display = 'none';
     }
+    
     const form = document.getElementById('announcementForm');
     if (form) {
         form.reset();
+        delete form.dataset.currentPhoto; // Удаляем сохраненную старую фотку
     }
+    
+    // Снова делаем фото обязательным для новых объявлений
+    const photoInput = document.getElementById('announce-photo');
+    if (photoInput) {
+        photoInput.required = true;
+    }
+    
+    // Возвращаем стандартный заголовок
+    const modalTitle = document.querySelector('#announcementModal h2');
+    if (modalTitle) {
+        modalTitle.innerText = "📸 Создать объявление";
+    }
+    
+    editingAnnouncementId = null; // Сбрасываем ID редактирования
 }
 
 async function submitAnnouncement(event) {
@@ -1531,6 +1547,39 @@ async function submitAnnouncement(event) {
             
             loadAnnouncements(); // Перезапускаем рендер с учетом фильтра
         }
+
+        // Переменная для хранения ID редактируемого объявления
+let editingAnnouncementId = null; 
+
+// Функция открытия формы для РЕДАКТИРОВАНИЯ (вызывается при клике на кнопку)
+function editAnnouncement(id, name, description, currentPhotoBase64) {
+    editingAnnouncementId = id;
+    
+    // Находим поля формы и заполняем их текущими данными
+    const nameInput = document.getElementById('announce-name');
+    const descInput = document.getElementById('announce-desc');
+    const photoInput = document.getElementById('announce-photo');
+
+    if (nameInput) nameInput.value = name;
+    if (descInput) descInput.value = description;
+    
+    // При редактировании загрузка нового фото не обязательна (можно оставить старое)
+    if (photoInput) photoInput.required = false;
+
+    // Меняем заголовок модального окна на «Редактировать»
+    const modalTitle = document.querySelector('#announcementModal h2');
+    if (modalTitle) modalTitle.innerText = "✏️ Редактировать объявление";
+
+    // Открываем модальное окно
+    openAnnouncementModal();
+    
+    // Сохраняем текущую Base64 картинку в специальный дата-атрибут формы, 
+    // чтобы если пользователь не выберет новый файл, отправилась старая фотография
+    const form = document.getElementById('announcementForm');
+    if (form) {
+        form.dataset.currentPhoto = currentPhotoBase64;
+    }
+}
 
         // Функция для безопасного вывода текста (экранирование спецсимволов)
 function escapeHtml(text) {
