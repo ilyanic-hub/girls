@@ -851,6 +851,26 @@
                             document.getElementById('admin-link').style.display = 'none';
                         }
 
+                        // === КНОПКА ПОПОЛНЕНИЯ / ВЫВОДА В ЗАВИСИМОСТИ ОТ РОЛИ ===
+                        const depositBtn = document.querySelector('.btn-deposit');
+                        if (depositBtn) {
+                            if (user.role === 'model') {
+                                // Если зашла модель — показываем кнопку вывода
+                                depositBtn.innerText = "💸 Вывод";
+                                depositBtn.setAttribute('onclick', 'openWithdrawModal()');
+                                depositBtn.style.background = '#2ed573';
+                                depositBtn.style.color = '#ffffff';
+                                depositBtn.style.borderColor = '#2ed573';
+                            } else {
+                                // Если зашел обычный пользователь — стандартное пополнение
+                                depositBtn.innerText = "+ Пополнить";
+                                depositBtn.setAttribute('onclick', 'openDepositModal()');
+                                depositBtn.style.background = '#f1f5f9';
+                                depositBtn.style.color = '#1e293b';
+                                depositBtn.style.borderColor = '#0f172a';
+                            }
+                        }
+
                         if (buttonsContainer) {
                             buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
                         }
@@ -860,6 +880,17 @@
                         document.getElementById('admin-link').style.display = 'none';
                         document.getElementById('user-avatar-img').style.display = 'none';
                         document.getElementById('user-avatar-default').style.display = 'block';
+                        
+                        // Возвращаем дефолтное состояние кнопки пополнения для гостей
+                        const depositBtn = document.querySelector('.btn-deposit');
+                        if (depositBtn) {
+                            depositBtn.innerText = "+ Пополнить";
+                            depositBtn.setAttribute('onclick', 'openDepositModal()');
+                            depositBtn.style.background = '#f1f5f9';
+                            depositBtn.style.color = '#1e293b';
+                            depositBtn.style.borderColor = '#0f172a';
+                        }
+
                         if (buttonsContainer) {
                             buttonsContainer.innerHTML = `
                                 <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
@@ -868,6 +899,40 @@
                         }
                     }
                 }
+                
+                loadContestants();
+
+                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+                    history.replaceState(null, null, ' ');
+                    
+                    const authPage = document.getElementById('auth-page');
+                    if (authPage) authPage.style.display = 'flex';
+                    
+                    const authTitle = document.getElementById('auth-title');
+                    const passwordInput = document.getElementById('password');
+                    const secretAnswer = document.getElementById('secret_answer');
+                    const toggleText = document.getElementById('auth-toggle-text');
+                    const resetText = document.getElementById('auth-reset-text');
+                    const roleContainer = document.getElementById('role-selection-container');
+                    
+                    if (typeof authMode !== 'undefined') authMode = 'register';
+                    if (authTitle) authTitle.innerText = "Регистрация";
+                    if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
+                    if (secretAnswer) secretAnswer.style.display = 'block';
+                    if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
+                    if (resetText) resetText.style.display = 'none';
+                    if (roleContainer) roleContainer.style.display = 'block';
+                    selectRole('user');
+                }
+
+            } catch (err) {
+                console.error("Ошибка при проверке статуса:", err);
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-sidebar').style.display = 'flex';
+                document.getElementById('main-page').style.display = 'flex';
+                loadContestants();
+            }
+        }
                 
                 loadContestants();
 
@@ -1184,6 +1249,17 @@
         document.addEventListener("DOMContentLoaded", () => {
             startTimer();
         });
+
+        function openWithdrawModal() {
+    let amount = prompt("Введите сумму в коинах для вывода на ваш USDT (TRC-20) кошелек:");
+    if (!amount) return;
+    
+    let wallet = prompt("Введите ваш адрес USDT TRC-20 кошелька:");
+    if (!wallet) return;
+    
+    alert(`Заявка на вывод ${amount} коинов на кошелек ${wallet} успешно создана и отправлена администратору!`);
+    // В будущем тут сделаем реальный fetch-запрос на бэкенд для создания заявки на вывод
+}
     </script>
 </body>
 </html>
