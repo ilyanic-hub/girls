@@ -384,6 +384,11 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
+class AnnouncementSchema(BaseModel):
+    name: str
+    description: str
+    photo_base64: str  # Сюда прилетит строка Base64
+
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
 async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
@@ -700,10 +705,7 @@ def check_and_rotate_round(db):
 # Эндпоинт для создания объявления моделью
 @app.post("/api/announcements")
 async def create_announcement(
-    request: Request,
-    name: str = Form(...),
-    description: str = Form(...),
-    photo: UploadFile = File(...),
+    data: AnnouncementSchema, # Принимаем данные по схеме
     session_user: Optional[str] = Cookie(None)
 ):
     if not session_user:
@@ -723,34 +725,26 @@ async def create_announcement(
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
 
-    # Читаем бинарный контент файла
-    file_content = await photo.read()
-    file_extension = os.path.splitext(photo.filename)[1]
-    unique_filename = f"announce_{user_id}_{int(time.time())}{file_extension}"
-    
-    # Путь, куда сохранится файл в твоем Dropbox
-    dropbox_path = f"/uploads/{unique_filename}"
-    
-    try:
-        # Инициализируем клиент Dropbox (убедись, что DROPBOX_REFRESH_TOKEN задан в твоем main.py)
-        dbx = dropbox.Dropbox(DROPBOX_REFRESH_TOKEN)
-        
-        # Загружаем файл в Dropbox
-        dbx.files_upload(file_content, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-        
-        # Создаем публичную ссылку на файл
-        shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-        raw_url = shared_link_metadata.url
-        
-        # Превращаем ссылку вида "dl=0" в прямую ссылку для тега img "raw=1"
-        photo_url = raw_url.replace("?dl=0", "?raw=1")
-        
-    except Exception as e:
-        db.close()
-        print(f"Ошибка загрузки в Dropbox: {e}")
-        raise HTTPException(status_code=500, detail=f"Не удалось сохранить фото в облако: {str(e)}")
-
+    # Чистим строку Base64 от возможных переносов строк (как в твоем рабочем коде)
+    inline_photo_url = data.photo_base64.replace("\n", "").replace("\r", "").strip()
     created_at = datetime.now().isoformat()
+
+    # Записываем все данные прямо в БД
+    cursor.execute("""
+        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, data.name, data.description, inline_photo_url, created_at))
+    
+    db.commit()
+    db.close()
+
+    # Синхронизируем базу с Dropbox, чтобы сохранить изменения навсегда!
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бэкапа базы в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно опубликовано!"}
 
     # Записываем объявление в базу данных (теперь с вечной ссылкой из Dropbox)
     cursor.execute("""
