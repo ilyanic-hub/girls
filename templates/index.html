@@ -500,6 +500,49 @@
                 max-width: 90%;
             }
         }
+
+        /* Адаптивные стили для мобильной версии раздела объявлений */
+@media (max-width: 600px) {
+    /* 1. Делаем сетку более компактной */
+    #announcements-list {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+        gap: 12px !important;
+    }
+
+    /* 2. Уменьшаем саму карточку */
+    #announcements-list .contestant-card {
+        border-radius: 10px !important;
+    }
+
+    /* 3. Уменьшаем высоту картинки в объявлении, чтобы она не занимала весь экран */
+    #announcements-list .contestant-img {
+        height: 180px !important; /* Было 260px, уменьшили до 180px */
+        object-fit: cover;
+    }
+
+    /* 4. Делаем отступы внутри карточки и тексты поменьше */
+    #announcements-list .contestant-card > div {
+        padding: 10px !important; /* Меньше пустых полей */
+        gap: 5px !important;
+    }
+
+    /* Имя модели */
+    #announcements-list .contestant-card h3 {
+        font-size: 1rem !important; 
+    }
+
+    /* Текст описания */
+    #announcements-list .contestant-card p {
+        font-size: 0.8rem !important;
+        -webkit-line-clamp: 2 !important; /* Ограничиваем описание двумя строчками вместо трех */
+    }
+
+    /* Кнопки управления (Редактировать / Удалить / Написать) */
+    #announcements-list .btn {
+        font-size: 0.75rem !important;
+        padding: 5px 10px !important;
+    }
+}
     </style>
 </head>
 <body>
