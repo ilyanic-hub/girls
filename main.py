@@ -587,28 +587,68 @@ async def check_channel_subscription(user_id: int) -> bool:
         return False
 
 @dp.message(CommandStart())
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
+@dp.message(CommandStart())
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
+@dp.message(CommandStart())
 async def handle_start(message: types.Message, command: CommandObject):
     code = command.args
     user_id = message.from_user.id
     username = message.from_user.username or f"id_{user_id}"
 
     if not code:
-        await message.answer("Привет! Перейдите на сайт для регистрации.")
+        await message.answer("Привет! Пожалуйста, перейдите на сайт photo-rating.club для входа.")
         return
 
-    # 1. Строгая проверка подписки
     is_subscribed = await check_channel_subscription(user_id)
     
     if not is_subscribed:
-        # Если НЕ подписан — отправляем сообщение и ОБЯЗАТЕЛЬНО выходим из функции через return!
+        # Создаем кнопку, в которую "зашиваем" код сессии (callback_data)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📢 Перейти в канал", url="https://t.me/photo_rating_club")],
+            [InlineKeyboardButton(text="✅ Я подписался!", callback_data=f"check_{code}")]
+        ])
+        
         await message.answer(
-            f"❌ Для входа на сайт вам необходимо подписаться на наш канал!\n\n"
-            f"1. Подпишитесь на канал: {CHANNEL_ID}\n"
-            f"2. После подписки вернитесь сюда и снова нажмите кнопку «Старт»."
+            "❌ Для авторизации на сайте вам необходимо подписаться на наш канал!",
+            reply_markup=keyboard
         )
-        return  # <-- ЭТОТ RETURN КРИТИЧЕСКИ ВАЖЕН! Без него код пойдет дальше и авторизует пользователя!
+        return
 
-    # 2. Если подписан — только тогда обновляем БД
+    # Если подписан — сразу авторизуем
+    await process_successful_auth(message, user_id, username, code)
+
+
+# 2. Обработчик нажатия на кнопку "Я подписался!"
+@dp.callback_query(lambda c: c.data and c.data.startswith('check_'))
+async def process_callback_check_subscription(callback_query: types.CallbackQuery):
+    code = callback_query.data.split("_")[1] # Достаем код из callback_data
+    user_id = callback_query.from_user.id
+    username = callback_query.from_user.username or f"id_{user_id}"
+
+    is_subscribed = await check_channel_subscription(user_id)
+    
+    if not is_subscribed:
+        # Показываем всплывающее уведомление в Telegram, что подписка всё еще отсутствует
+        await callback_query.answer("Вы всё еще не подписались на канал! ➡️ @photo_rating_club", show_alert=True)
+        return
+
+    # Если подписался — убираем часики загрузки на кнопке
+    await callback_query.answer("Подписка подтверждена!")
+    
+    # Редактируем сообщение, убирая кнопки
+    await callback_query.message.edit_text("🎉 Подписка подтверждена!")
+    
+    # Авторизуем пользователя в базе
+    await process_successful_auth(callback_query.message, user_id, username, code)
+
+
+# Вспомогательная функция для записи успешного входа в БД (чтобы не дублировать код)
+async def process_successful_auth(message: types.Message, user_id: int, username: str, code: str):
     try:
         db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
         cursor = db.cursor()
@@ -621,12 +661,13 @@ async def handle_start(message: types.Message, command: CommandObject):
                 WHERE code = ?
             """, (user_id, username, code))
             db.commit()
-            await message.answer("🎉 Успешно! Вы вошли. Возвращайтесь на сайт — страница сейчас обновится!")
+            await message.answer("🎉 Успешно! Вы вошли в аккаунт. Страница на сайте уже обновилась!")
         else:
-            await message.answer("❌ Ссылка устарела. Попробуйте снова на сайте.")
+            await message.answer("❌ Ссылка устарела. Попробуйте войти с сайта заново.")
         db.close()
     except Exception as e:
-        logging.error(f"Ошибка БД в боте: {e}")
+        logging.error(f"Ошибка БД при успешной авторизации: {e}")
+        await message.answer("Произошла ошибка базы данных. Попробуйте позже.")
 
 @app.get("/api/debug-users-table")
 async def debug_users_table(db=Depends(get_db)):
