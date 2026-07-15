@@ -591,10 +591,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
 @dp.message(CommandStart())
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-# 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
-@dp.message(CommandStart())
 async def handle_start(message: types.Message, command: CommandObject):
     code = command.args
     user_id = message.from_user.id
