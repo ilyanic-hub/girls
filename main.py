@@ -1099,7 +1099,7 @@ async def generate_tg_link():
     db.close()
     
     # Ссылка, которая ведет в твоего бота сразу с кодом старта
-    bot_username = "photo_rating_club"  # Укажи юзернейм своего бота без @
+    bot_username = "photo_rating_auth_bot"  # Укажи юзернейм своего бота без @
     link = f"https://t.me/{bot_username}?start={code}"
     
     return {"code": code, "link": link}
