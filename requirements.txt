@@ -18,4 +18,4 @@ httpx==0.27.0
 slowapi
 pytz
 httpx==0.27.0
-aiogram
+aiogram==3.13.1
