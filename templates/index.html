@@ -1427,9 +1427,32 @@ async function submitAnnouncement(event) {
                         return;
                     }
 
+                    let hasVisibleAnnouncements = false;
+
                     announcements.forEach(item => {
+                        // Проверяем, принадлежит ли объявление текущему пользователю
+                        const isOwner = currentUsername && (currentUsername === item.username);
+                        
+                        // ЕСЛИ выбран фильтр "Мои объявления" и это объявление НЕ принадлежит текущему пользователю — пропускаем его
+                        if (currentAnnouncementFilter === 'my' && !isOwner) {
+                            return; 
+                        }
+
+                        hasVisibleAnnouncements = true;
+
+                        // Кнопка редактирования показывается только владельцу карточки
+                        const editButtonHtml = isOwner ? `
+                            <button class="btn btn-sec" onclick="editAnnouncement(${item.id}, '${escapeHtml(item.name)}', '${escapeHtml(item.description)}', '${item.photo_url}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #f59e0b; color: white; border: none;">
+                                ✏️ Редактировать
+                            </button>
+                        ` : `
+                            <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
+                                Написать
+                            </button>
+                        `;
+
                         listContainer.innerHTML += `
-                            <div class="contestant-card" style="text-align: left; padding-bottom: 0;">
+                            <div class="contestant-card" id="announcement-card-${item.id}" style="text-align: left; padding-bottom: 0;">
                                 <img src="${item.photo_url}" class="contestant-img" style="height: 260px;" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=Photo'">
                                 <div style="padding: 15px; display: flex; flex-direction: column; gap: 8px;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1444,15 +1467,23 @@ async function submitAnnouncement(event) {
                                     <hr style="border: 0; border-top: 1px solid #edf2f7; margin: 5px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <span style="font-size: 0.75rem; color: var(--text-muted);">
-                                            Опубликовано: ${new Date(item.created_at).toLocaleDateString('ru-RU')}
+                                            ${new Date(item.created_at).toLocaleDateString('ru-RU')}
                                         </span>
-                                        <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
-                                            Написать
-                                        </button>
+                                        ${editButtonHtml}
                                     </div>
                                 </div>
                             </div>`;
                     });
+
+                    // Если после фильтрации не осталось объявлений для показа
+                    if (!hasVisibleAnnouncements) {
+                        listContainer.innerHTML = `
+                            <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
+                                <span style="font-size: 3rem;">📭</span>
+                                <h3 style="margin: 10px 0 5px 0;">У вас пока нет объявлений</h3>
+                                <p style="color: var(--text-muted); margin: 0;">Нажмите кнопку сверху, чтобы опубликовать первое!</p>
+                            </div>`;
+                    }
                 } else {
                     listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Не удалось загрузить объявления.</div>';
                 }
