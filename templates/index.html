@@ -1171,6 +1171,42 @@ function showUserUI(user, buttonsContainer) {
             }
         }
 
+        // Функция запуска входа через Telegram
+async function startTelegramLogin() {
+    try {
+        // 1. Просим сервер сгенерировать ссылку
+        const response = await fetch('/api/auth/tg-generate', { method: 'POST' });
+        const data = await response.json();
+        
+        if (!response.ok) {
+            alert("Не удалось запустить авторизацию");
+            return;
+        }
+
+        // 2. Открываем бота в новой вкладке (пользователь нажимает там "Старт")
+        window.open(data.link, '_blank');
+
+        // Показываем сообщение о том, что ждем авторизации
+        alert("Мы открыли Telegram. Нажмите в боте кнопку «Старт» и убедитесь, что подписаны на наш канал!");
+
+        // 3. Начинаем опрашивать бэкенд каждые 2 секунды
+        const interval = setInterval(async () => {
+            const statusResponse = await fetch(`/api/auth/tg-status/${data.code}`);
+            const statusData = await statusResponse.json();
+
+            if (statusData.status === "success") {
+                clearInterval(interval);
+                alert(`Вы успешно вошли как ${statusData.username}!`);
+                location.reload(); // Перезагружаем страницу, чтобы применилась сессия
+            }
+        }, 2000);
+
+    } catch (error) {
+        console.error("Ошибка авторизации:", error);
+        alert("Произошла ошибка при связи с сервером.");
+    }
+}
+
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
             window.location.href = '/';
