@@ -596,18 +596,23 @@ async def handle_start(message: types.Message, command: CommandObject):
         await message.answer("Привет! Перейдите на сайт для регистрации.")
         return
 
+    # 1. Строгая проверка подписки
     is_subscribed = await check_channel_subscription(user_id)
+    
     if not is_subscribed:
+        # Если НЕ подписан — отправляем сообщение и ОБЯЗАТЕЛЬНО выходим из функции через return!
         await message.answer(
-            f"❌ Для входа нужно подписаться на канал!\n\n"
-            f"1. Подпишитесь на {CHANNEL_ID}\n"
-            f"2. Вернитесь и снова нажмите «Старт»."
+            f"❌ Для входа на сайт вам необходимо подписаться на наш канал!\n\n"
+            f"1. Подпишитесь на канал: {CHANNEL_ID}\n"
+            f"2. После подписки вернитесь сюда и снова нажмите кнопку «Старт»."
         )
-        return
+        return  # <-- ЭТОТ RETURN КРИТИЧЕСКИ ВАЖЕН! Без него код пойдет дальше и авторизует пользователя!
 
+    # 2. Если подписан — только тогда обновляем БД
     try:
-        db = sqlite3.connect(DB_LOCAL_PATH)
+        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
         cursor = db.cursor()
+        
         cursor.execute("SELECT code FROM telegram_auth_sessions WHERE code = ?", (code,))
         if cursor.fetchone():
             cursor.execute("""
@@ -616,12 +621,12 @@ async def handle_start(message: types.Message, command: CommandObject):
                 WHERE code = ?
             """, (user_id, username, code))
             db.commit()
-            await message.answer("🎉 Успешно! Вы вошли. Возвращайтесь на сайт.")
+            await message.answer("🎉 Успешно! Вы вошли. Возвращайтесь на сайт — страница сейчас обновится!")
         else:
-            await message.answer("❌ Ссылка устарела.")
+            await message.answer("❌ Ссылка устарела. Попробуйте снова на сайте.")
         db.close()
     except Exception as e:
-        logging.error(f"Ошибка БД: {e}")
+        logging.error(f"Ошибка БД в боте: {e}")
 
 @app.get("/api/debug-users-table")
 async def debug_users_table(db=Depends(get_db)):
