@@ -5,7 +5,7 @@ import logging
 
 BOT_TOKEN = "8425385137:AAHehDwbSQjhiBIf-oZGgC7YFscXhJGHINA"
 CHANNEL_ID = "@photo_rating_club"  # Юзернейм твоего канала (бот должен быть админом в нём!)
-DB_PATH = "local_database.db"  # Путь к твоей базе данных SQLite
+DB_PATH = DB_LOCAL_PATH  # Путь к твоей базе данных SQLite
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
