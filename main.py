@@ -10,9 +10,9 @@ from pydantic import BaseModel
 # ================= НАСТРОЙКИ И ИНИЦИАЛИЗАЦИЯ =================
 
 DATABASE_FILE = "database.db"
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "ТВОЙ_ТОКЕН_БОТА")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "ТВОЙ_CHAT_ID")
-DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN", "ТВОЙ_DROPBOX_ТОКЕН")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "8501380785")
+DROPBOX_ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN", "_WgJ5t--cYkAAAAAAAAAAZ5DdohYivqI_AUgdnlIh-iMtRK4CL3UYdgBoFB2HUG0")
 
 app = FastAPI(title="Photo Rating & Models Platform API")
 
