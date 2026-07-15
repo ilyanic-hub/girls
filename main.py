@@ -288,6 +288,14 @@ def init_db():
         cursor.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL")
         db.commit()
     except sqlite3.OperationalError: pass
+
+    # === ДОБАВИТЬ В init_db() для поддержки ролей ===
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+        db.commit()
+        print("Колонка role успешно добавлена в таблицу users.")
+    except sqlite3.OperationalError:
+        pass
         
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
@@ -895,23 +903,25 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
+# ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
 @app.get("/api/me")
-async def get_current_user(db=Depends(get_db), token: str = Depends(oauth2_scheme)):
-    # ... твой код получения пользователя по токену/сессии ...
-    # Допустим, ты делаешь запрос к базе:
+async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
+        
     cursor = db.cursor()
-    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (current_username,))
+    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (session_user,))
     user_row = cursor.fetchone()
     
     if not user_row:
         return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
         
     return {
-        "id": user_row[0],
-        "username": user_row[1],
-        "balance": user_row[2],
-        "is_admin": user_row[3],
-        "role": user_row[4] if user_row[4] else "user"  # Если роль пустая, отдаем "user"
+        "id": user_row["id"],
+        "username": user_row["username"],
+        "balance": user_row["balance"],
+        "is_admin": user_row["is_admin"],
+        "role": user_row["role"] if user_row["role"] else "user"
     }
 
 @app.post("/api/register")
