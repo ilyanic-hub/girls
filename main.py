@@ -13,6 +13,9 @@ import uuid
 import asyncio
 import shutil
 import secrets
+import logging
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart, CommandObject
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
@@ -32,11 +35,25 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 from pydantic import BaseModel
 
+# Включаем логирование, чтобы видеть ошибки бота в логах сервера
+logging.basicConfig(level=logging.INFO)
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 app = FastAPI()
 router = APIRouter()
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+BOT_TOKEN = "8425385137:AAHehDwbSQjhiBIf-oZGgC7YFscXhJGHINA"  # Токен от @BotFather
+CHANNEL_ID = "@photo_rating_club"  # Твой канал
+
+# Путь к базе данных
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
+
+# Инициализируем бота
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
@@ -188,7 +205,23 @@ def init_tg_auth_db():
     db.close()
 @app.on_event("startup")
 async def startup_event():
-    init_tg_auth_db()
+    # 1. Создаем таблицу для сессий, если её нет
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS telegram_auth_sessions (
+            code TEXT PRIMARY KEY,
+            tg_user_id INTEGER,
+            username TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    db.commit()
+    db.close()
+
+    # 2. Запускаем бота в фоновом режиме
+    asyncio.create_task(dp.start_polling(bot))
 
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
@@ -535,6 +568,51 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
+async def check_channel_subscription(user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return member.status in ["creator", "administrator", "member"]
+    except Exception as e:
+        logging.error(f"Ошибка проверки подписки: {e}")
+        return False
+
+@dp.message(CommandStart())
+async def handle_start(message: types.Message, command: CommandObject):
+    code = command.args
+    user_id = message.from_user.id
+    username = message.from_user.username or f"id_{user_id}"
+
+    if not code:
+        await message.answer("Привет! Перейдите на сайт для регистрации.")
+        return
+
+    is_subscribed = await check_channel_subscription(user_id)
+    if not is_subscribed:
+        await message.answer(
+            f"❌ Для входа нужно подписаться на канал!\n\n"
+            f"1. Подпишитесь на {CHANNEL_ID}\n"
+            f"2. Вернитесь и снова нажмите «Старт»."
+        )
+        return
+
+    try:
+        db = sqlite3.connect(DB_LOCAL_PATH)
+        cursor = db.cursor()
+        cursor.execute("SELECT code FROM telegram_auth_sessions WHERE code = ?", (code,))
+        if cursor.fetchone():
+            cursor.execute("""
+                UPDATE telegram_auth_sessions 
+                SET tg_user_id = ?, username = ?, status = 'success' 
+                WHERE code = ?
+            """, (user_id, username, code))
+            db.commit()
+            await message.answer("🎉 Успешно! Вы вошли. Возвращайтесь на сайт.")
+        else:
+            await message.answer("❌ Ссылка устарела.")
+        db.close()
+    except Exception as e:
+        logging.error(f"Ошибка БД: {e}")
+
 @app.get("/api/debug-users-table")
 async def debug_users_table(db=Depends(get_db)):
     cursor = db.cursor()
