@@ -504,10 +504,15 @@
 </head>
 <body>
     
+    <!-- БОКОВОЕ МЕНЮ (ПК версия) -->
     <aside class="sidebar" id="main-sidebar" style="display: none;">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
-            <a href="/">🏠 Главная</a>
+            <a href="#" onclick="switchTab('gallery', event)">🏠 Главная</a>
+            <a href="#" onclick="switchTab('announcements', event)" style="position: relative;">
+                📢 Объявления
+                <span id="announcements-badge" style="display:none; background: var(--accent); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; position: absolute; right: 10px;">NEW</span>
+            </a>
             <a href="/models">📸 Моделям</a>
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
@@ -532,18 +537,19 @@
         </nav>
     </aside>
 
+    <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
     <div class="mobile-nav" id="mobile-nav-bar" style="display: none;">
-        <a href="/" class="mobile-nav-link">
+        <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link">
             <span>🏠</span>Главная
+        </a>
+        <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link">
+            <span>📢</span>Объявления
         </a>
         <a href="/models" class="mobile-nav-link">
             <span>📸</span>Моделям
         </a>
         <a href="/top" class="mobile-nav-link">
             <span>👑</span>Топ
-        </a>
-        <a href="/history" class="mobile-nav-link" style="color: #b8860b;">
-            <span>🏆</span>Слава
         </a>
         <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
             <span>🔞</span>18+
@@ -620,6 +626,31 @@
                     <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
                 </div>
             </header>
+
+            <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
+            <div id="tab-gallery" style="display: block; width: 100%;">
+                <h1 class="main-promo-title">Кого разденем?</h1>
+                <main class="contestants-grid" id="gallery"></main>
+            </div>
+
+            <!-- КОНТЕНТ: РАЗДЕЛ ОБЪЯВЛЕНИЙ -->
+            <div id="tab-announcements" style="display: none; width: 100%; padding: 20px; box-sizing: border-box; max-width: 1200px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: var(--text-main);">📢 Объявления от моделей</h1>
+                        <p style="margin: 5px 0 0 0; color: var(--text-muted);">Актуальные предложения, кастинги и приватные встречи</p>
+                    </div>
+                    <!-- Эта кнопка видна только моделям -->
+                    <button id="model-create-btn" class="btn" onclick="openAnnouncementModal()" style="display: none; background: #2ed573;">
+                        ✨ Создать объявление
+                    </button>
+                </div>
+
+                <!-- Лента объявлений -->
+                <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+                    <!-- Сюда будут загружаться объявления из базы -->
+                </div>
+            </div>
 
             <h1 class="main-promo-title">Кого разденем?</h1>
             <main class="contestants-grid" id="gallery"></main>
@@ -1225,6 +1256,84 @@
 
                 timerEl.innerText = `${String(days).padStart(2, '0')}д ${String(hours).padStart(2, '0')}ч ${String(mins).padStart(2, '0')}м ${String(secs).padStart(2, '0')}с`;
             }, 1000);
+        }
+
+        let activeTab = 'gallery';
+        let currentUserRole = 'guest';
+
+        // Переключение вкладок без перезагрузки страницы
+        function switchTab(tabName, event) {
+            if (event) event.preventDefault();
+            activeTab = tabName;
+
+            if (tabName === 'gallery') {
+                document.getElementById('tab-gallery').style.display = 'block';
+                document.getElementById('tab-announcements').style.display = 'none';
+            } else if (tabName === 'announcements') {
+                document.getElementById('tab-gallery').style.display = 'none';
+                document.getElementById('tab-announcements').style.display = 'block';
+                loadAnnouncements(); // Загружаем объявления только при переходе на вкладку
+            }
+        }
+
+        // Загрузка объявлений из API бэкенда
+        async function loadAnnouncements() {
+            const listContainer = document.getElementById('announcements-list');
+            listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--text-muted);">Загрузка объявлений...</div>';
+
+            try {
+                let res = await fetch('/api/announcements');
+                if (res.ok) {
+                    let announcements = await res.json();
+                    listContainer.innerHTML = '';
+
+                    if (announcements.length === 0) {
+                        listContainer.innerHTML = `
+                            <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
+                                <span style="font-size: 3rem;">📭</span>
+                                <h3 style="margin: 10px 0 5px 0;">Объявлений пока нет</h3>
+                                <p style="color: var(--text-muted); margin: 0;">Будьте первой, кто оставит здесь своё предложение!</p>
+                            </div>`;
+                        return;
+                    }
+
+                    announcements.forEach(item => {
+                        listContainer.innerHTML += `
+                            <div class="contestant-card" style="text-align: left; padding-bottom: 0;">
+                                <img src="${item.photo_url}" class="contestant-img" style="height: 260px;" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=Photo'">
+                                <div style="padding: 15px; display: flex; flex-direction: column; gap: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <h3 style="margin: 0; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">${item.name}</h3>
+                                        <span style="background: #fff5f6; color: var(--accent); padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: bold;">
+                                            📸 Модель
+                                        </span>
+                                    </div>
+                                    <p style="margin: 0; color: #4a5568; font-size: 0.9rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                        ${item.description}
+                                    </p>
+                                    <hr style="border: 0; border-top: 1px solid #edf2f7; margin: 5px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                            Опубликовано: ${new Date(item.created_at).toLocaleDateString('ru-RU')}
+                                        </span>
+                                        <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
+                                            Написать
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Не удалось загрузить объявления.</div>';
+                }
+            } catch (err) {
+                console.error("Ошибка при получении объявлений:", err);
+                listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Ошибка сети при загрузке.</div>';
+            }
+        }
+
+        function openChatWithModel(username) {
+            alert(`Функция чата в разработке. Скоро вы сможете написать напрямую пользователю @${username}!`);
         }
     </script>
 </body>
