@@ -83,7 +83,7 @@
             z-index: 1000;
             justify-content: space-around;
             align-items: center;
-            padding-bottom: env(safe-area-inset-bottom); /* Поддержка айфонов с "челкой" снизу */
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .mobile-nav-link {
@@ -114,7 +114,7 @@
             display: flex;
             flex-direction: column;
             min-width: 0; 
-            padding-bottom: 0; /* Будет перезаписано на мобилках */
+            padding-bottom: 0;
         }
 
         .heart-particle {
@@ -412,28 +412,24 @@
         /* ========================================================== */
         @media (max-width: 768px) {
             body {
-                flex-direction: column; /* Потоком сверху вниз */
+                flex-direction: column;
             }
 
-            /* 1. Скрываем компьютерное меню */
             .sidebar {
                 display: none !important;
             }
 
-            /* 2. Показываем нижнюю навигацию */
             .mobile-nav {
                 display: flex;
             }
 
-            /* Добавляем отступ внизу контента, чтобы нижняя панель не закрывала его */
             .main-wrapper {
                 padding-bottom: 75px; 
             }
 
-            /* 3. Адаптируем Шапку */
             header {
                 padding: 10px 15px;
-                flex-direction: column; /* Элементы в два ряда */
+                flex-direction: column;
                 gap: 10px;
             }
 
@@ -442,7 +438,6 @@
                 justify-content: space-between;
             }
 
-            /* Уменьшаем бонусный блок */
             .bonus-container {
                 width: 100%;
                 box-sizing: border-box;
@@ -460,22 +455,19 @@
                 padding: 6px 12px;
             }
 
-            /* 4. Заголовок сайта */
             .main-promo-title {
                 font-size: 2.2rem;
                 margin: 20px 0;
             }
 
-            /* 5. Сетка карточек — ГЛАВНЫЙ МОБИЛЬНЫЙ ВИД (2 колонки) */
             .contestants-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 10px;
             }
 
-            /* Корректируем размеры фоток на мобильных */
             .contestant-img {
-                height: 220px; /* Идеальный размер для плитки из 2х колонок */
+                height: 220px;
             }
 
             .contestant-name {
@@ -487,7 +479,6 @@
                 margin-bottom: 8px;
             }
 
-            /* Делаем кнопки на мобилках чуть меньше, чтобы помещались */
             .contestant-card .btn {
                 font-size: 0.8rem;
                 padding: 6px 10px;
@@ -499,13 +490,11 @@
                 padding: 4px 8px;
             }
 
-            /* Кнопка "Пополнить" в шапке */
             .btn-deposit {
                 padding: 6px 12px;
                 font-size: 0.85rem;
             }
 
-            /* Окно авторизации */
             .auth-box {
                 padding: 25px 20px;
                 max-width: 90%;
@@ -563,33 +552,38 @@
 
     <div class="main-wrapper">
 
-        <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
-    <input type="text" name="fake_username_remembered" style="display:none;">
-    <input type="password" name="fake_password_remembered" style="display:none;">
+        <div class="auth-container" id="auth-page">
+            <div class="auth-box">
+                <h2 id="auth-title">Вход в аккаунт</h2>
+                
+                <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+                    <input type="text" name="fake_username_remembered" style="display:none;">
+                    <input type="password" name="fake_password_remembered" style="display:none;">
 
-    <input type="text" id="username" placeholder="Логин" autocomplete="off">
-    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
-      
-    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                    
-    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
-        <div style="display: flex; gap: 10px;">
-            <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
-                <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
-                <span style="font-size: 1.5rem; display: block;">👤</span>
-                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
-            </label>
-            <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
-                <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
-                <span style="font-size: 1.5rem; display: block;">📸</span>
-                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
-            </label>
-        </div>
-    </div>
+                    <input type="text" id="username" placeholder="Логин" autocomplete="off">
+                    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+                      
+                    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+                                    
+                    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f5; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
+                                <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
+                                <span style="font-size: 1.5rem; display: block;">👤</span>
+                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
+                            </label>
+                            <label style="flex: 1; border: 2px solid #cbd5e0; background: transparent; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
+                                <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
+                                <span style="font-size: 1.5rem; display: block;">📸</span>
+                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
+                            </label>
+                        </div>
+                    </div>
 
-    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
-</form>
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+                </form>
+                
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
             </div>
@@ -739,74 +733,76 @@
         }
 
         function selectRole(role) {
-    selectedRole = role;
-    const userLabel = document.getElementById('label-role-user');
-    const modelLabel = document.getElementById('label-role-model');
-    
-    if (role === 'user') {
-        userLabel.style.borderColor = '#ff4757';
-        userLabel.style.background = '#fff5f5';
-        modelLabel.style.borderColor = '#cbd5e0';
-        modelLabel.style.background = 'transparent';
-    } else {
-        modelLabel.style.borderColor = '#ff4757';
-        modelLabel.style.background = '#fff5f5';
-        userLabel.style.borderColor = '#cbd5e0';
-        userLabel.style.background = 'transparent';
-    }
-}
+            selectedRole = role;
+            const userLabel = document.getElementById('label-role-user');
+            const modelLabel = document.getElementById('label-role-model');
+            
+            if (userLabel && modelLabel) {
+                if (role === 'user') {
+                    userLabel.style.borderColor = '#ff4757';
+                    userLabel.style.background = '#fff5f5';
+                    modelLabel.style.borderColor = '#cbd5e0';
+                    modelLabel.style.background = 'transparent';
+                } else {
+                    modelLabel.style.borderColor = '#ff4757';
+                    modelLabel.style.background = '#fff5f5';
+                    userLabel.style.borderColor = '#cbd5e0';
+                    userLabel.style.background = 'transparent';
+                }
+            }
+        }
     
         function toggleAuthMode() {
-    const form = document.getElementById('auth-form');
-    if (form) form.reset();
-    
-    const roleContainer = document.getElementById('role-selection-container');
-    
-    if (authMode === 'login') {
-        authMode = 'register';
-        document.getElementById('auth-title').innerText = "Регистрация";
-        document.getElementById('password').placeholder = "Придумайте пароль";
-        document.getElementById('secret_answer').style.display = 'block';
-        if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
-        selectRole('user'); // Сбрасываем визуальный выбор на Зрителя
-        document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-        document.getElementById('auth-reset-text').style.display = 'none';
-    } else {
-        authMode = 'login';
-        document.getElementById('auth-title').innerText = "Вход в аккаунт";
-        document.getElementById('password').placeholder = "Пароль";
-        document.getElementById('secret_answer').style.display = 'none';
-        if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
-        document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-        document.getElementById('auth-reset-text').style.display = 'block';
-    }
-}
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
+            
+            const roleContainer = document.getElementById('role-selection-container');
+            
+            if (authMode === 'login') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                if (roleContainer) roleContainer.style.display = 'block';
+                selectRole('user');
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                if (roleContainer) roleContainer.style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
+        }
 
         function openAuthModal(mode) {
-    const authPage = document.getElementById('auth-page');
-    if (authPage) authPage.style.display = 'flex';
+            const authPage = document.getElementById('auth-page');
+            if (authPage) authPage.style.display = 'flex';
 
-    const roleContainer = document.getElementById('role-selection-container');
+            const roleContainer = document.getElementById('role-selection-container');
 
-    if (mode === 'register') {
-        authMode = 'register';
-        document.getElementById('auth-title').innerText = "Регистрация";
-        document.getElementById('password').placeholder = "Придумайте пароль";
-        document.getElementById('secret_answer').style.display = 'block';
-        if (roleContainer) roleContainer.style.display = 'block'; // Показываем выбор роли
-        selectRole('user');
-        document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-        document.getElementById('auth-reset-text').style.display = 'none';
-    } else if (mode === 'login') {
-        authMode = 'login';
-        document.getElementById('auth-title').innerText = "Вход в аккаунт";
-        document.getElementById('password').placeholder = "Пароль";
-        document.getElementById('secret_answer').style.display = 'none';
-        if (roleContainer) roleContainer.style.display = 'none'; // Скрываем выбор роли
-        document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-        document.getElementById('auth-reset-text').style.display = 'block';
-    }
-}
+            if (mode === 'register') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                if (roleContainer) roleContainer.style.display = 'block';
+                selectRole('user');
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else if (mode === 'login') {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                if (roleContainer) roleContainer.style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
+        }
 
         function enableResetMode() {
             authMode = 'reset';
@@ -816,6 +812,9 @@
             document.getElementById('password').placeholder = "Введите НОВЫЙ пароль";
             document.getElementById('secret_answer').placeholder = "Ваше секретное слово";
             document.getElementById('secret_answer').style.display = 'block';
+            if (document.getElementById('role-selection-container')) {
+                document.getElementById('role-selection-container').style.display = 'none';
+            }
             document.getElementById('auth-toggle-text').innerText = "Вспомнили данные? Назад ко входу";
             document.getElementById('auth-reset-text').style.display = 'none';
         }
@@ -883,6 +882,7 @@
                     const secretAnswer = document.getElementById('secret_answer');
                     const toggleText = document.getElementById('auth-toggle-text');
                     const resetText = document.getElementById('auth-reset-text');
+                    const roleContainer = document.getElementById('role-selection-container');
                     
                     if (typeof authMode !== 'undefined') authMode = 'register';
                     if (authTitle) authTitle.innerText = "Регистрация";
@@ -890,6 +890,8 @@
                     if (secretAnswer) secretAnswer.style.display = 'block';
                     if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
                     if (resetText) resetText.style.display = 'none';
+                    if (roleContainer) roleContainer.style.display = 'block';
+                    selectRole('user');
                 }
 
             } catch (err) {
@@ -925,41 +927,41 @@
         }
 
         async function submitAuth() {
-    let u = document.getElementById('username').value;
-    let p = document.getElementById('password').value;
-    let s = document.getElementById('secret_answer').value;
-    let url = '/api/login';
-    let bodyData = { username: u, password: p };
+            let u = document.getElementById('username').value;
+            let p = document.getElementById('password').value;
+            let s = document.getElementById('secret_answer').value;
+            let url = '/api/login';
+            let bodyData = { username: u, password: p };
 
-    if (authMode === 'register') { 
-        url = '/api/register'; 
-        bodyData.secret_answer = s;
-        bodyData.role = selectedRole; // <-- Передаем выбранную роль (user или model)
-    }
-    else if (authMode === 'reset') { 
-        url = '/api/reset-password';
-        bodyData = { username: u, secret_answer: s, new_password: p };
-    }
+            if (authMode === 'register') { 
+                url = '/api/register'; 
+                bodyData.secret_answer = s;
+                bodyData.role = selectedRole;
+            }
+            else if (authMode === 'reset') { 
+                url = '/api/reset-password';
+                bodyData = { username: u, secret_answer: s, new_password: p };
+            }
 
-    let res = await fetch(url, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(bodyData)
-    });
-    let data = await res.json();
-    if (res.ok) {
-        if (authMode === 'register' || authMode === 'reset') { 
-            alert("Успешно! Теперь войдите.");
-            authMode = 'login'; 
-            toggleAuthMode(); 
+            let res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(bodyData)
+            });
+            let data = await res.json();
+            if (res.ok) {
+                if (authMode === 'register' || authMode === 'reset') { 
+                    alert("Успешно! Теперь войдите.");
+                    authMode = 'login'; 
+                    toggleAuthMode(); 
+                }
+                else { 
+                    window.location.reload();
+                }
+            } else { 
+                alert("Ошибка: " + data.detail);
+            }
         }
-        else { 
-            window.location.reload();
-        }
-    } else { 
-        alert("Ошибка: " + data.detail);
-    }
-}
 
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
