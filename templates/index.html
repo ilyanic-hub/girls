@@ -1373,6 +1373,29 @@ async function submitAnnouncement(event) {
         alert("Произошла ошибка при обработке или отправке файла.");
     }
 }
+
+        async function deleteAnnouncement(id) {
+    // Спрашиваем подтверждение перед удалением
+    const confirmDelete = confirm("Вы уверены, что хотите окончательно удалить это объявление?");
+    if (!confirmDelete) return;
+
+    try {
+        const response = await fetch(`/api/announcements/${id}`, {
+            method: 'DELETE'
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert("Объявление успешно удалено!");
+            loadAnnouncements(); // Перезагружаем список объявлений
+        } else {
+            alert("Ошибка при удалении: " + (data.detail || "Что-то пошло не так"));
+        }
+    } catch (error) {
+        console.error("Ошибка при отправке запроса:", error);
+        alert("Произошла ошибка сети при попытке удаления.");
+    }
+}
     </script>
     <script>
         function startTimer() {
@@ -1467,15 +1490,21 @@ async function submitAnnouncement(event) {
                 hasVisibleAnnouncements = true;
 
                 // Кнопка редактирования показывается только владельцу карточки
-                const editButtonHtml = isOwner ? `
-                    <button class="btn btn-sec" onclick="editAnnouncement(${item.id}, '${escapeHtml(item.name)}', '${escapeHtml(item.description)}', '${item.photo_url}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #f59e0b; color: white; border: none;">
-                        ✏️ Редактировать
-                    </button>
-                ` : `
-                    <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
-                        Написать
-                    </button>
-                `;
+                // Кнопки управления показываются только владельцу карточки
+                        const editButtonHtml = isOwner ? `
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button class="btn" onclick="editAnnouncement(${item.id}, '${escapeHtml(item.name)}', '${escapeHtml(item.description)}', '${item.photo_url}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #f59e0b; color: white; border: none;">
+                                    ✏️ Редактировать
+                                </button>
+                                <button class="btn" onclick="deleteAnnouncement(${item.id})" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #ef4444; color: white; border: none;">
+                                    🗑️ Удалить
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
+                                Написать
+                            </button>
+                        `;
 
                 listContainer.innerHTML += `
                     <div class="contestant-card" id="announcement-card-${item.id}" style="text-align: left; padding-bottom: 0;">
