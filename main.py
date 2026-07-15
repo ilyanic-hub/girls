@@ -190,19 +190,21 @@ def upload_photo_to_dropbox_and_get_link(local_path: str, dropbox_path: str) -> 
 
 # Запусти этот код один раз при старте приложения, чтобы создать таблицу
 def init_tg_auth_db():
-    db = sqlite3.connect(DB_LOCAL_PATH)
+    # Добавляем check_same_thread=False
+    db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     cursor = db.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS telegram_auth_sessions (
             code TEXT PRIMARY KEY,
             tg_user_id INTEGER,
             username TEXT,
-            status TEXT DEFAULT 'pending', -- pending, success, failed
+            status TEXT DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     db.commit()
     db.close()
+    
 @app.on_event("startup")
 async def startup_event():
     # 1. Создаем таблицу для сессий, если её нет
@@ -1164,20 +1166,30 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 @app.post("/api/auth/tg-generate")
 async def generate_tg_link():
-    # Генерируем случайный уникальный токен из 16 символов
-    code = secrets.token_hex(8) 
+    import secrets
+    code = secrets.token_hex(8)
     
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    cursor = db.cursor()
-    cursor.execute(
-        "INSERT INTO telegram_auth_sessions (code, status) VALUES (?, 'pending')", 
-        (code,)
-    )
-    db.commit()
-    db.close()
+    try:
+        # Добавляем check_same_thread=False для асинхронной работы
+        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
+        cursor = db.cursor()
+        
+        cursor.execute(
+            "INSERT INTO telegram_auth_sessions (code, status) VALUES (?, 'pending')", 
+            (code,)
+        )
+        db.commit()
+        db.close()
+        
+    except Exception as e:
+        # Это запишет точную ошибку в логи твоего сервера (PM2 / Amvera / Docker)
+        logging.error(f"КРИТИЧЕСКАЯ ОШИБКА БД в tg-generate: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Ошибка записи в базу данных. Обратитесь к администратору. Текст: {str(e)}"
+        )
     
-    # Ссылка, которая ведет в твоего бота сразу с кодом старта
-    bot_username = "photo_rating_auth_bot"  # Укажи юзернейм своего бота без @
+    bot_username = "ТВОЙ_БОТ_BOT" # ⚠️ Убедись, что тут имя твоего бота без @
     link = f"https://t.me/{bot_username}?start={code}"
     
     return {"code": code, "link": link}
