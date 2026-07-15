@@ -3,8 +3,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart, CommandObject
 import logging
 
-BOT_TOKEN = "ТВОЙ_ТОКЕН_БОТА"
-CHANNEL_ID = "@tvoi_kanal"  # Юзернейм твоего канала (бот должен быть админом в нём!)
+BOT_TOKEN = "8425385137:AAHehDwbSQjhiBIf-oZGgC7YFscXhJGHINA"
+CHANNEL_ID = "@photo_rating_club"  # Юзернейм твоего канала (бот должен быть админом в нём!)
 DB_PATH = "local_database.db"  # Путь к твоей базе данных SQLite
 
 bot = Bot(token=BOT_TOKEN)
