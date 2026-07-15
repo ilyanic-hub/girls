@@ -877,6 +877,11 @@
             }
         }
 
+        const modelCreateBtn = document.getElementById('model-create-btn');
+if (modelCreateBtn) {
+    modelCreateBtn.style.display = 'none';
+}
+
         function showUserUI(user, buttonsContainer) {
             const userNameEl = document.getElementById('user-name');
             const userBalanceEl = document.getElementById('user-balance');
@@ -929,6 +934,12 @@
                 startCheckingBalance();
             }
         }
+
+        // Показываем кнопку создания объявления на вкладке объявлений, если это модель
+const modelCreateBtn = document.getElementById('model-create-btn');
+if (modelCreateBtn) {
+    modelCreateBtn.style.display = (user.role === 'model') ? 'block' : 'none';
+}
 
         async function checkAuth() {
             try {
