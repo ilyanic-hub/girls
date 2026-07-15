@@ -1246,18 +1246,16 @@ async def generate_tg_link():
 # 2. Опрос статуса авторизации сайтом
 @app.get("/api/auth/tg-status/{code}")
 async def check_tg_status(code: str, response: Response):
-    # Флаг, который скажет нам, нужно ли запускать загрузку в Dropbox ПОСЛЕ закрытия БД
     need_dropbox_upload = False
     username_to_auth = None
 
     try:
-        # Добавляем timeout=10 (если база занята, процесс подождет до 10 секунд, а не упадет сразу)
         db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False, timeout=10)
         db.row_factory = sqlite3.Row
         cursor = db.cursor()
         
         cursor.execute(
-            "SELECT status, tg_user_id, username FROM telegram_auth_sessions WHERE code = ?", 
+            "SELECT status, username FROM telegram_auth_sessions WHERE code = ?", 
             (code,)
         )
         session = cursor.fetchone()
@@ -1269,31 +1267,38 @@ async def check_tg_status(code: str, response: Response):
         if session["status"] == "success":
             username_to_auth = session["username"]
             
-            # Проверяем, есть ли юзер
-            cursor.execute("SELECT username FROM users WHERE username = ?", (username_to_auth,))
+            # Проверяем, существует ли уже пользователь с таким именем в системе
+            cursor.execute("SELECT username, role, is_admin FROM users WHERE username = ?", (username_to_auth,))
             user_exists = cursor.fetchone()
             
             if not user_exists:
-                # Создаем нового пользователя
+                # Список юзернеймов, которые автоматически получают админку
+                ADMIN_USERNAMES = ["OJltumustKa", "Dominik"]  # Впиши сюда ваши ники без @
+                
+                if username_to_auth in ADMIN_USERNAMES:
+                    user_role = 'admin'
+                    is_admin_flag = 1
+                else:
+                    user_role = 'user'
+                    is_admin_flag = 0
+
+                # Если пользователя нет, создаем его (поле password оставляем пустым)
                 cursor.execute(
-                    "INSERT INTO users (username, role, is_admin) VALUES (?, 'user', 0)", 
-                    (username_to_auth,)
+                    "INSERT INTO users (username, password, role, is_admin) VALUES (?, '', ?, ?)", 
+                    (username_to_auth, user_role, is_admin_flag)
                 )
                 db.commit()
-                # Базу изнутри НЕ выгружаем, а просто ставим флаг:
                 need_dropbox_upload = True
             
-            # Закрываем базу данных ДО выполнения долгих сетевых операций!
             db.close()
             
-            # Теперь, когда база 100% свободна и закрыта, делаем синхронизацию
             if need_dropbox_upload:
                 try:
                     upload_db_to_dropbox()
                 except Exception as dropbox_err:
                     logging.error(f"Ошибка выгрузки в Dropbox: {dropbox_err}")
             
-            # Устанавливаем куку и пускаем на сайт
+            # Устанавливаем куку сессии (как для обычного пользователя)
             response.set_cookie(key="session_user", value=username_to_auth, max_age=2592000, httponly=True)
             return {"status": "success", "username": username_to_auth}
             
@@ -1301,7 +1306,7 @@ async def check_tg_status(code: str, response: Response):
         return {"status": "pending"}
 
     except Exception as e:
-        logging.error(f"Ошибка в эндпоинте статуса: {e}")
+        logging.error(f"Ошибка в tg-status: {e}")
         return {"status": "pending"}
     
 @app.get("/api/me")
