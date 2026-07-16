@@ -919,17 +919,25 @@
 
         async function checkAuth() {
     try {
-        const response = await fetch('/api/me'); // Или твой эндпоинт проверки сессии
-        const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
+        console.log("Запуск checkAuth...");
+        const response = await fetch('/api/me');
+        console.log("Ответ от сервера:", response.status);
+        
+        const buttonsContainer = document.getElementById('auth-buttons');
 
         if (response.ok) {
             const user = await response.json();
-            // Сохраняем роль глобально
+            console.log("Данные пользователя:", user);
+            
             currentUserRole = user.role; 
-            // Передаем данные в функцию отрисовки интерфейса
             showUserUI(user, buttonsContainer);
+            
+            // --- ВАЖНЫЙ ДОБАВОЧНЫЙ КОД ДЛЯ ТЕСТА ---
+            // Принудительно показываем основной контент, если авторизация успешна
+            const mainPage = document.getElementById('main-page');
+            if (mainPage) mainPage.style.display = 'block'; 
         } else {
-            // Если пользователь не авторизован (гость)
+            console.log("Пользователь не авторизован (гость)");
             currentUserRole = 'guest';
             if (buttonsContainer) {
                 buttonsContainer.innerHTML = `
@@ -937,9 +945,9 @@
                     <button onclick="openModal('register')" class="btn">Регистрация</button>
                 `;
             }
-            // Скрываем панель модели, если гость
-            const pcBtn = document.getElementById('menu-model-dashboard');
-            if (pcBtn) pcBtn.style.display = 'none';
+            // Также принудительно показываем основной контент, чтобы не было пустоты
+            const mainPage = document.getElementById('main-page');
+            if (mainPage) mainPage.style.display = 'block';
         }
     } catch (error) {
         console.error("Ошибка при проверке авторизации:", error);
