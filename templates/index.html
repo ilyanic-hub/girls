@@ -1013,6 +1013,31 @@
     }
 }
 
+        // Функция для показа окна входа (вызывается при клике на «Вход» на главной)
+function showAuthPage() {
+    // Показываем весь контейнер авторизации
+    const authPage = document.getElementById('auth-page');
+    if (authPage) {
+        authPage.style.display = 'flex'; // или 'block', в зависимости от ваших стилей
+    }
+    
+    // Сбрасываем форму на режим Входа по умолчанию
+    resetAuthFormToLogin();
+}
+
+// Функция сброса формы в режим обычного входа
+function resetAuthFormToLogin() {
+    document.getElementById('auth-title').innerText = 'Вход в аккаунт';
+    document.getElementById('secret_answer').style.display = 'none';
+    document.getElementById('role-selection-container').style.display = 'none';
+    document.getElementById('auth-toggle-text').innerText = 'Нет аккаунта? Зарегистрироваться';
+    document.getElementById('auth-reset-text').style.display = 'block';
+    
+    // Показываем разделитель и кнопку ТГ (они нужны при входе)
+    document.getElementById('tg-divider').style.display = 'flex';
+    document.getElementById('tg-login-btn').style.display = 'flex';
+}
+
 function showUserUI(user, buttonsContainer) {
     const userNameEl = document.getElementById('user-name');
     const userBalanceEl = document.getElementById('user-balance');
