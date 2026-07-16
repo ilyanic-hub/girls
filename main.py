@@ -252,6 +252,30 @@ def init_db():
     )
     """)
 
+    # Таблица альбомов
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS albums (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_username TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        is_paid INTEGER DEFAULT 0, -- 0 = бесплатный, 1 = платный
+        price INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Таблица фотографий в альбомах
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS album_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        album_id INTEGER NOT NULL,
+        photo_url TEXT NOT NULL,
+        FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
+    )
+    """)
+
+
     cursor.execute("CREATE TABLE IF NOT EXISTS user_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, model_id INTEGER)")
     
     try:
