@@ -889,6 +889,109 @@
     }
 } // <--- Убедись, что эта скобка стоит!
 
+        async function loadAnnouncements() {
+    const listContainer = document.getElementById('announcements-list');
+    if (!listContainer) return; // Защита, если контейнера нет на странице
+    
+    listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--text-muted);">Загрузка объявлений...</div>';
+
+    // БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ
+    let currentUsername = null;
+    const currentUserNameEl = document.getElementById('user-name');
+    
+    if (currentUserNameEl && currentUserNameEl.innerText && currentUserNameEl.innerText !== "Гость") {
+        currentUsername = currentUserNameEl.innerText.trim();
+    }
+
+    try {
+        let res = await fetch('/api/announcements');
+        if (res.ok) {
+            let announcements = await res.json();
+            listContainer.innerHTML = '';
+
+            if (announcements.length === 0) {
+                listContainer.innerHTML = `
+                    <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
+                        <span style="font-size: 3rem;">📭</span>
+                        <h3 style="margin: 10px 0 5px 0;">Объявлений пока нет</h3>
+                        <p style="color: var(--text-muted); margin: 0;">Будьте первой, кто оставит здесь своё предложение!</p>
+                    </div>`;
+                return;
+            }
+
+            let hasVisibleAnnouncements = false;
+
+            announcements.forEach(item => {
+                // Проверяем, принадлежит ли объявление текущему пользователю
+                const isOwner = currentUsername && (currentUsername === item.username);
+                
+                // Если выбран фильтр "Мои объявления" и это объявление не принадлежит текущему пользователю — пропускаем его
+                if (currentAnnouncementFilter === 'my' && !isOwner) {
+                    return; 
+                }
+
+                hasVisibleAnnouncements = true;
+
+                // Кнопка редактирования показывается только владельцу карточки
+                // Кнопки управления показываются только владельцу карточки
+                        const editButtonHtml = isOwner ? `
+                            <div style="display: flex; gap: 8px; width: 100%;">
+                                <button class="btn" onclick="editAnnouncement(${item.id}, '${escapeHtml(item.name)}', '${escapeHtml(item.description)}', '${item.photo_url}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #f59e0b; color: white; border: none;">
+                                    ✏️ Редактировать
+                                </button>
+                                <button class="btn" onclick="deleteAnnouncement(${item.id})" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #ef4444; color: white; border: none;">
+                                    🗑️ Удалить
+                                </button>
+                            </div>
+                        ` : `
+                            <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
+                                Написать
+                            </button>
+                        `;
+
+                listContainer.innerHTML += `
+                    <div class="contestant-card" id="announcement-card-${item.id}" style="text-align: left; padding-bottom: 0;">
+                        <img src="${item.photo_url}" class="contestant-img" style="height: 260px;" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=Photo'">
+                        <div style="padding: 15px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 style="margin: 0; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">${item.name}</h3>
+                                <span style="background: #fff5f6; color: var(--accent); padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: bold;">
+                                    📸 Модель
+                                </span>
+                            </div>
+                            <p style="margin: 0; color: #4a5568; font-size: 0.9rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                ${item.description}
+                            </p>
+                            <hr style="border: 0; border-top: 1px solid #edf2f7; margin: 5px 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                    ${new Date(item.created_at).toLocaleDateString('ru-RU')}
+                                </span>
+                                ${editButtonHtml}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+
+            // Если после фильтрации не осталось объявлений для показа
+            if (!hasVisibleAnnouncements) {
+                listContainer.innerHTML = `
+                    <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
+                        <span style="font-size: 3rem;">📭</span>
+                        <h3 style="margin: 10px 0 5px 0;">У вас пока нет объявлений</h3>
+                        <p style="color: var(--text-muted); margin: 0;">Нажмите кнопку сверху, чтобы опубликовать первое!</p>
+                    </div>`;
+            }
+
+        } else {
+            listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Не удалось загрузить объявления.</div>';
+        }
+    } catch (err) {
+        console.error("Ошибка при получении объявлений:", err);
+        listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Ошибка сети при загрузке.</div>';
+    }
+}
+
         async function uploadAvatar() {
             const fileInput = document.getElementById('avatar-input');
             if (fileInput.files.length === 0) return;
