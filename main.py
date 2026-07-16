@@ -53,7 +53,7 @@ DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
 
 # Инициализируем бота
 #bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+#dp = Dispatcher()
 
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
