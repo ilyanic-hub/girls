@@ -546,23 +546,34 @@ async def create_album(
     description: str = Form(None),
     is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
     price: int = Form(0),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),  # Используем list вместо List для Python 3.13
     session_user: str = Depends(get_current_user)
 ):
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
     cursor = db.cursor()
-    cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
+    
+    # Так как get_current_user возвращает объект Row/кортеж (id, username), 
+    # достаем чистую строку username:
+    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+    
+    cursor.execute("SELECT role FROM users WHERE username = ?", (username_str,))
     user_row = cursor.fetchone()
     
     if not user_row or user_row[0] != 'model':
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
     
+    # Получаем клиент Dropbox через твою функцию
+    dbx = get_dropbox_client()
+    if not dbx:
+        db.close()
+        raise HTTPException(status_code=500, detail="Dropbox клиент не инициализирован на сервере")
+    
     # 2. Создаем запись альбома в БД
     cursor.execute(
         "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
-        (session_user, title, description, is_paid, price)
+        (username_str, title, description, is_paid, price)
     )
     album_id = cursor.lastrowid
     
@@ -572,7 +583,7 @@ async def create_album(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         
         # Путь сохранения внутри твоего Dropbox аккаунта
-        dropbox_path = f"/albums/{session_user}/{unique_filename}"
+        dropbox_path = f"/albums/{username_str}/{unique_filename}"
         
         try:
             # Читаем содержимое файла в память
@@ -586,14 +597,14 @@ async def create_album(
                 shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
                 raw_url = shared_link_metadata.url
             except dropbox.exceptions.ApiError as e:
-                # Если ссылка уже существует (маловероятно для UUID), получаем её
+                # Если ссылка уже существует, получаем её
                 if e.error.is_shared_link_already_exists():
                     shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
                     raw_url = shared_links.links[0].url
                 else:
                     raise e
             
-            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (заменяем ?dl=0 на ?raw=1)
+            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (?raw=1)
             direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
             
             # Сохраняем прямую ссылку в локальную базу данных
@@ -611,7 +622,7 @@ async def create_album(
     db.commit()
     db.close()
     
-    #Синхронизируем саму БД с Dropbox, чтобы не потерять запись о новом альбоме
+    # Синхронизируем саму БД с Dropbox
     try:
         upload_db_to_dropbox()
     except Exception as e:
