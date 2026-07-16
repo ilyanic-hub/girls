@@ -1275,11 +1275,11 @@ async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=De
         return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
         
     return {
-        "id": user_row["id"],
-        "username": user_row["username"],
-        "balance": user_row["balance"],
-        "is_admin": user_row["is_admin"],
-        "role": user_row["role"] if user_row["role"] else "user"
+        "id": user_row[0],
+        "username": user_row[1],
+        "balance": user_row[2],
+        "is_admin": user_row[3],
+        "role": user_row[4] if user_row[4] else "user"
     }
 
 @app.post("/api/register")
