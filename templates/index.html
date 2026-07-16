@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -109,7 +110,7 @@
         }
 
         /* --- ОСНОВНОЙ КОНТЕЙНЕР ДЛЯ КОНТЕНТА --- */
-        . {
+        .main-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
@@ -124,32 +125,6 @@
             z-index: 9999;
             animation: flyUpAndFade 0.8s ease-out forwards;
         }
-
-        /* Стиль для кнопки Войти/Зарегистрироваться в шапке */
-#auth-buttons-container button, 
-.btn-auth-header {
-    background: #ffffff !important;
-    color: #ff4757 !important;
-    border: 2px solid #ff4757 !important;
-    padding: 6px 16px !important;
-    font-size: 0.85rem !important;
-    font-weight: bold !important;
-    border-radius: 30px !important; /* Делаем её овальной, как баланс и аватарка */
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-}
-
-/* Эффект при наведении мышки */
-#auth-buttons-container button:hover, 
-.btn-auth-header:hover {
-    background: #ff4757 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(255, 71, 87, 0.2) !important;
-}
 
         @keyframes flyUpAndFade {
             0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
@@ -449,7 +424,7 @@
                 display: flex;
             }
 
-            . {
+            .main-wrapper {
                 padding-bottom: 75px; 
             }
 
@@ -635,96 +610,93 @@
 
     <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
     <div class="mobile-nav" id="mobile-nav-bar" style="display: none;">
-    <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link"><span>🏠</span>Главная</a>
-    <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link"><span>📢</span>Объявления</a>
-    <a href="/models" class="mobile-nav-link"><span>📸</span>Моделям</a>
-    <a href="/top" class="mobile-nav-link"><span>👑</span>Топ</a>
-    <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;"><span>🔞</span>18+</a>
-</div>
-
-<div class="main-wrapper">
-
-    <div id="auth-page" class="auth-container" style="display: none;">
-        <div class="auth-box">
-            <h2 id="auth-title">Вход в аккаунт</h2>
-            
-            <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
-                <input type="text" name="fake_username_remembered" style="display:none;">
-                <input type="password" name="fake_password_remembered" style="display:none;">
-
-                <input type="text" id="username" placeholder="Логин" autocomplete="off">
-                <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
-                  
-                <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                        
-                <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
-    <div style="display: flex; gap: 10px;">
-        <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
-            <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
-            <span style="font-size: 1.5rem; display: block;">👤</span>
-            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
-        </label>
-        <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
-            <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
-            <span style="font-size: 1.5rem; display: block;">📸</span>
-            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
-        </label>
+        <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link">
+            <span>🏠</span>Главная
+        </a>
+        <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link">
+            <span>📢</span>Объявления
+        </a>
+        <a href="/models" class="mobile-nav-link">
+            <span>📸</span>Моделям
+        </a>
+        <a href="/top" class="mobile-nav-link">
+            <span>👑</span>Топ
+        </a>
+        <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
+            <span>🔞</span>18+
+        </a>
     </div>
-</div>
 
-                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
-            </form>
+    <div class="main-wrapper">
 
-            <div id="tg-divider" style="display: flex; align-items: center; margin: 20px 0 15px 0;">
-                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
-                <span style="padding: 0 10px; color: var(--text-muted); font-size: 0.85rem;">или</span>
-                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+        <div id="auth-page" class="auth-container" style="display: none;">
+            <div class="auth-box">
+                <h2 id="auth-title">Вход в аккаунт</h2>
+                <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+                    <input type="text" name="fake_username_remembered" style="display:none;">
+                    <input type="password" name="fake_password_remembered" style="display:none;">
+
+                    <input type="text" id="username" placeholder="Логин" autocomplete="off">
+                    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+                      
+                    <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+                                    
+                    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
+                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
+                                <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
+                                <span style="font-size: 1.5rem; display: block;">👤</span>
+                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
+                            </label>
+                            <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
+                                <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
+                                <span style="font-size: 1.5rem; display: block;">📸</span>
+                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+                </form>
+                <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
+                <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
             </div>
-
-            <button type="button" id="tg-login-btn" onclick="startTelegramLogin()" style="width: 100%; height: 45px; background: #24A1DE; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: background 0.2s ease;">
-                <svg viewBox="0 0 24 24" width="20" height="20" style="fill: currentColor;">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-1-.65-.35-1 .22-1.62.15-.15 2.72-2.5 2.77-2.7.01-.03.01-.14-.05-.2-.06-.06-.16-.04-.23-.02-.1.02-1.69 1.07-4.78 3.16-.45.3-.87.46-1.25.45-.42-.01-1.24-.24-1.85-.44-.75-.24-1.35-.37-1.3-.79.03-.22.33-.45.91-.69 3.56-1.55 5.94-2.57 7.14-3.07 3.4-1.4 4.1-1.64 4.56-1.65.1 0 .32.02.47.14.12.1.16.24.18.33-.01.07.01.21 0 .33z"/>
-                </svg>
-                Войти через Telegram
-            </button>
-
-            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
-            <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
         </div>
-    </div> <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
-        <header>
-            <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
-                <div>
-                    <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
-                    <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
-                </div>
-                <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
-                    🎁 Бонус
-                </button>
-            </div>
 
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a></span>
-                
-                <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                    <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
-                        <span id="user-avatar-default" style="font-size: 14px;">👤</span>
-                        <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+        <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
+            <header>
+                <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
+                    <div>
+                        <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
+                        <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
                     </div>
-                    <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
-        
-                    <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
-                        <b id="user-name" style="color: var(--accent);">Гость</b> 
-                        <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
-                        💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
-                    </div>
+                    <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
+                        🎁 Бонус
+                    </button>
                 </div>
 
-                <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
-            </div>
-        </header>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a></span>
+                    
+                    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
+                            <span id="user-avatar-default" style="font-size: 14px;">👤</span>
+                            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        </div>
+                        <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
+            
+                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+                            <b id="user-name" style="color: var(--accent);">Гость</b> 
+                            <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
+                            💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
+                        </div>
+                    </div>
+
+                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+                    <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
+                </div>
+            </header>
 
             <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
             
@@ -913,47 +885,31 @@
             }
         }
     
-        let isRegisterMode = false; // Переменная для отслеживания текущего режима
-
-function toggleAuthMode() {
-    isRegisterMode = !isRegisterMode;
-    
-    const authTitle = document.getElementById('auth-title');
-    const authToggleText = document.getElementById('auth-toggle-text');
-    const authResetText = document.getElementById('auth-reset-text');
-    const roleContainer = document.getElementById('role-selection-container');
-    const secretAnswerInput = document.getElementById('secret_answer');
-    const tgDivider = document.getElementById('tg-divider');
-    const tgBtn = document.getElementById('tg-login-btn');
-
-    if (isRegisterMode) {
-        // РЕЖИМ РЕГИСТРАЦИИ
-        authTitle.innerText = 'Регистрация';
-        authToggleText.innerText = 'Уже есть аккаунт? Войти';
-        if (authResetText) authResetText.style.display = 'none'; // Скрываем "забыли пароль"
-        
-        // Показываем выбор роли («Кто вы?») и секретное слово
-        if (roleContainer) roleContainer.style.display = 'block';
-        if (secretAnswerInput) secretAnswerInput.style.display = 'block';
-        
-        // Прячем кнопку телеграм при регистрации (если регистрация только обычная)
-        if (tgDivider) tgDivider.style.display = 'none';
-        if (tgBtn) tgBtn.style.display = 'none';
-    } else {
-        // РЕЖИМ ВХОДА
-        authTitle.innerText = 'Вход в аккаунт';
-        authToggleText.innerText = 'Нет аккаунта? Зарегистрироваться';
-        if (authResetText) authResetText.style.display = 'block';
-        
-        // Скрываем выбор роли и секретное слово
-        if (roleContainer) roleContainer.style.display = 'none';
-        if (secretAnswerInput) secretAnswerInput.style.display = 'none';
-        
-        // Возвращаем кнопку телеграма для входа
-        if (tgDivider) tgDivider.style.display = 'flex';
-        if (tgBtn) tgBtn.style.display = 'flex';
-    }
-}
+        function toggleAuthMode() {
+            const form = document.getElementById('auth-form');
+            if (form) form.reset();
+            
+            const roleContainer = document.getElementById('role-selection-container');
+            
+            if (authMode === 'login') {
+                authMode = 'register';
+                document.getElementById('auth-title').innerText = "Регистрация";
+                document.getElementById('password').placeholder = "Придумайте пароль";
+                document.getElementById('secret_answer').style.display = 'block';
+                if (roleContainer) roleContainer.style.display = 'block';
+                selectRole('user');
+                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
+                document.getElementById('auth-reset-text').style.display = 'none';
+            } else {
+                authMode = 'login';
+                document.getElementById('auth-title').innerText = "Вход в аккаунт";
+                document.getElementById('password').placeholder = "Пароль";
+                document.getElementById('secret_answer').style.display = 'none';
+                if (roleContainer) roleContainer.style.display = 'none';
+                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
+                document.getElementById('auth-reset-text').style.display = 'block';
+            }
+        }
 
         function openAuthModal(mode) {
             const authPage = document.getElementById('auth-page');
@@ -994,8 +950,6 @@ function toggleAuthMode() {
             document.getElementById('secret_answer').style.display = 'block';
             document.getElementById('auth-toggle-text').innerText = "Вспомнили данные? Назад ко входу";
             document.getElementById('auth-reset-text').style.display = 'none';
-            document.getElementById('tg-divider').style.display = 'none';
-            document.getElementById('tg-login-btn').style.display = 'none';
         }
 
         // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
@@ -1028,9 +982,9 @@ function toggleAuthMode() {
     }
 
     if (buttonsContainer) {
-    buttonsContainer.innerHTML = `
-        <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
-        <button class="btn-auth-header" onclick="openAuthModal('register')">Зарегистрироваться</button>
+        buttonsContainer.innerHTML = `
+            <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
+            <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
         `;
     }
 
@@ -1039,38 +993,6 @@ function toggleAuthMode() {
     if (guestModelBtn) {
         guestModelBtn.style.display = 'none';
     }
-}
-
-        // Функция для показа окна входа (вызывается при клике на «Вход» на главной)
-function showAuthPage() {
-    // Показываем окно
-    document.getElementById('auth-page').style.display = 'flex';
-    
-    // Принудительно ставим режим входа
-    isRegisterMode = false;
-    
-    document.getElementById('auth-title').innerText = 'Вход в аккаунт';
-    document.getElementById('auth-toggle-text').innerText = 'Нет аккаунта? Зарегистрироваться';
-    document.getElementById('role-selection-container').style.display = 'none';
-    document.getElementById('secret_answer').style.display = 'none';
-    if (document.getElementById('auth-reset-text')) {
-        document.getElementById('auth-reset-text').style.display = 'block';
-    }
-    document.getElementById('tg-divider').style.display = 'flex';
-    document.getElementById('tg-login-btn').style.display = 'flex';
-}
-
-// Функция сброса формы в режим обычного входа
-function resetAuthFormToLogin() {
-    document.getElementById('auth-title').innerText = 'Вход в аккаунт';
-    document.getElementById('secret_answer').style.display = 'none';
-    document.getElementById('role-selection-container').style.display = 'none';
-    document.getElementById('auth-toggle-text').innerText = 'Нет аккаунта? Зарегистрироваться';
-    document.getElementById('auth-reset-text').style.display = 'block';
-    
-    // Показываем разделитель и кнопку ТГ (они нужны при входе)
-    document.getElementById('tg-divider').style.display = 'flex';
-    document.getElementById('tg-login-btn').style.display = 'flex';
 }
 
 function showUserUI(user, buttonsContainer) {
@@ -1249,72 +1171,6 @@ function showUserUI(user, buttonsContainer) {
                 alert("Ошибка: " + data.detail);
             }
         }
-
-        // Функция запуска входа через Telegram
-async function startTelegramLogin() {
-    try {
-        // 1. Запрашиваем у FastAPI ссылку для перехода
-        const response = await fetch('/api/auth/tg-generate', { method: 'POST' });
-        if (!response.ok) {
-            alert("Не удалось запустить регистрацию. Попробуйте позже.");
-            return;
-        }
-        const data = await response.json(); // Получаем { code: "...", link: "https://t.me/..." }
-
-        // 2. Сразу открываем Telegram-бота в новой вкладке
-        window.open(data.link, '_blank');
-
-        // 3. Вместо стандартной формы регистрации показываем простое окно ожидания
-        showAuthWaitingModal();
-
-        // 4. Начинаем опрашивать сервер раз в 2 секунды, проверяя, нажал ли юзер «Старт»
-        const interval = setInterval(async () => {
-            const statusResponse = await fetch(`/api/auth/tg-status/${data.code}`);
-            const statusData = await statusResponse.json();
-
-            if (statusData.status === "success") {
-                clearInterval(interval);
-                hideAuthWaitingModal();
-                alert(`Успешная регистрация! Вы вошли как ${statusData.username}`);
-                location.reload(); // Перезагружаем страницу, чтобы обновить сессию
-            }
-        }, 2000);
-
-    } catch (error) {
-        console.error("Ошибка при регистрации через Telegram:", error);
-        alert("Произошла ошибка соединения с сервером.");
-    }
-}
-
-// Простые вспомогательные функции для показа окна ожидания
-function showAuthWaitingModal() {
-    // Если у тебя есть готовое модальное окно, можно открыть его. 
-    // Если нет, создаем простейший информационный блок на экране:
-    let waitingDiv = document.getElementById('tg-waiting-modal');
-    if (!waitingDiv) {
-        waitingDiv = document.createElement('div');
-        waitingDiv.id = 'tg-waiting-modal';
-        waitingDiv.style = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; color: white; text-align: center; font-family: sans-serif; padding: 20px; box-sizing: border-box;";
-        waitingDiv.innerHTML = `
-            <div style="background: var(--bg-card, #1e293b); padding: 30px; border-radius: 12px; max-width: 400px; width: 100%;">
-                <h3 style="margin-top: 0; color: #38bdf8;">🤖 Регистрация через Telegram</h3>
-                <p style="margin: 15px 0; font-size: 0.95rem; line-height: 1.5;">Мы открыли Telegram-бота в новой вкладке.<br><br>Нажмите там кнопку <b>«Старт»</b> (или отправьте запускное сообщение), чтобы завершить регистрацию.</p>
-                <div class="spinner" style="border: 4px solid rgba(255,255,255,0.1); border-left-color: #38bdf8; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
-                <button class="btn btn-sec" onclick="hideAuthWaitingModal()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">Отмена</button>
-            </div>
-            <style>
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            </style>
-        `;
-        document.body.appendChild(waitingDiv);
-    }
-    waitingDiv.style.display = 'flex';
-}
-
-function hideAuthWaitingModal() {
-    const waitingDiv = document.getElementById('tg-waiting-modal');
-    if (waitingDiv) waitingDiv.style.display = 'none';
-}
 
         async function logout() {
             await fetch('/api/logout', {method: 'POST'});
