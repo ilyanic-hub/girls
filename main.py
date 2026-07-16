@@ -475,6 +475,20 @@ class AnnouncementSchema(BaseModel):
     description: str
     photo_base64: str  # Сюда прилетит строка Base64
 
+# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
+def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    
+    return user
+
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
 async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
@@ -620,19 +634,7 @@ async def create_album(
     return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
 
 
-# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
-def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    
-    cursor = db.cursor()
-    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Пользователь не найден")
-    
-    return user
+
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
