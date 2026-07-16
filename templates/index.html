@@ -109,7 +109,7 @@
         }
 
         /* --- ОСНОВНОЙ КОНТЕЙНЕР ДЛЯ КОНТЕНТА --- */
-        .main-wrapper {
+        . {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
@@ -423,7 +423,7 @@
                 display: flex;
             }
 
-            .main-wrapper {
+            . {
                 padding-bottom: 75px; 
             }
 
@@ -609,24 +609,14 @@
 
     <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
     <div class="mobile-nav" id="mobile-nav-bar" style="display: none;">
-        <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link">
-            <span>🏠</span>Главная
-        </a>
-        <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link">
-            <span>📢</span>Объявления
-        </a>
-        <a href="/models" class="mobile-nav-link">
-            <span>📸</span>Моделям
-        </a>
-        <a href="/top" class="mobile-nav-link">
-            <span>👑</span>Топ
-        </a>
-        <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
-            <span>🔞</span>18+
-        </a>
-    </div>
+    <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link"><span>🏠</span>Главная</a>
+    <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link"><span>📢</span>Объявления</a>
+    <a href="/models" class="mobile-nav-link"><span>📸</span>Моделям</a>
+    <a href="/top" class="mobile-nav-link"><span>👑</span>Топ</a>
+    <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;"><span>🔞</span>18+</a>
+</div>
 
-    <div class="main-wrapper">
+<div class="main-wrapper">
 
     <div id="auth-page" class="auth-container" style="display: none;">
         <div class="auth-box">
@@ -659,6 +649,7 @@
 
                 <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
             </form>
+
             <div id="tg-divider" style="display: flex; align-items: center; margin: 20px 0 15px 0;">
                 <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
                 <span style="padding: 0 10px; color: var(--text-muted); font-size: 0.85rem;">или</span>
@@ -675,42 +666,39 @@
             <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
             <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
         </div>
-    </div>
+    </div> <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
+        <header>
+            <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
+                <div>
+                    <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
+                    <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
+                </div>
+                <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
+                    🎁 Бонус
+                </button>
+            </div>
 
-</div>
-        <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
-            <header>
-                <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
-                    <div>
-                        <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
-                        <div id="countdown-timer" style="font-size: 16px; font-weight: bold; color: #2d3748;">00д 00ч 00м 00с</div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a></span>
+                
+                <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                    <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
+                        <span id="user-avatar-default" style="font-size: 14px;">👤</span>
+                        <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
                     </div>
-                    <button id="bonus-button" onclick="getDailyBonus()" style="background: #ff4757; color: white; border: none; padding: 8px 15px; font-size: 14px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.3s;">
-                        🎁 Бонус
-                    </button>
+                    <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
+        
+                    <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+                        <b id="user-name" style="color: var(--accent);">Гость</b> 
+                        <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
+                        💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
+                    </div>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                    <span id="admin-link" style="display:none;"><a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a></span>
-                    
-                    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-                        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
-                            <span id="user-avatar-default" style="font-size: 14px;">👤</span>
-                            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                        </div>
-                        <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
-            
-                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
-                            <b id="user-name" style="color: var(--accent);">Гость</b> 
-                            <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
-                            💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
-                        </div>
-                    </div>
-
-                    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-                    <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
-                </div>
-            </header>
+                <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+                <div id="auth-buttons-container" style="display: flex; gap: 5px;"></div>
+            </div>
+        </header>
 
             <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
             
