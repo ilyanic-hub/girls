@@ -14,7 +14,8 @@ import asyncio
 import shutil
 import secrets
 import logging
-
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart, CommandObject
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
@@ -33,6 +34,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
 from pydantic import BaseModel
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
