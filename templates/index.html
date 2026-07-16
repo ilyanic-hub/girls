@@ -1420,10 +1420,7 @@ function showUserUI(user, buttonsContainer) {
             }
         }
 
-        window.onload = function() {
-            checkAuth();
-            if (typeof startTimer === 'function') startTimer();
-        };
+        
 
         // --- ФУНКЦИИ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
 function openAnnouncementModal() {
@@ -2014,6 +2011,11 @@ function closeCreateAlbumModal() {
     document.getElementById('album-price-container').style.display = 'none';
     document.getElementById('files-counter').innerText = 'Файлы не выбраны';
 }
+
+        window.onload = function() {
+            checkAuth();
+            if (typeof startTimer === 'function') startTimer();
+        };
 </script>
 </body>
 </html>
