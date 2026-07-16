@@ -597,25 +597,7 @@ async def upload_avatar(
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 
-@app.get("/api/me")
-async def get_me(current_user = Depends(get_current_user)):
-    """
-    Возвращает данные текущего авторизованного пользователя.
-    """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Не авторизован"
-        )
-    
-    # Возвращаем данные, которые ты видела в консоли браузера
-    return {
-        "id": current_user["id"],
-"username": current_user["username"],
-"balance": current_user["balance"],
-"is_admin": current_user["is_admin"],
-"role": current_user["role"]
-    }
+
 
     
 async def check_channel_subscription(user_id: int) -> bool:
