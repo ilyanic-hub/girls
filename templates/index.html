@@ -912,6 +912,40 @@
             window.location.href = '/';
         }
 
+        function showUserUI(user, buttonsContainer) {
+    if (buttonsContainer) {
+        buttonsContainer.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
+                <button onclick="logout()" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444;">Выйти</button>
+            </div>
+        `;
+    }
+
+    // Если вошла модель
+    if (user.role === 'model') {
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+        const createBtn = document.getElementById('model-create-btn');
+
+        // Показываем кнопку в ПК-меню с правильным стилем flex
+        if (pcBtn) pcBtn.style.display = 'flex';
+        // Показываем кнопку в мобильном меню
+        if (mobileBtn) mobileBtn.style.display = 'flex';
+        // Показываем кнопку создания объявлений
+        if (createBtn) createBtn.style.display = 'block';
+    } else {
+        // Если вошел обычный пользователь — скрываем кабинет
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+        const createBtn = document.getElementById('model-create-btn');
+
+        if (pcBtn) pcBtn.style.display = 'none';
+        if (mobileBtn) mobileBtn.style.display = 'none';
+        if (createBtn) createBtn.style.display = 'none';
+    }
+}
+
         async function loadContestants() {
             let res = await fetch('/api/contestants');
             let list = await res.json();
