@@ -1957,6 +1957,95 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
     upload_db_to_dropbox()
     return {"status": "success", "message": "Пароль успешно изменен! Теперь вы можете войти."}
 
+
+#==============Кабинет модели===============
+@app.get("/api/model/profile")
+async def get_model_profile(session_user: str = Depends(get_current_user)):
+    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    
+    # Получаем данные модели
+    cursor.execute("SELECT username, role, balance, avatar FROM users WHERE username = ?", (username_str,))
+    user_data = cursor.fetchone()
+    
+    if not user_data or user_data["role"] != 'model':
+        db.close()
+        raise HTTPException(status_code=403, detail="Доступно только для моделей")
+        
+    # Получаем её альбомы
+    cursor.execute("SELECT * FROM albums WHERE model_username = ? ORDER BY created_at DESC", (username_str,))
+    albums = [dict(row) for row in cursor.fetchall()]
+    
+    # Для каждого альбома подтягиваем фотографии
+    for album in albums:
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
+        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
+        
+    db.close()
+    return {
+        "profile": dict(user_data),
+        "albums": albums
+    }
+
+@app.post("/api/model/update-avatar")
+async def update_model_avatar(
+    file: UploadFile = File(...),
+    session_user: str = Depends(get_current_user)
+):
+    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+    dbx = get_dropbox_client()
+    
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"avatar_{uuid.uuid4()}{file_extension}"
+    dropbox_path = f"/avatars/{username_str}/{unique_filename}"
+    
+    try:
+        file_bytes = await file.read()
+        dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+        
+        try:
+            shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+            raw_url = shared_link_metadata.url
+        except dropbox.exceptions.ApiError as e:
+            if e.error.is_shared_link_already_exists():
+                shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                raw_url = shared_links.links[0].url
+            else:
+                raise e
+                
+        direct_avatar_url = raw_url.replace("?dl=0", "?raw=1")
+        
+        # Обновляем аватарку в таблице пользователей
+        db = sqlite3.connect(DB_LOCAL_PATH)
+        cursor = db.cursor()
+        cursor.execute("UPDATE users SET avatar = ? WHERE username = ?", (direct_avatar_url, username_str))
+        db.commit()
+        db.close()
+        
+        upload_db_to_dropbox()
+        return {"status": "success", "avatar": direct_avatar_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка смены фото: {str(e)}")
+
+@app.get("/api/public/model/{username}/albums")
+async def get_public_model_albums(username: str):
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT id, title, description, is_paid, price FROM albums WHERE model_username = ?", (username,))
+    albums = [dict(row) for row in cursor.fetchall()]
+    
+    for album in albums:
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
+        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
+        
+    db.close()
+    return albums
+
 @app.get("/api/balance")
 async def get_balance(request: Request, db=Depends(get_db)):
     user_ip = request.client.host
