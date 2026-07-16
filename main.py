@@ -11,20 +11,15 @@ import json
 import base64
 import uuid
 import asyncio
-import shutil
-import secrets
-import logging
-
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import Optional, List
 import requests
@@ -34,26 +29,10 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 from pydantic import BaseModel
 
-
-# Включаем логирование, чтобы видеть ошибки бота в логах сервера
-logging.basicConfig(level=logging.INFO)
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 app = FastAPI()
 router = APIRouter()
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
-BOT_TOKEN = "8425385137:AAHehDwbSQjhiBIf-oZGgC7YFscXhJGHINA"  # Токен от @BotFather
-CHANNEL_ID = "@photo_rating_club"  # Твой канал
-
-# Путь к базе данных
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
-
-# Инициализируем бота
-#bot = Bot(token=BOT_TOKEN)
-#dp = Dispatcher()
 
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
@@ -103,12 +82,7 @@ DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
 
 PLISIO_API_TOKEN = "u1JWmqyQBwnA6kuvp1PbOl5UKvt4a2i9oIk5CzD5GfiyThtj9RcYPsg2nroOgzsu"
 
-# Получаем абсолютный путь к папке, в которой лежит сам запускаемый скрипт
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-# Объединяем его с именем базы данных. 
-# Теперь путь ВСЕГДА будет вести в одну и ту же папку, откуда бы ты ни запускала код!
-DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
+DB_LOCAL_PATH = "database.db"
 DB_DROPBOX_PATH = "/database.db"
 
 def get_dropbox_client():
@@ -188,42 +162,6 @@ def upload_photo_to_dropbox_and_get_link(local_path: str, dropbox_path: str) -> 
         
 # ================= РАБОТА С БАЗОЙ ДАННЫХ =================
 
-# Запусти этот код один раз при старте приложения, чтобы создать таблицу
-def init_tg_auth_db():
-    # Добавляем check_same_thread=False
-    db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
-    cursor = db.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS telegram_auth_sessions (
-            code TEXT PRIMARY KEY,
-            tg_user_id INTEGER,
-            username TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    db.commit()
-    db.close()
-    
-@app.on_event("startup")
-async def startup_event():
-    # 1. Создаем таблицу для сессий, если её нет
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    cursor = db.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS telegram_auth_sessions (
-            code TEXT PRIMARY KEY,
-            tg_user_id INTEGER,
-            username TEXT,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    db.commit()
-    db.close()
-
-    # 2. Запускаем бота в фоновом режиме
-    asyncio.create_task(dp.start_polling(bot))
 
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
@@ -236,18 +174,6 @@ def get_db():
 def init_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
     cursor = db.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS announcements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            photo_url TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    """)
     
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS contestants (
@@ -360,14 +286,6 @@ def init_db():
         cursor.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT NULL")
         db.commit()
     except sqlite3.OperationalError: pass
-
-    # === ДОБАВИТЬ В init_db() для поддержки ролей ===
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
-        db.commit()
-        print("Колонка role успешно добавлена в таблицу users.")
-    except sqlite3.OperationalError:
-        pass
         
     admin_password_hash = hashlib.sha256("admin".encode()).hexdigest()
     cursor.execute("SELECT id FROM users WHERE username = 'admin'")
@@ -375,31 +293,6 @@ def init_db():
         cursor.execute("UPDATE users SET password = ? WHERE username = 'admin'", (admin_password_hash,))
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
-
-    # Таблица альбомов
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS albums (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        model_username TEXT NOT NULL,
-        title TEXT NOT NULL,
-        description TEXT,
-        is_paid INTEGER DEFAULT 0, -- 0 = бесплатный, 1 = платный
-        price INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-    """)
-    
-    # Таблица фотографий в альбомах
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS album_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        album_id INTEGER NOT NULL,
-        photo_url TEXT NOT NULL,
-        FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
-    )
-    """)
-
-    
 
     # === ДОБАВИТЬ В КОНЕЦ ФУНКЦИИ init_db() ===
     cursor.execute("""
@@ -423,17 +316,10 @@ init_db()
 
 
 # ================= СХЕМЫ ДАННЫХ =================
-class UserRegister(BaseModel):
-        username: str
-        password: str
-        secret_answer: str
-        role: str = "user"  # По умолчанию регистрируем как обычного пользователя
-    
 class UserAuthSchema(BaseModel):
     username: str
     password: str
     secret_answer: Optional[str] = None
-    role: Optional[str] = "user"  # Добавляем роль ("user" или "model"), по умолчанию "user"
 
 class ContestantSchema(BaseModel):
     name: str
@@ -467,25 +353,6 @@ class BuyModelRequest(BaseModel):
 
 class PhotoLinkSchema(BaseModel):
     photo_url: str
-
-class AnnouncementSchema(BaseModel):
-    name: str
-    description: str
-    photo_base64: str  # Сюда прилетит строка Base64
-
-# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
-def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
-    
-    cursor = db.cursor()
-    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Пользователь не найден")
-    
-    return user
 
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
@@ -552,87 +419,20 @@ async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Dep
         print(f"!!! Ошибка парсинга папки Google Drive: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
-@app.post("/api/albums/create")
-async def create_album(
-    title: str = Form(...),
-    description: str = Form(None),
-    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
-    price: int = Form(0),
-    files: List[UploadFile] = File(...),
-    session_user: str = Depends(get_current_user)
-):
-    # 1. Проверяем роль пользователя в БД
-    db = sqlite3.connect(DB_LOCAL_PATH)
+
+# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
+def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
     cursor = db.cursor()
-    cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
-    user_row = cursor.fetchone()
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
     
-    if not user_row or user_row[0] != 'model':
-        db.close()
-        raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
+    if not user:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
     
-    # 2. Создаем запись альбома в БД
-    cursor.execute(
-        "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
-        (session_user, title, description, is_paid, price)
-    )
-    album_id = cursor.lastrowid
-    
-    # 3. Загружаем каждый файл в Dropbox
-    for file in files:
-        file_extension = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        
-        # Путь сохранения внутри твоего Dropbox аккаунта
-        dropbox_path = f"/albums/{session_user}/{unique_filename}"
-        
-        try:
-            # Читаем содержимое файла в память
-            file_bytes = await file.read()
-            
-            # Загружаем файл в Dropbox
-            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-            
-            # Создаем постоянную публичную ссылку для этого файла
-            try:
-                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-                raw_url = shared_link_metadata.url
-            except dropbox.exceptions.ApiError as e:
-                # Если ссылка уже существует (маловероятно для UUID), получаем её
-                if e.error.is_shared_link_already_exists():
-                    shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
-                    raw_url = shared_links.links[0].url
-                else:
-                    raise e
-            
-            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (заменяем ?dl=0 на ?raw=1)
-            direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
-            
-            # Сохраняем прямую ссылку в локальную базу данных
-            cursor.execute(
-                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
-                (album_id, direct_photo_url)
-            )
-            
-        except Exception as upload_error:
-            db.rollback()
-            db.close()
-            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
-            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
-            
-    db.commit()
-    db.close()
-    
-    #Синхронизируем саму БД с Dropbox, чтобы не потерять запись о новом альбоме
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Dropbox DB sync error: {e}")
-        
-    return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
-
-
-
+    return user
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
@@ -674,97 +474,6 @@ async def upload_avatar(
 
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
-async def check_channel_subscription(user_id: int) -> bool:
-    try:
-        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
-        logging.info(f"Статус пользователя {user_id} в канале: {member.status}")
-        
-        # Разрешаем вход только реальным подписчикам и админам
-        if member.status in ["creator", "administrator", "member"]:
-            return True
-            
-        return False
-    except Exception as e:
-        logging.warning(f"Ошибка проверки подписки для {user_id}: {e}")
-        return False
-
-
-# 1. Изменяем хэндлер старта: добавляем кнопку под сообщением, если юзер не подписан
-@dp.message(CommandStart())  # <-- Оставляем ОДИН декоратор БЕЗ импортов под ним
-async def handle_start(message: types.Message, command: CommandObject):
-    code = command.args
-    user_id = message.from_user.id
-    username = message.from_user.username or f"id_{user_id}"
-
-    if not code:
-        await message.answer("Привет! Пожалуйста, перейдите на сайт photo-rating.club для входа.")
-        return
-
-    is_subscribed = await check_channel_subscription(user_id)
-    
-    if not is_subscribed:
-        # Создаем кнопку, в которую "зашиваем" код сессии (callback_data)
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📢 Перейти в канал", url="https://t.me/photo_rating_club")],
-            [InlineKeyboardButton(text="✅ Я подписался!", callback_data=f"check_{code}")]
-        ])
-        
-        await message.answer(
-            "❌ Для авторизации на сайте вам необходимо подписаться на наш канал!",
-            reply_markup=keyboard
-        )
-        return
-
-    # Если подписан — сразу авторизуем
-    await process_successful_auth(message, user_id, username, code)
-
-
-# 2. Обработчик нажатия на кнопку "Я подписался!"
-@dp.callback_query(lambda c: c.data and c.data.startswith('check_'))
-async def process_callback_check_subscription(callback_query: types.CallbackQuery):
-    code = callback_query.data.split("_")[1] # Достаем код из callback_data
-    user_id = callback_query.from_user.id
-    username = callback_query.from_user.username or f"id_{user_id}"
-
-    is_subscribed = await check_channel_subscription(user_id)
-    
-    if not is_subscribed:
-        # Показываем всплывающее уведомление в Telegram, что подписка всё еще отсутствует
-        await callback_query.answer("Вы всё еще не подписались на канал! ➡️ @photo_rating_club", show_alert=True)
-        return
-
-    # Если подписался — убираем часики загрузки на кнопке
-    await callback_query.answer("Подписка подтверждена!")
-    
-    # Редактируем сообщение, убирая кнопки
-    await callback_query.message.edit_text("🎉 Подписка подтверждена!")
-    
-    # Авторизуем пользователя в базе
-    await process_successful_auth(callback_query.message, user_id, username, code)
-
-
-# Вспомогательная функция для записи успешного входа в БД (чтобы не дублировать код)
-async def process_successful_auth(message: types.Message, user_id: int, username: str, code: str):
-    try:
-        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
-        cursor = db.cursor()
-        
-        cursor.execute("SELECT code FROM telegram_auth_sessions WHERE code = ?", (code,))
-        if cursor.fetchone():
-            cursor.execute("""
-                UPDATE telegram_auth_sessions 
-                SET tg_user_id = ?, username = ?, status = 'success' 
-                WHERE code = ?
-            """, (user_id, username, code))
-            db.commit()
-            await message.answer("🎉 Успешно! Вы вошли в аккаунт. Страница на сайте уже обновилась!")
-        else:
-            await message.answer("❌ Ссылка устарела. Попробуйте войти с сайта заново.")
-        db.close()
-    except Exception as e:
-        logging.error(f"Ошибка БД при успешной авторизации: {e}")
-        await message.answer("Произошла ошибка базы данных. Попробуйте позже.")
-
 @app.get("/api/debug-users-table")
 async def debug_users_table(db=Depends(get_db)):
     cursor = db.cursor()
@@ -957,141 +666,6 @@ def check_and_rotate_round(db):
         except Exception as e:
             db.rollback()
             print(f"Ошибка при автоматической смене раунда: {e}")
-
-# Эндпоинт для создания объявления моделью
-@app.post("/api/announcements")
-async def create_announcement(
-    data: AnnouncementSchema, # Принимаем данные по схеме
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-    
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    cursor = db.cursor()
-    cursor.execute("SELECT id, role FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    
-    if not user:
-        db.close()
-        raise HTTPException(status_code=401, detail="Пользователь не найден")
-        
-    user_id, role = user[0], user[1]
-    if role != "model":
-        db.close()
-        raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
-
-    # Чистим строку Base64 от возможных переносов строк (как в твоем рабочем коде)
-    inline_photo_url = data.photo_base64.replace("\n", "").replace("\r", "").strip()
-    created_at = datetime.now().isoformat()
-
-    # Записываем все данные прямо в БД
-    cursor.execute("""
-        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, (user_id, data.name, data.description, inline_photo_url, created_at))
-    
-    db.commit()
-    db.close()
-
-    # Синхронизируем базу с Dropbox, чтобы сохранить изменения навсегда!
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Ошибка бэкапа базы в Dropbox: {e}")
-
-    return {"status": "success", "message": "Объявление успешно опубликовано!"}
-
-    # Записываем объявление в базу данных (теперь с вечной ссылкой из Dropbox)
-    cursor.execute("""
-        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, (user_id, name, description, photo_url, created_at))
-    db.commit()
-    db.close()
-
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Ошибка бекапа БД в Dropbox: {e}")
-
-    return {"status": "success", "message": "Объявление успешно опубликовано!"}
-
-
-# Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
-@app.get("/api/announcements")
-async def get_announcements():
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row  # чтобы возвращать данные в виде удобных словарей
-    cursor = db.cursor()
-    
-    # Объединяем таблицы, чтобы получить имя пользователя модели (username)
-    cursor.execute("""
-        SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
-        FROM announcements a
-        JOIN users u ON a.user_id = u.id
-        ORDER BY a.id DESC
-    """)
-    rows = cursor.fetchall()
-    db.close()
-
-    announcements = []
-    for row in rows:
-        announcements.append({
-            "id": row["id"],
-            "name": row["name"],
-            "description": row["description"],
-            "photo_url": row["photo_url"],
-            "created_at": row["created_at"],
-            "username": row["username"]
-        })
-        
-    return announcements
-
-@app.delete("/api/announcements/{announcement_id}")
-async def delete_announcement(
-    announcement_id: int,
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-    
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    cursor = db.cursor()
-    
-    # 1. Проверяем, существует ли объявление и кто его владелец
-    cursor.execute("""
-        SELECT a.id, u.username, u.is_admin 
-        FROM announcements a
-        JOIN users u ON a.user_id = u.id
-        WHERE a.id = ?
-    """, (announcement_id,))
-    announcement = cursor.fetchone()
-    
-    if not announcement:
-        db.close()
-        raise HTTPException(status_code=404, detail="Объявление не найдено")
-        
-    owner_username = announcement[1]
-    is_admin = announcement[2]
-    
-    # Удалить может только владелец объявления или администратор
-    if session_user != owner_username and not is_admin:
-        db.close()
-        raise HTTPException(status_code=403, detail="Вы можете удалять только свои объявления")
-
-    # 2. Удаляем объявление из базы данных
-    cursor.execute("DELETE FROM announcements WHERE id = ?", (announcement_id,))
-    db.commit()
-    db.close()
-
-    # Синхронизируем изменения с Dropbox
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Ошибка бэкапа базы в Dropbox: {e}")
-
-    return {"status": "success", "message": "Объявление успешно удалено!"}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1312,161 +886,56 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 
 # ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
-# ================= АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ =================
-
-@app.post("/api/auth/tg-generate")
-async def generate_tg_link():
-    import secrets
-    code = secrets.token_hex(8)
-    
-    try:
-        # Добавляем check_same_thread=False для асинхронной работы
-        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
-        cursor = db.cursor()
-        
-        cursor.execute(
-            "INSERT INTO telegram_auth_sessions (code, status) VALUES (?, 'pending')", 
-            (code,)
-        )
-        db.commit()
-        db.close()
-        
-    except Exception as e:
-        # Это запишет точную ошибку в логи твоего сервера (PM2 / Amvera / Docker)
-        logging.error(f"КРИТИЧЕСКАЯ ОШИБКА БД в tg-generate: {e}")
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Ошибка записи в базу данных. Обратитесь к администратору. Текст: {str(e)}"
-        )
-    
-    bot_username = "photo_rating_auth_bot" # ⚠️ Убедись, что тут имя твоего бота без @
-    link = f"https://t.me/{bot_username}?start={code}"
-    
-    return {"code": code, "link": link}
-
-
-# 2. Опрос статуса авторизации сайтом
-@app.get("/api/auth/tg-status/{code}")
-async def check_tg_status(code: str, response: Response):
-    need_dropbox_upload = False
-    username_to_auth = None
-
-    try:
-        db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False, timeout=10)
-        db.row_factory = sqlite3.Row
-        cursor = db.cursor()
-        
-        cursor.execute(
-            "SELECT status, username FROM telegram_auth_sessions WHERE code = ?", 
-            (code,)
-        )
-        session = cursor.fetchone()
-        
-        if not session:
-            db.close()
-            raise HTTPException(status_code=404, detail="Сессия не найдена")
-            
-        if session["status"] == "success":
-            username_to_auth = session["username"]
-            
-            # Проверяем, существует ли уже пользователь с таким именем в системе
-            cursor.execute("SELECT username, role, is_admin FROM users WHERE username = ?", (username_to_auth,))
-            user_exists = cursor.fetchone()
-            
-            if not user_exists:
-                # Список юзернеймов, которые автоматически получают админку
-                ADMIN_USERNAMES = ["OJltumustKa", "Dominik"]  # Впиши сюда ваши ники без @
-                
-                if username_to_auth in ADMIN_USERNAMES:
-                    user_role = 'admin'
-                    is_admin_flag = 1
-                else:
-                    user_role = 'user'
-                    is_admin_flag = 0
-
-                # Если пользователя нет, создаем его (поле password оставляем пустым)
-                cursor.execute(
-                    "INSERT INTO users (username, password, role, is_admin) VALUES (?, '', ?, ?)", 
-                    (username_to_auth, user_role, is_admin_flag)
-                )
-                db.commit()
-                need_dropbox_upload = True
-            
-            db.close()
-            
-            if need_dropbox_upload:
-                try:
-                    upload_db_to_dropbox()
-                except Exception as dropbox_err:
-                    logging.error(f"Ошибка выгрузки в Dropbox: {dropbox_err}")
-            
-            # Устанавливаем куку сессии (как для обычного пользователя)
-            response.set_cookie(key="session_user", value=username_to_auth, max_age=2592000, httponly=True)
-            return {"status": "success", "username": username_to_auth}
-            
-        db.close()
-        return {"status": "pending"}
-
-    except Exception as e:
-        logging.error(f"Ошибка в tg-status: {e}")
-        return {"status": "pending"}
-    
 @app.get("/api/me")
-async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+async def api_get_me(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
-        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
-        
-    cursor = db.cursor()
-    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (session_user,))
-    user_row = cursor.fetchone()
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
     
-    if not user_row:
-        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
+    cursor = db.cursor()
+    cursor.execute("SELECT username, balance, is_admin FROM users WHERE username = ?", (session_user,))
+    row = cursor.fetchone()
+    if not row:
+        return {"username": "Гость", "balance": 0, "is_admin": 0}
         
     return {
-        "id": user_row["id"],
-        "username": user_row["username"],
-        "balance": user_row["balance"],
-        "is_admin": user_row["is_admin"],
-        "role": user_row["role"] if user_row["role"] else "user"
+        "username": row[0],
+        "balance": row[1],
+        "is_admin": row[2]
     }
 
 @app.post("/api/register")
-async def api_register(data: UserRegister, db=Depends(get_db)):
+async def api_register(data: UserAuthSchema, db=Depends(get_db)):
     username = data.username.strip()
     password = data.password.strip()
-    secret_answer = data.secret_answer.strip()
-    role = data.role.strip() if data.role else "user"
-
-    if not username or not password or not secret_answer:
-        raise HTTPException(status_code=400, detail="Все поля обязательны для заполнения")
-
+    secret_answer = data.secret_answer.strip() if data.secret_answer else ""
+    
+    if len(username) < 3 or len(password) < 4:
+        raise HTTPException(status_code=400, detail="Слишком короткое имя или пароль")
+    if not secret_answer:
+        raise HTTPException(status_code=400, detail="Укажите секретное слово для восстановления")
+        
     cursor = db.cursor()
     cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
     if cursor.fetchone():
-        raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
-
-    hashed_pw = hash_password(password)
+        raise HTTPException(status_code=400, detail="Пользователь уже существует")
+        
+    password_hash = hash_password(password)
+    answer_hash = hash_password(secret_answer.lower())
+    
     try:
         cursor.execute(
-            "INSERT INTO users (username, password, secret_answer, balance, role) VALUES (?, ?, ?, 0.0, ?)",
-            (username, hashed_pw, secret_answer, role)
+            "INSERT INTO users (username, password, balance, is_admin, secret_answer) VALUES (?, ?, 0.0, 0, ?)", 
+            (username, password_hash, answer_hash)
         )
         db.commit()
-        upload_db_to_dropbox()
         
-        # Отправляем уведомление в Telegram о регистрации новой модели или юзера
-        role_emoji = "📸" if role == "model" else "👤"
-        try:
-            message = f"🎉 **Новая регистрация на сайте!**\n{role_emoji} Роль: `{role}`\n👤 Логин: `{username}`"
-            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-            requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}, timeout=3)
-        except Exception as telegram_err:
-            print(f"Ошибка Telegram: {telegram_err}")
-
+        # === ВСТАВЛЯЕМ ОТПРАВКУ УВЕДОМЛЕНИЯ ТУТ ===
+        send_telegram_notification(username)
+        
+        upload_db_to_dropbox()
         return {"status": "success", "message": "Регистрация успешна!"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
         
 @app.post("/api/login")
 @limiter.limit("5 per minute")
