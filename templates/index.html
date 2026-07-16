@@ -918,34 +918,46 @@
         }
 
         async function checkAuth() {
-    try {
-        const response = await fetch('/api/auth/me'); // Или твой эндпоинт проверки сессии
-        const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
+            try {
+                let res = await fetch('/api/me');
+                
+                const mainSidebar = document.getElementById('main-sidebar');
+                const mobileNav = document.getElementById('mobile-nav-bar');
+                const mainPage = document.getElementById('main-page');
+                const authPage = document.getElementById('auth-page');
+                
+                if (authPage) authPage.style.display = 'none';
+                if (mainSidebar) mainSidebar.style.display = 'flex';
+                if (mobileNav) mobileNav.style.display = 'flex';
+                if (mainPage) mainPage.style.display = 'flex';
 
-        if (response.ok) {
-            const user = await response.json();
-            // Сохраняем роль глобально
-            currentUserRole = user.role; 
-            // Передаем данные в функцию отрисовки интерфейса
-            showUserUI(user, buttonsContainer);
-        } else {
-            // Если пользователь не авторизован (гость)
-            currentUserRole = 'guest';
-            if (buttonsContainer) {
-                buttonsContainer.innerHTML = `
-                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                    <button onclick="openModal('register')" class="btn">Регистрация</button>
-                `;
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                
+                if (res.ok) {
+                    let user = await res.json();
+                    if (user && user.username && user.username !== "Гость") {
+                        showUserUI(user, buttonsContainer);
+                    } else {
+                        showGuestUI(buttonsContainer);
+                    }
+                } else {
+                    showGuestUI(buttonsContainer);
+                }
+                
+                loadContestants();
+
+                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+                    history.replaceState(null, null, ' ');
+                    openAuthModal('register');
+                }
+
+            } catch (err) {
+                console.error("Ошибка при проверке статуса:", err);
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                showGuestUI(buttonsContainer);
+                loadContestants();
             }
-            // Скрываем панель модели, если гость
-            const pcBtn = document.getElementById('menu-model-dashboard');
-            if (pcBtn) pcBtn.style.display = 'none';
         }
-    } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
-    }
-}
-
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
