@@ -920,6 +920,18 @@
             }
         }
 
+        function openCreateAlbumModal() {
+    document.getElementById('create-album-modal').style.display = 'flex';
+}
+
+function closeCreateAlbumModal() {
+    document.getElementById('create-album-modal').style.display = 'none';
+    document.getElementById('album-creation-form').reset();
+    document.getElementById('album-price-container').style.display = 'none';
+    document.getElementById('files-counter').innerText = 'Файлы не выбраны';
+    document.getElementById('files-counter').style.color = 'var(--text-muted)';
+}
+
         function confirmAge(isOfAge) {
             if (isOfAge) {
                 localStorage.setItem('isAdultConfirmed', 'true');
