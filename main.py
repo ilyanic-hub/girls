@@ -378,6 +378,29 @@ def init_db():
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
 
+    # Таблица альбомов
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS albums (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_username TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        is_paid INTEGER DEFAULT 0, -- 0 = бесплатный, 1 = платный
+        price INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    
+    # Таблица фотографий в альбомах
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS album_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        album_id INTEGER NOT NULL,
+        photo_url TEXT NOT NULL,
+        FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
+    )
+    """)
+
     
 
     # === ДОБАВИТЬ В КОНЕЦ ФУНКЦИИ init_db() ===
@@ -516,6 +539,85 @@ async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Dep
     except Exception as e:
         print(f"!!! Ошибка парсинга папки Google Drive: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
+
+@app.post("/api/albums/create")
+async def create_album(
+    title: str = Form(...),
+    description: str = Form(None),
+    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
+    price: int = Form(0),
+    files: List[UploadFile] = File(...),
+    session_user: str = Depends(get_current_user)
+):
+    # 1. Проверяем роль пользователя в БД
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
+    user_row = cursor.fetchone()
+    
+    if not user_row or user_row[0] != 'model':
+        db.close()
+        raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
+    
+    # 2. Создаем запись альбома в БД
+    cursor.execute(
+        "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
+        (session_user, title, description, is_paid, price)
+    )
+    album_id = cursor.lastrowid
+    
+    # 3. Загружаем каждый файл в Dropbox
+    for file in files:
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        
+        # Путь сохранения внутри твоего Dropbox аккаунта
+        dropbox_path = f"/albums/{session_user}/{unique_filename}"
+        
+        try:
+            # Читаем содержимое файла в память
+            file_bytes = await file.read()
+            
+            # Загружаем файл в Dropbox
+            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+            
+            # Создаем постоянную публичную ссылку для этого файла
+            try:
+                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                raw_url = shared_link_metadata.url
+            except dropbox.exceptions.ApiError as e:
+                # Если ссылка уже существует (маловероятно для UUID), получаем её
+                if e.error.is_shared_link_already_exists():
+                    shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                    raw_url = shared_links.links[0].url
+                else:
+                    raise e
+            
+            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (заменяем ?dl=0 на ?raw=1)
+            direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
+            
+            # Сохраняем прямую ссылку в локальную базу данных
+            cursor.execute(
+                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
+                (album_id, direct_photo_url)
+            )
+            
+        except Exception as upload_error:
+            db.rollback()
+            db.close()
+            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
+            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
+            
+    db.commit()
+    db.close()
+    
+    #Синхронизируем саму БД с Dropbox, чтобы не потерять запись о новом альбоме
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Dropbox DB sync error: {e}")
+        
+    return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
 
 
 # ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
