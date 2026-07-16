@@ -917,6 +917,35 @@
             }, 4000);
         }
 
+        async function checkAuth() {
+    try {
+        const response = await fetch('/api/auth/me'); // Или твой эндпоинт проверки сессии
+        const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
+
+        if (response.ok) {
+            const user = await response.json();
+            // Сохраняем роль глобально
+            currentUserRole = user.role; 
+            // Передаем данные в функцию отрисовки интерфейса
+            showUserUI(user, buttonsContainer);
+        } else {
+            // Если пользователь не авторизован (гость)
+            currentUserRole = 'guest';
+            if (buttonsContainer) {
+                buttonsContainer.innerHTML = `
+                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
+                    <button onclick="openModal('register')" class="btn">Регистрация</button>
+                `;
+            }
+            // Скрываем панель модели, если гость
+            const pcBtn = document.getElementById('menu-model-dashboard');
+            if (pcBtn) pcBtn.style.display = 'none';
+        }
+    } catch (error) {
+        console.error("Ошибка при проверке авторизации:", error);
+    }
+}
+
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
