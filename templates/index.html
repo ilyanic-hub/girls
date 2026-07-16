@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -83,7 +84,7 @@
             z-index: 1000;
             justify-content: space-around;
             align-items: center;
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom); /* Поддержка айфонов с "челкой" снизу */
         }
 
         .mobile-nav-link {
@@ -114,7 +115,7 @@
             display: flex;
             flex-direction: column;
             min-width: 0; 
-            padding-bottom: 0;
+            padding-bottom: 0; /* Будет перезаписано на мобилках */
         }
 
         .heart-particle {
@@ -385,7 +386,7 @@
         }
         .btn-pay-submit:hover { background: #26af5f; }
 
-        /* --- ОКНО ПРОВЕРКИ ВОЗРАСТА 18+ --- */
+        /* --- ОКНО ПРОВЕРКИ ВОЗРАСТА 18+ (Модалка) --- */
         .age-verify-modal {
             display: none;
             position: fixed;
@@ -407,29 +408,33 @@
             box-shadow: 0 0 25px rgba(255, 71, 87, 0.4);
         }
 
-        /* ========================================== */
-        /* === МЕДИА-ЗАПРОСЫ ДЛЯ МОБИЛЬНОЙ ВЕРСИИ === */
-        /* ========================================== */
+        /* ========================================================== */
+        /* === МЕДИА-ЗАПРОСЫ ДЛЯ СУПЕР-МОБИЛЬНОСТИ (Экран < 768px) === */
+        /* ========================================================== */
         @media (max-width: 768px) {
             body {
-                flex-direction: column;
+                flex-direction: column; /* Потоком сверху вниз */
             }
 
+            /* 1. Скрываем компьютерное меню */
             .sidebar {
                 display: none !important;
             }
 
+            /* 2. Показываем нижнюю навигацию */
             .mobile-nav {
                 display: flex;
             }
 
+            /* Добавляем отступ внизу контента, чтобы нижняя панель не закрывала его */
             .main-wrapper {
                 padding-bottom: 75px; 
             }
 
+            /* 3. Адаптируем Шапку */
             header {
                 padding: 10px 15px;
-                flex-direction: column;
+                flex-direction: column; /* Элементы в два ряда */
                 gap: 10px;
             }
 
@@ -438,6 +443,7 @@
                 justify-content: space-between;
             }
 
+            /* Уменьшаем бонусный блок */
             .bonus-container {
                 width: 100%;
                 box-sizing: border-box;
@@ -455,19 +461,22 @@
                 padding: 6px 12px;
             }
 
+            /* 4. Заголовок сайта */
             .main-promo-title {
                 font-size: 2.2rem;
                 margin: 20px 0;
             }
 
+            /* 5. Сетка карточек — ГЛАВНЫЙ МОБИЛЬНЫЙ ВИД (2 колонки) */
             .contestants-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 10px;
                 padding: 10px;
             }
 
+            /* Корректируем размеры фоток на мобильных */
             .contestant-img {
-                height: 220px;
+                height: 220px; /* Идеальный размер для плитки из 2х колонок */
             }
 
             .contestant-name {
@@ -479,6 +488,7 @@
                 margin-bottom: 8px;
             }
 
+            /* Делаем кнопки на мобилках чуть меньше, чтобы помещались */
             .contestant-card .btn {
                 font-size: 0.8rem;
                 padding: 6px 10px;
@@ -490,101 +500,26 @@
                 padding: 4px 8px;
             }
 
+            /* Кнопка "Пополнить" в шапке */
             .btn-deposit {
                 padding: 6px 12px;
                 font-size: 0.85rem;
             }
 
+            /* Окно авторизации */
             .auth-box {
                 padding: 25px 20px;
                 max-width: 90%;
             }
         }
-
-        /* Адаптивные стили для мобильной версии раздела объявлений */
-@media (max-width: 600px) {
-    /* 1. Выстраиваем строго по 2 карточки в ряд */
-    #announcements-list {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 8px !important; /* Уменьшаем расстояние между карточками */
-    }
-
-    /* 2. Делаем карточки компактными */
-    #announcements-list .contestant-card {
-        border-radius: 8px !important;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* 3. Уменьшаем высоту картинок под сетку 2х2 */
-    #announcements-list .contestant-img {
-        height: 140px !important; /* Высота подстроена под половину экрана */
-        object-fit: cover;
-        width: 100%;
-    }
-
-    /* 4. Сжимаем внутренние отступы, чтобы текст не занимал много места */
-    #announcements-list .contestant-card > div {
-        padding: 8px !important; 
-        gap: 4px !important;
-    }
-
-    /* Заголовок объявления (Имя) */
-    #announcements-list .contestant-card h3 {
-        font-size: 0.9rem !important; 
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis; /* Если имя длинное, оно красиво сократится точками */
-    }
-
-    /* Бейдж "Модель" */
-    #announcements-list .contestant-card span[style*="background"] {
-        font-size: 0.65rem !important;
-        padding: 2px 4px !important;
-    }
-
-    /* Текст описания */
-    #announcements-list .contestant-card p {
-        font-size: 0.75rem !important;
-        line-height: 1.2 !important;
-        -webkit-line-clamp: 2 !important; /* Строго 2 строчки */
-    }
-
-    /* Дата публикации */
-    #announcements-list .contestant-card span[style*="font-size: 0.75rem"] {
-        font-size: 0.65rem !important;
-    }
-
-    /* Кнопки управления (Редактировать, Удалить, Написать) */
-    #announcements-list .btn {
-        font-size: 0.7rem !important;
-        padding: 4px 6px !important;
-        text-align: center;
-        justify-content: center;
-    }
-
-    /* Контейнер кнопок редактирования/удаления */
-    #announcements-list .contestant-card div[style*="display: flex; gap: 8px;"] {
-        flex-direction: column !important; /* На мобилках кнопки встанут друг под друга, чтобы не сжиматься в ширину */
-        gap: 4px !important;
-    }
-}
     </style>
 </head>
 <body>
-
     
-    
-    <!-- БОКОВОЕ МЕНЮ (ПК версия) -->
     <aside class="sidebar" id="main-sidebar" style="display: none;">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
-            <a href="#" onclick="switchTab('gallery', event)">🏠 Главная</a>
-            <a href="#" onclick="switchTab('announcements', event)" style="position: relative;">
-                📢 Объявления
-                <span id="announcements-badge" style="display:none; background: var(--accent); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; position: absolute; right: 10px;">NEW</span>
-            </a>
+            <a href="/">🏠 Главная</a>
             <a href="/models">📸 Моделям</a>
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
@@ -602,22 +537,16 @@
                 text-decoration: none; 
                 box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
                 transition: all 0.3s ease;
-            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard')" style="display: none; align-items: center; gap: 10px;">
-    <span>👤</span> Личный кабинет
-</button>
+            " onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='#fff'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';"
                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
                 🔞 Контент 18+
             </a>
         </nav>
     </aside>
 
-    <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
-    <div class="mobile-nav" id="mobile-nav-bar" style="display: none;">
-        <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link">
+    <div class="mobile-nav" id="mobile-nav-bar">
+        <a href="/" class="mobile-nav-link">
             <span>🏠</span>Главная
-        </a>
-        <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link">
-            <span>📢</span>Объявления
         </a>
         <a href="/models" class="mobile-nav-link">
             <span>📸</span>Моделям
@@ -625,13 +554,12 @@
         <a href="/top" class="mobile-nav-link">
             <span>👑</span>Топ
         </a>
+        <a href="/history" class="mobile-nav-link" style="color: #b8860b;">
+            <span>🏆</span>Слава
+        </a>
         <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
             <span>🔞</span>18+
         </a>
-        <button id="mobile-menu-model-dashboard" onclick="showTab('model-dashboard')" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
-    <span>👤</span>
-    <span>Кабинет</span>
-</button>
     </div>
 
     <div class="main-wrapper">
@@ -645,25 +573,9 @@
 
                     <input type="text" id="username" placeholder="Логин" autocomplete="off">
                     <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
-                      
+      
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                    
-                    <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-                        <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
-                        <div style="display: flex; gap: 10px;">
-                            <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
-                                <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
-                                <span style="font-size: 1.5rem; display: block;">👤</span>
-                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
-                            </label>
-                            <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
-                                <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
-                                <span style="font-size: 1.5rem; display: block;">📸</span>
-                                <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
-                            </label>
-                        </div>
-                    </div>
-
+                    
                     <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
                 </form>
                 <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
@@ -705,107 +617,7 @@
                 </div>
             </header>
 
-            <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
-            
-           <div id="tab-gallery" style="display: block; width: 100%;">
             <h1 class="main-promo-title">Кого разденем?</h1>
-    <main class="contestants-grid" id="gallery"></main>
-</div>
-
-           <div id="tab-announcements" style="display: none; width: 100%; padding: 20px; box-sizing: border-box; max-width: 1200px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
-        <div>
-            <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: var(--text-main);">📢 Объявления от моделей</h1>
-            <p style="margin: 5px 0 0 0; color: var(--text-muted);">Актуальные предложения, кастинги и приватные встречи</p>
-        </div>
-        <button id="model-create-btn" class="btn" onclick="openAnnouncementModal()" style="display: none; background: #2ed573;">
-            ✨ Создать объявление
-        </button>
-    </div>
-
-    <div id="announcements-filter-container" style="display: none; gap: 10px; margin-bottom: 20px;">
-        <button id="btn-filter-all" class="btn" onclick="filterAnnouncements('all')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: var(--accent); color: white;">
-            🌍 Все объявления
-        </button>
-        <button id="btn-filter-my" class="btn btn-sec" onclick="filterAnnouncements('my')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: #f1f5f9; color: #1e293b;">
-            👤 Мои объявления
-        </button>
-    </div>
-
-    <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-    </div>
-</div>
-
-<div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
-    <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
-        
-        <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
-            <div style="position: relative; display: inline-block;">
-                <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
-                <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
-                    📷
-                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
-                </label>
-            </div>
-            <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
-            <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
-            <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold;">
-                Баланс: <span id="model-dash-balance">0</span> коинов
-            </div>
-        </div>
-
-        <div style="flex: 2; min-width: 350px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
-        <button onclick="openCreateAlbumModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0;">
-            ➕ Новый альбом
-        </button>
-    </div>
-    <div id="model-albums-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
-        </div>
-</div>
-    </div>
-</div>
-
-<div id="create-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1100;">
-    <div style="background: #ffffff; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-        <span onclick="closeCreateAlbumModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
-        
-        <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 15px; text-align: center;">📸 Создать новый альбом</h3>
-        
-        <form id="album-creation-form" onsubmit="submitNewAlbum(event)">
-            <input type="text" id="album-title" placeholder="Название альбома" required 
-                   style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; box-sizing: border-box;">
-            
-            <textarea id="album-desc" placeholder="Описание альбома (необязательно)" 
-                      style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; resize: vertical; min-height: 80px; box-sizing: border-box;"></textarea>
-            
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 8px;">
-                <input type="checkbox" id="album-is-paid" onchange="toggleAlbumPrice(this)" style="width: 18px; height: 18px; cursor: pointer;">
-                <label for="album-is-paid" style="font-weight: bold; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">Платный альбом (доступ за монеты)</label>
-            </div>
-            
-            <div id="album-price-container" style="display: none; margin-bottom: 15px; padding-left: 5px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: bold; color: var(--text-muted); margin-bottom: 6px;">Цена доступа (в монетах):</label>
-                <input type="number" id="album-price" value="100" min="1" 
-                       style="width: 120px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e0;">
-            </div>
-            
-            <div style="margin-bottom: 20px; background: #fff5f6; border: 1px dashed #ff4757; padding: 15px; border-radius: 10px; text-align: center;">
-                <label style="display: block; font-size: 0.9rem; font-weight: bold; color: #ff4757; margin-bottom: 8px; cursor: pointer;">
-                    📁 Выберите фотографии
-                    <input type="file" id="album-files" accept="image/*" multiple required style="display: none;" onchange="updateFilesCounter(this)">
-                </label>
-                <span id="files-counter" style="font-size: 0.8rem; color: var(--text-muted);">Файлы не выбраны</span>
-            </div>
-            
-            <button type="submit" class="btn" style="width: 100%; background: #ff4757; color: white; font-weight: bold; height: 45px; border-radius: 12px; border: none; cursor: pointer; transition: background 0.2s;">Опубликовать альбом</button>
-        </form>
-    </div>
-</div>
-
-            
-
             <main class="contestants-grid" id="gallery"></main>
 
             <footer style="text-align: center; margin-top: auto; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
@@ -860,48 +672,20 @@
         </div>
     </div>
 
-    <div id="announcementModal" class="deposit-modal" onclick="closeAnnouncementModal()">
-    <div class="deposit-modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
-        <span class="deposit-close" onclick="closeAnnouncementModal()">&times;</span>
-        <h2 style="color: var(--accent); margin-bottom: 15px;">📸 Создать объявление</h2>
-        <p style="color: #718096; margin-bottom: 20px; font-size: 0.9rem;">Заполните анкету, чтобы появиться в общей ленте объявлений</p>
-        
-        <form id="announcementForm" onsubmit="submitAnnouncement(event)">
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Ваше имя/псевдоним:</label>
-                <input type="text" id="announce-name" required placeholder="Например: Алина, 21" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box;">
-            </div>
-
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Описание профиля:</label>
-                <textarea id="announce-desc" required placeholder="Расскажите о себе..." style="width:100%; height:80px; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
-            </div>
-
-            <div style="margin-bottom: 20px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Главное фото:</label>
-                <input type="file" id="announce-photo" accept="image/*" required style="width:100%; padding:5px;">
-            </div>
-
-            <button type="submit" class="btn-pay-submit" style="background: var(--accent);">Опубликовать объявление</button>
-        </form>
-    </div>
-</div>
-
     <script>
         let authMode = 'login'; 
         let selectedAmount = 0;
         let balanceCheckInterval;
-        let selectedRole = 'user';
 
         function startCheckingBalance() {
             if (balanceCheckInterval) return;
             balanceCheckInterval = setInterval(async () => {
                 try {
-                    const response = await fetch('/api/me'); 
+                    const response = await fetch('/api/user/me'); 
                     if (response.ok) {
                         const userData = await response.json();
                         const balanceElement = document.getElementById('user-balance');
-                        if (balanceElement && userData.username !== "Гость") {
+                        if (balanceElement) {
                             const currentBalance = parseFloat(balanceElement.innerText);
                             const newBalance = parseFloat(userData.balance);
                             if (newBalance !== currentBalance) {
@@ -916,34 +700,6 @@
             }, 4000);
         }
 
-        async function checkAuth() {
-    try {
-        const response = await fetch('/api/me'); // Или твой эндпоинт проверки сессии
-        const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
-
-        if (response.ok) {
-            const user = await response.json();
-            // Сохраняем роль глобально
-            currentUserRole = user.role; 
-            // Передаем данные в функцию отрисовки интерфейса
-            showUserUI(user, buttonsContainer);
-        } else {
-            // Если пользователь не авторизован (гость)
-            currentUserRole = 'guest';
-            if (buttonsContainer) {
-                buttonsContainer.innerHTML = `
-                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                    <button onclick="openModal('register')" class="btn">Регистрация</button>
-                `;
-            }
-            // Скрываем панель модели, если гость
-            const pcBtn = document.getElementById('menu-model-dashboard');
-            if (pcBtn) pcBtn.style.display = 'none';
-        }
-    } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
-    }
-}
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
@@ -954,55 +710,6 @@
             }
         }
 
-        function showTab(tabId) {
-    // Список всех основных разделов контента
-    const tabs = ['tab-rating', 'tab-models', 'tab-announcements', 'tab-top', 'tab-earn', 'tab-wallet', 'model-dashboard'];
-    
-    tabs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-
-    const activeTab = document.getElementById(tabId);
-    if (activeTab) {
-        // Если это кабинет модели, задаем ему flex или block для корректного отображения
-        if (tabId === 'model-dashboard') {
-            activeTab.style.display = 'block';
-            loadModelDashboard(); // Вызов загрузки данных профиля и альбомов из Dropbox
-        } else {
-            activeTab.style.display = 'block';
-        }
-    }
-
-    // Снимаем активный класс со всех кнопок меню
-    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
-    
-    // Подсвечиваем активную кнопку
-    const activeBtn = document.querySelector(`button[onclick="showTab('${tabId}')"]`);
-    if (activeBtn) activeBtn.classList.add('active');
-
-    // Закрываем мобильное меню, если оно было открыто
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) sidebar.classList.remove('open');
-}
-
-        // Открытие окна создания альбома
-function openCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-// Закрытие окна создания альбома
-function closeCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.getElementById('album-creation-form').reset();
-        document.getElementById('album-price-container').style.display = 'none';
-        document.getElementById('files-counter').innerText = 'Файлы не выбраны';
-        document.getElementById('files-counter').style.color = 'var(--text-muted)';
-    }
-}
         function confirmAge(isOfAge) {
             if (isOfAge) {
                 localStorage.setItem('isAdultConfirmed', 'true');
@@ -1017,38 +724,15 @@ function closeCreateAlbumModal() {
         function goToAdultContent() {
             window.location.href = "/18plus";
         }
-
-        function selectRole(role) {
-            selectedRole = role;
-            const userLabel = document.getElementById('label-role-user');
-            const modelLabel = document.getElementById('label-role-model');
-            
-            if (role === 'user') {
-                userLabel.style.borderColor = '#ff4757';
-                userLabel.style.background = '#fff5f5';
-                modelLabel.style.borderColor = '#cbd5e0';
-                modelLabel.style.background = 'transparent';
-            } else {
-                modelLabel.style.borderColor = '#ff4757';
-                modelLabel.style.background = '#fff5f5';
-                userLabel.style.borderColor = '#cbd5e0';
-                userLabel.style.background = 'transparent';
-            }
-        }
     
         function toggleAuthMode() {
             const form = document.getElementById('auth-form');
             if (form) form.reset();
-            
-            const roleContainer = document.getElementById('role-selection-container');
-            
             if (authMode === 'login') {
                 authMode = 'register';
                 document.getElementById('auth-title').innerText = "Регистрация";
                 document.getElementById('password').placeholder = "Придумайте пароль";
                 document.getElementById('secret_answer').style.display = 'block';
-                if (roleContainer) roleContainer.style.display = 'block';
-                selectRole('user');
                 document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
                 document.getElementById('auth-reset-text').style.display = 'none';
             } else {
@@ -1056,7 +740,6 @@ function closeCreateAlbumModal() {
                 document.getElementById('auth-title').innerText = "Вход в аккаунт";
                 document.getElementById('password').placeholder = "Пароль";
                 document.getElementById('secret_answer').style.display = 'none';
-                if (roleContainer) roleContainer.style.display = 'none';
                 document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
@@ -1064,20 +747,13 @@ function closeCreateAlbumModal() {
 
         function openAuthModal(mode) {
             const authPage = document.getElementById('auth-page');
-            const mainPage = document.getElementById('main-page');
-            
             if (authPage) authPage.style.display = 'flex';
-            if (mainPage) mainPage.style.display = 'none';
-
-            const roleContainer = document.getElementById('role-selection-container');
-
+        
             if (mode === 'register') {
                 authMode = 'register';
                 document.getElementById('auth-title').innerText = "Регистрация";
                 document.getElementById('password').placeholder = "Придумайте пароль";
                 document.getElementById('secret_answer').style.display = 'block';
-                if (roleContainer) roleContainer.style.display = 'block';
-                selectRole('user');
                 document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
                 document.getElementById('auth-reset-text').style.display = 'none';
             } else if (mode === 'login') {
@@ -1085,7 +761,6 @@ function closeCreateAlbumModal() {
                 document.getElementById('auth-title').innerText = "Вход в аккаунт";
                 document.getElementById('password').placeholder = "Пароль";
                 document.getElementById('secret_answer').style.display = 'none';
-                if (roleContainer) roleContainer.style.display = 'none';
                 document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
                 document.getElementById('auth-reset-text').style.display = 'block';
             }
@@ -1103,90 +778,84 @@ function closeCreateAlbumModal() {
             document.getElementById('auth-reset-text').style.display = 'none';
         }
 
-        // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
-        function showGuestUI(buttonsContainer) {
-    const userNameEl = document.getElementById('user-name');
-    const userBalanceEl = document.getElementById('user-balance');
-    const adminLink = document.getElementById('admin-link');
-    const avatarImg = document.getElementById('user-avatar-img');
-    const avatarDefault = document.getElementById('user-avatar-default');
+        async function checkAuth() {
+            try {
+                let res = await fetch('/api/me');
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-sidebar').style.display = 'flex';
+                document.getElementById('main-page').style.display = 'flex';
 
-            
-    const filterContainer = document.getElementById('announcements-filter-container');
-    if (filterContainer) {
-        filterContainer.style.display = 'none';
-    }
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                if (res.ok) {
+                    let user = await res.json();
+                    if (user.username && user.username !== "Гость") {
+                        document.getElementById('user-name').innerText = user.username;
+                        document.getElementById('user-balance').innerText = user.balance;
+                        
+                        let avatarUrl = user.avatar_url || user.avatar;
+                        let avatarImg = document.getElementById('user-avatar-img');
+                        let avatarDefault = document.getElementById('user-avatar-default');
+                        if (avatarUrl) {
+                            avatarImg.src = avatarUrl;
+                            avatarImg.style.display = 'block';
+                            avatarDefault.style.display = 'none';
+                        } else {
+                            avatarImg.style.display = 'none';
+                            avatarDefault.style.display = 'block';
+                        }
+                        
+                        if (user.is_admin === 1) {
+                            document.getElementById('admin-link').style.display = 'inline';
+                        } else {
+                            document.getElementById('admin-link').style.display = 'none';
+                        }
 
-    if (userNameEl) userNameEl.innerText = "Гость";
-    if (userBalanceEl) userBalanceEl.innerText = "0";
-    if (adminLink) adminLink.style.display = 'none';
-    if (avatarImg) avatarImg.style.display = 'none';
-    if (avatarDefault) avatarDefault.style.display = 'block';
-
-    const depositBtn = document.querySelector('.btn-deposit');
-    if (depositBtn) {
-        depositBtn.innerText = "+ Пополнить";
-        depositBtn.setAttribute('onclick', 'openDepositModal()');
-        depositBtn.style.background = '#f1f5f9';
-        depositBtn.style.color = '#1e293b';
-        depositBtn.style.borderColor = '#0f172a';
-    }
-
-    if (buttonsContainer) {
-        buttonsContainer.innerHTML = `
-            <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
-            <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
-        `;
-    }
-
-    // Безопасное скрытие кнопки создания для гостей
-    const guestModelBtn = document.getElementById('model-create-btn');
-    if (guestModelBtn) {
-        guestModelBtn.style.display = 'none';
-    }
-}
-
-function showUserUI(user, buttonsContainer) {
-    if (buttonsContainer) {
-        buttonsContainer.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
-                <button onclick="logout()" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444;">Выйти</button>
-            </div>
-        `;
-    }
-
-    // Если вошла модель
-    if (user.role === 'model') {
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        // Показываем кнопку в ПК-меню с правильным стилем flex
-        if (pcBtn) pcBtn.style.display = 'flex';
-        // Показываем кнопку в мобильном меню
-        if (mobileBtn) mobileBtn.style.display = 'flex';
-        // Показываем кнопку создания объявлений
-        if (createBtn) createBtn.style.display = 'block';
-    } else {
-        // Если вошел обычный пользователь — скрываем кабинет
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        if (pcBtn) pcBtn.style.display = 'none';
-        if (mobileBtn) mobileBtn.style.display = 'none';
-        if (createBtn) createBtn.style.display = 'none';
-    }
-}
-
-        function openWithdrawModal() {
-            let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
-            if (wallet) {
-                let amount = prompt("Какую сумму вы хотите вывести?");
-                if (amount) {
-                    alert(`Заявка на вывод ${amount} коинов на кошелек ${wallet} успешно создана и отправлена администрации!`);
+                        if (buttonsContainer) {
+                            buttonsContainer.innerHTML = `<button class="btn btn-sec" onclick="logout()">Выйти</button>`;
+                        }
+                    } else {
+                        document.getElementById('user-name').innerText = "Гость";
+                        document.getElementById('user-balance').innerText = "0";
+                        document.getElementById('admin-link').style.display = 'none';
+                        document.getElementById('user-avatar-img').style.display = 'none';
+                        document.getElementById('user-avatar-default').style.display = 'block';
+                        if (buttonsContainer) {
+                            buttonsContainer.innerHTML = `
+                                <button class="btn btn-sec" onclick="openAuthModal('login')">Войти</button>
+                                <button class="btn" onclick="openAuthModal('register')" style="padding: 8px 16px; font-size: 0.9rem;">Регистрация</button>
+                            `;
+                        }
+                    }
                 }
+                
+                loadContestants();
+
+                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
+                    history.replaceState(null, null, ' ');
+                    
+                    const authPage = document.getElementById('auth-page');
+                    if (authPage) authPage.style.display = 'flex';
+                    
+                    const authTitle = document.getElementById('auth-title');
+                    const passwordInput = document.getElementById('password');
+                    const secretAnswer = document.getElementById('secret_answer');
+                    const toggleText = document.getElementById('auth-toggle-text');
+                    const resetText = document.getElementById('auth-reset-text');
+                    
+                    if (typeof authMode !== 'undefined') authMode = 'register';
+                    if (authTitle) authTitle.innerText = "Регистрация";
+                    if (passwordInput) passwordInput.placeholder = "Придумайте пароль";
+                    if (secretAnswer) secretAnswer.style.display = 'block';
+                    if (toggleText) toggleText.innerText = "Уже есть аккаунт? Войти";
+                    if (resetText) resetText.style.display = 'none';
+                }
+
+            } catch (err) {
+                console.error("Ошибка при проверке статуса:", err);
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-sidebar').style.display = 'flex';
+                document.getElementById('main-page').style.display = 'flex';
+                loadContestants();
             }
         }
 
@@ -1220,15 +889,8 @@ function showUserUI(user, buttonsContainer) {
             let url = '/api/login';
             let bodyData = { username: u, password: p };
 
-            if (authMode === 'register') { 
-                url = '/api/register'; 
-                bodyData.secret_answer = s;
-                bodyData.role = selectedRole;
-            }
-            else if (authMode === 'reset') { 
-                url = '/api/reset-password';
-                bodyData = { username: u, secret_answer: s, new_password: p };
-            }
+            if (authMode === 'register') { url = '/api/register'; bodyData.secret_answer = s; }
+            else if (authMode === 'reset') { url = '/api/reset-password'; bodyData = { username: u, secret_answer: s, new_password: p }; }
 
             let res = await fetch(url, {
                 method: 'POST',
@@ -1237,43 +899,18 @@ function showUserUI(user, buttonsContainer) {
             });
             let data = await res.json();
             if (res.ok) {
-                if (authMode === 'register' || authMode === 'reset') { 
-                    alert("Успешно! Теперь войдите.");
-                    authMode = 'login'; 
-                    toggleAuthMode(); 
-                }
-                else { 
-                    window.location.reload();
-                }
-            } else { 
-                alert("Ошибка: " + data.detail);
-            }
+                if (authMode === 'register' || authMode === 'reset') { alert("Успешно! Теперь войдите."); authMode = 'login'; toggleAuthMode(); }
+                else { window.location.reload(); }
+            } else { alert("Ошибка: " + data.detail); }
         }
 
         async function logout() {
-    try {
-        await fetch('/api/logout', { method: 'POST' });
-        
-        // Скрываем элементы кабинета при выходе
-        const menuDashboard = document.getElementById('menu-model-dashboard');
-        const mobileMenuDashboard = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        if (menuDashboard) menuDashboard.style.display = 'none';
-        if (mobileMenuDashboard) mobileMenuDashboard.style.display = 'none';
-        if (createBtn) createBtn.style.display = 'none';
-
-        // Перенаправляем на главную
-        showTab('tab-rating');
-        checkAuth();
-    } catch (err) {
-        console.error("Ошибка при выходе:", err);
-    }
-}
+            await fetch('/api/logout', {method: 'POST'});
+            window.location.href = '/';
+        }
 
         async function loadContestants() {
             let res = await fetch('/api/contestants');
-            if (!res.ok) return;
             let list = await res.json();
             let g = document.getElementById('gallery');
             g.innerHTML = '';
@@ -1374,6 +1011,7 @@ function showUserUI(user, buttonsContainer) {
                 if (res.ok) {
                     createHeart(event.clientX, event.clientY);
                     checkAuth(); 
+                    loadContestants();
                 } else {
                     alert(data.detail || "Ошибка при голосовании");
                 }
@@ -1422,7 +1060,9 @@ function showUserUI(user, buttonsContainer) {
                 
                 if (res.ok && data.payment_url) {
                     window.location.href = data.payment_url;
-                    startCheckingBalance();
+                    if (typeof startCheckingBalance === 'function') {
+                        startCheckingBalance();
+                    }
                 } else { 
                     alert("Ошибка: " + (data.detail || "Не удалось получить ссылку на оплату"));
                 }
@@ -1447,120 +1087,10 @@ function showUserUI(user, buttonsContainer) {
             }
         }
 
-        
-
-        // --- ФУНКЦИИ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
-function openAnnouncementModal() {
-    const modal = document.getElementById('announcementModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    } else {
-        console.error("Элемент announcementModal не найден на странице");
-    }
-}
-
-function closeAnnouncementModal() {
-    const modal = document.getElementById('announcementModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-    
-    const form = document.getElementById('announcementForm');
-    if (form) {
-        form.reset();
-        delete form.dataset.currentPhoto; // Удаляем сохраненную старую фотку
-    }
-    
-    // Снова делаем фото обязательным для новых объявлений
-    const photoInput = document.getElementById('announce-photo');
-    if (photoInput) {
-        photoInput.required = true;
-    }
-    
-    // Возвращаем стандартный заголовок
-    const modalTitle = document.querySelector('#announcementModal h2');
-    if (modalTitle) {
-        modalTitle.innerText = "📸 Создать объявление";
-    }
-    
-    editingAnnouncementId = null; // Сбрасываем ID редактирования
-}
-
-async function submitAnnouncement(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('announce-name').value;
-    const description = document.getElementById('announce-desc').value;
-    const photoFile = document.getElementById('announce-photo').files[0];
-
-    if (!photoFile) {
-        alert("Пожалуйста, выберите фото!");
-        return;
-    }
-
-    // Функция-помощник для перевода файла в Base64
-    const toBase64 = file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-
-    try {
-        // Конвертируем картинку в строку Base64
-        const base64Photo = await toBase64(photoFile);
-
-        // Формируем JSON-пакет для отправки
-        const payload = {
-            name: name,
-            description: description,
-            photo_base64: base64Photo
+        window.onload = function() {
+            checkAuth();
+            if (typeof startTimer === 'function') startTimer();
         };
-
-        const response = await fetch('/api/announcements', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json' // Отправляем как JSON
-            },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            alert("Ваше объявление успешно опубликовано!");
-            closeAnnouncementModal();
-            loadAnnouncements(); // Перезагружаем список объявлений
-        } else {
-            alert("Ошибка при публикации: " + (data.detail || "Что-то пошло не так"));
-        }
-    } catch (error) {
-        console.error("Ошибка:", error);
-        alert("Произошла ошибка при обработке или отправке файла.");
-    }
-}
-
-        async function deleteAnnouncement(id) {
-    // Спрашиваем подтверждение перед удалением
-    const confirmDelete = confirm("Вы уверены, что хотите окончательно удалить это объявление?");
-    if (!confirmDelete) return;
-
-    try {
-        const response = await fetch(`/api/announcements/${id}`, {
-            method: 'DELETE'
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            alert("Объявление успешно удалено!");
-            loadAnnouncements(); // Перезагружаем список объявлений
-        } else {
-            alert("Ошибка при удалении: " + (data.detail || "Что-то пошло не так"));
-        }
-    } catch (error) {
-        console.error("Ошибка при отправке запроса:", error);
-        alert("Произошла ошибка сети при попытке удаления.");
-    }
-}
     </script>
     <script>
         function startTimer() {
@@ -1592,480 +1122,9 @@ async function submitAnnouncement(event) {
             }, 1000);
         }
 
-        let activeTab = 'gallery';
-        let currentUserRole = 'guest';
-
-        // Переключение вкладок без перезагрузки страницы
-        function switchTab(tabName, event) {
-    if (event) event.preventDefault();
-    activeTab = tabName;
-    
-    const tabs = ['tab-gallery', 'tab-announcements', 'model-dashboard'];
-    tabs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
-
-    if (tabName === 'gallery') {
-        if (document.getElementById('tab-gallery')) document.getElementById('tab-gallery').style.display = 'block';
-        loadContestants();
-    } else if (tabName === 'announcements') {
-        if (document.getElementById('tab-announcements')) document.getElementById('tab-announcements').style.display = 'block';
-        loadAnnouncements();
-    } else if (tabName === 'model-dashboard') {
-        if (document.getElementById('model-dashboard')) document.getElementById('model-dashboard').style.display = 'block';
-        loadModelDashboard();
-    }
-} // <--- Убедись, что эта скобка стоит!
-        // Загрузка объявлений из API бэкенда
-        async function loadAnnouncements() {
-    const listContainer = document.getElementById('announcements-list');
-    if (!listContainer) return; // Защита, если контейнера нет на странице
-    
-    listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--text-muted);">Загрузка объявлений...</div>';
-
-    // БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ИМЕНИ ПОЛЬЗОВАТЕЛЯ
-    let currentUsername = null;
-    const currentUserNameEl = document.getElementById('user-name');
-    
-    if (currentUserNameEl && currentUserNameEl.innerText && currentUserNameEl.innerText !== "Гость") {
-        currentUsername = currentUserNameEl.innerText.trim();
-    }
-
-    try {
-        let res = await fetch('/api/announcements');
-        if (res.ok) {
-            let announcements = await res.json();
-            listContainer.innerHTML = '';
-
-            if (announcements.length === 0) {
-                listContainer.innerHTML = `
-                    <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
-                        <span style="font-size: 3rem;">📭</span>
-                        <h3 style="margin: 10px 0 5px 0;">Объявлений пока нет</h3>
-                        <p style="color: var(--text-muted); margin: 0;">Будьте первой, кто оставит здесь своё предложение!</p>
-                    </div>`;
-                return;
-            }
-
-            let hasVisibleAnnouncements = false;
-
-            announcements.forEach(item => {
-                // Проверяем, принадлежит ли объявление текущему пользователю
-                const isOwner = currentUsername && (currentUsername === item.username);
-                
-                // Если выбран фильтр "Мои объявления" и это объявление не принадлежит текущему пользователю — пропускаем его
-                if (currentAnnouncementFilter === 'my' && !isOwner) {
-                    return; 
-                }
-
-                hasVisibleAnnouncements = true;
-
-                // Кнопка редактирования показывается только владельцу карточки
-                // Кнопки управления показываются только владельцу карточки
-                        const editButtonHtml = isOwner ? `
-                            <div style="display: flex; gap: 8px; width: 100%;">
-                                <button class="btn" onclick="editAnnouncement(${item.id}, '${escapeHtml(item.name)}', '${escapeHtml(item.description)}', '${item.photo_url}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #f59e0b; color: white; border: none;">
-                                    ✏️ Редактировать
-                                </button>
-                                <button class="btn" onclick="deleteAnnouncement(${item.id})" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0; background: #ef4444; color: white; border: none;">
-                                    🗑️ Удалить
-                                </button>
-                            </div>
-                        ` : `
-                            <button class="btn" onclick="openChatWithModel('${item.username}')" style="font-size: 0.8rem; padding: 6px 12px; width: auto; margin: 0;">
-                                Написать
-                            </button>
-                        `;
-
-                listContainer.innerHTML += `
-                    <div class="contestant-card" id="announcement-card-${item.id}" style="text-align: left; padding-bottom: 0;">
-                        <img src="${item.photo_url}" class="contestant-img" style="height: 260px;" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=Photo'">
-                        <div style="padding: 15px; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h3 style="margin: 0; font-size: 1.2rem; font-weight: bold; color: var(--text-main);">${item.name}</h3>
-                                <span style="background: #fff5f6; color: var(--accent); padding: 4px 8px; border-radius: 8px; font-size: 0.75rem; font-weight: bold;">
-                                    📸 Модель
-                                </span>
-                            </div>
-                            <p style="margin: 0; color: #4a5568; font-size: 0.9rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
-                                ${item.description}
-                            </p>
-                            <hr style="border: 0; border-top: 1px solid #edf2f7; margin: 5px 0;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="font-size: 0.75rem; color: var(--text-muted);">
-                                    ${new Date(item.created_at).toLocaleDateString('ru-RU')}
-                                </span>
-                                ${editButtonHtml}
-                            </div>
-                        </div>
-                    </div>`;
-            });
-
-            // Если после фильтрации не осталось объявлений для показа
-            if (!hasVisibleAnnouncements) {
-                listContainer.innerHTML = `
-                    <div style="text-align:center; grid-column: 1/-1; padding: 40px; background: white; border-radius: 12px; box-shadow: var(--shadow);">
-                        <span style="font-size: 3rem;">📭</span>
-                        <h3 style="margin: 10px 0 5px 0;">У вас пока нет объявлений</h3>
-                        <p style="color: var(--text-muted); margin: 0;">Нажмите кнопку сверху, чтобы опубликовать первое!</p>
-                    </div>`;
-            }
-
-        } else {
-            listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Не удалось загрузить объявления.</div>';
-        }
-    } catch (err) {
-        console.error("Ошибка при получении объявлений:", err);
-        listContainer.innerHTML = '<div style="text-align:center; grid-column: 1/-1; color: var(--accent);">Ошибка сети при загрузке.</div>';
-    }
-}
-
-        function openChatWithModel(username) {
-            alert(`Функция чата в разработке. Скоро вы сможете написать напрямую пользователю @${username}!`);
-        }
-
-        let currentAnnouncementFilter = 'all'; // 'all' или 'my'
-
-        // Функция переключения фильтров
-        function filterAnnouncements(filterType) {
-            currentAnnouncementFilter = filterType;
-            
-            const btnAll = document.getElementById('btn-filter-all');
-            const btnMy = document.getElementById('btn-filter-my');
-            
-            if (filterType === 'all') {
-                btnAll.style.backgroundColor = 'var(--accent)';
-                btnAll.style.color = 'white';
-                btnMy.style.backgroundColor = '#f1f5f9';
-                btnMy.style.color = '#1e293b';
-            } else {
-                btnMy.style.backgroundColor = 'var(--accent)';
-                btnMy.style.color = 'white';
-                btnAll.style.backgroundColor = '#f1f5f9';
-                btnAll.style.color = '#1e293b';
-            }
-            
-            loadAnnouncements(); // Перезапускаем рендер с учетом фильтра
-        }
-
-        // Переменная для хранения ID редактируемого объявления
-let editingAnnouncementId = null; 
-
-// Функция открытия формы для РЕДАКТИРОВАНИЯ (вызывается при клике на кнопку)
-function editAnnouncement(id, name, description, currentPhotoBase64) {
-    editingAnnouncementId = id;
-    
-    // Находим поля формы и заполняем их текущими данными
-    const nameInput = document.getElementById('announce-name');
-    const descInput = document.getElementById('announce-desc');
-    const photoInput = document.getElementById('announce-photo');
-
-    if (nameInput) nameInput.value = name;
-    if (descInput) descInput.value = description;
-    
-    // При редактировании загрузка нового фото не обязательна (можно оставить старое)
-    if (photoInput) photoInput.required = false;
-
-    // Меняем заголовок модального окна на «Редактировать»
-    const modalTitle = document.querySelector('#announcementModal h2');
-    if (modalTitle) modalTitle.innerText = "✏️ Редактировать объявление";
-
-    // Открываем модальное окно
-    openAnnouncementModal();
-    
-    // Сохраняем текущую Base64 картинку в специальный дата-атрибут формы, 
-    // чтобы если пользователь не выберет новый файл, отправилась старая фотография
-    const form = document.getElementById('announcementForm');
-    if (form) {
-        form.dataset.currentPhoto = currentPhotoBase64;
-    }
-}
-
-        // Функция для безопасного вывода текста (экранирование спецсимволов)
-function escapeHtml(text) {
-    if (!text) return '';
-    return text
-        .toString()
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-        // Показываем/скрываем поле ввода цены при клике на чекбокс
-function toggleAlbumPrice(checkbox) {
-    const priceContainer = document.getElementById('album-price-container');
-    const priceInput = document.getElementById('album-price');
-    
-    if (checkbox.checked) {
-        priceContainer.style.display = 'block';
-        priceInput.value = '100'; // Дефолтная цена
-    } else {
-        priceContainer.style.display = 'none';
-        priceInput.value = '0';
-    }
-}
-
-// Показываем пользователю, сколько файлов он выбрал для загрузки
-function updateFilesCounter(input) {
-    const counter = document.getElementById('files-counter');
-    if (input.files.length > 0) {
-        counter.innerText = `Выбрано файлов: ${input.files.length}`;
-        counter.style.color = 'green';
-    } else {
-        counter.innerText = 'Файлы не выбраны';
-        counter.style.color = 'var(--text-muted)';
-    }
-}
-
-// Отправка формы на сервер
-async function submitNewAlbum(event) {
-    event.preventDefault();
-    
-    const title = document.getElementById('album-title').value;
-    const description = document.getElementById('album-desc').value;
-    const isPaid = document.getElementById('album-is-paid').checked ? 1 : 0;
-    const price = isPaid ? document.getElementById('album-price').value : 0;
-    const fileInput = document.getElementById('album-files');
-    
-    if (fileInput.files.length === 0) {
-        alert('Пожалуйста, выберите хотя бы одну фотографию для альбома!');
-        return;
-    }
-    
-    // Передаем данные в формате FormData (так как есть файлы)
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('description', description);
-    formData.append('is_paid', isPaid);
-    formData.append('price', price);
-    
-    for (let i = 0; i < fileInput.files.length; i++) {
-        formData.append('files', fileInput.files[i]);
-    }
-    
-    try {
-        const response = await fetch('/api/albums/create', {
-            method: 'POST',
-            body: formData
+        document.addEventListener("DOMContentLoaded", () => {
+            startTimer();
         });
-        
-        const result = await response.json();
-        
-        if (response.ok) {
-            alert('Ура! Альбом успешно создан и опубликован.');
-            document.getElementById('album-creation-form').reset();
-            document.getElementById('album-price-container').style.display = 'none';
-            document.getElementById('files-counter').innerText = 'Файлы не выбраны';
-            document.getElementById('files-counter').style.color = 'var(--text-muted)';
-        } else {
-            alert('Ошибка: ' + (result.detail || 'Не удалось загрузить альбом'));
-        }
-    } catch (error) {
-        console.error('Ошибка создания альбома:', error);
-        alert('Произошла ошибка при соединении с сервером');
-    }
-}
-
-        // Функция инициализации личного кабинета модели
-async function loadModelDashboard() {
-    try {
-        const response = await fetch('/api/model/profile');
-        if (!response.ok) return;
-        
-        const data = await response.json();
-        
-        // Заполняем данные профиля модели (если элементы есть на странице)
-        const nameEl = document.getElementById('model-dash-name');
-        const avatarEl = document.getElementById('model-dash-avatar');
-        const balanceEl = document.getElementById('model-dash-balance');
-        
-        if (nameEl) nameEl.innerText = data.profile.username;
-        if (avatarEl && data.profile.avatar) avatarEl.src = data.profile.avatar;
-        if (balanceEl) balanceEl.innerText = data.profile.balance;
-        
-        // Отрисовываем её альбомы
-        const grid = document.getElementById('model-albums-list'); // или 'model-albums-grid'
-        if (grid) {
-            grid.innerHTML = '';
-            if (data.albums.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">У вас еще нет альбомов.</p>';
-                return;
-            }
-            
-            data.albums.forEach(album => {
-                const cover = (album.photos && album.photos.length > 0) ? album.photos[0] : "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
-                grid.innerHTML += `
-                    <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
-                            <div>
-                                <h4 style="margin: 0; color: var(--text-main);">${album.title}</h4>
-                                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-    } catch (err) {
-        console.error("Ошибка при загрузке кабинета модели:", err);
-    }
-}
-
-// Загрузка нового главного фото прямо в Dropbox
-async function uploadNewAvatar(input) {
-    if (input.files.length === 0) return;
-    
-    const formData = new FormData();
-    formData.append('file', input.files[i = 0]);
-    
-    try {
-        const response = await fetch('/api/model/update-avatar', { method: 'POST', body: formData });
-        const result = await response.json();
-        if (response.ok) {
-            document.getElementById('model-dash-avatar').src = result.avatar;
-            alert('Главное фото успешно обновлено!');
-        } else {
-            alert('Ошибка: ' + result.detail);
-        }
-    } catch (e) {
-        alert('Не удалось обновить фото');
-    }
-}
-
-
-// Вызывается автоматически при клике пользователя на карточку модели на главной
-async function showModelDetails(username) {
-    // Твой старый код открытия модалки карточки...
-    document.getElementById('model-view-modal').style.display = 'flex';
-    switchModalTab('bio'); // Сброс на первую вкладку
-    
-    // Подгружаем альбомы этой модели для сетки
-    try {
-        const res = await fetch(`/api/public/model/${username}/albums`);
-        const albums = await res.json();
-        const grid = document.getElementById('modal-model-albums-grid');
-        grid.innerHTML = '';
-        
-        if (albums.length === 0) {
-            grid.innerHTML = '<p style="color: #a0aec0; grid-column: 1/-1; text-align: center;">У модели пока нет альбомов.</p>';
-            return;
-        }
-        
-        albums.forEach(album => {
-            const cover = album.photos.length > 0 ? album.photos[0] : 'https://via.placeholder.com/150';
-            // Если альбом платный — накладываем легкий CSS-фильтр размытия на обложку
-            const blurStyle = album.is_paid ? 'filter: blur(4px);' : '';
-            
-            grid.innerHTML += `
-                <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; text-align: center; cursor: pointer;">
-                    <div style="position: relative; height: 120px; background: #000; overflow: hidden;">
-                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}">
-                        ${album.is_paid ? `<div style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">🔒 ${album.price} CC</div>` : ''}
-                    </div>
-                    <div style="padding: 8px;">
-                        <h5 style="margin: 0 0 4px 0; font-size: 0.85rem; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${album.title}</h5>
-                    </div>
-                </div>
-            `;
-        });
-    } catch(e) {
-        console.error(e);
-    }
-}
-
-        // Переключение вкладок внутри карточки модели
-function switchModalTab(tabName) {
-    const bioTab = document.getElementById('modal-tab-bio-content');
-    const albumsTab = document.getElementById('modal-tab-albums-content');
-    const btnBio = document.getElementById('tab-btn-bio');
-    const btnAlbums = document.getElementById('tab-btn-albums');
-
-    if (!bioTab || !albumsTab) return;
-
-    if (tabName === 'bio') {
-        bioTab.style.display = 'block';
-        albumsTab.style.display = 'none';
-        if (btnBio) btnBio.classList.add('active');
-        if (btnAlbums) btnAlbums.classList.remove('active');
-    } else {
-        bioTab.style.display = 'none';
-        albumsTab.style.display = 'block';
-        if (btnBio) btnBio.classList.remove('active');
-        if (btnAlbums) btnAlbums.classList.add('active');
-    }
-}
-</script> <div id="create-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1100;">
-    <div style="background: #ffffff; padding: 25px; border-radius: 16px; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1); font-family: sans-serif;">
-        <span onclick="closeCreateAlbumModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
-        
-        <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 15px; text-align: center;">📸 Создать новый альбом</h3>
-        
-        <form id="album-creation-form" onsubmit="submitNewAlbum(event)">
-            <input type="text" id="album-title" placeholder="Название альбома" required 
-                   style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; box-sizing: border-box;">
-            
-            <textarea id="album-desc" placeholder="Описание альбома (необязательно)" 
-                      style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; resize: vertical; min-height: 80px; box-sizing: border-box;"></textarea>
-            
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 8px;">
-                <input type="checkbox" id="album-is-paid" onchange="toggleAlbumPrice(this)" style="width: 18px; height: 18px; cursor: pointer;">
-                <label for="album-is-paid" style="font-weight: bold; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">Платный альбом (доступ за монеты)</label>
-            </div>
-            
-            <div id="album-price-container" style="display: none; margin-bottom: 15px; padding-left: 5px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: bold; color: var(--text-muted); margin-bottom: 6px;">Цена доступа (в монетах):</label>
-                <input type="number" id="album-price" value="100" min="1" 
-                       style="width: 120px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e0;">
-            </div>
-            
-            <div style="margin-bottom: 20px; background: #fff5f6; border: 1px dashed #ff4757; padding: 15px; border-radius: 10px; text-align: center;">
-                <label style="display: block; font-size: 0.9rem; font-weight: bold; color: #ff4757; margin-bottom: 8px; cursor: pointer;">
-                    📁 Выберите фотографии
-                    <input type="file" id="album-files" accept="image/*" multiple required style="display: none;" onchange="updateFilesCounter(this)">
-                </label>
-                <span id="files-counter" style="font-size: 0.8rem; color: var(--text-muted);">Файлы не выбраны</span>
-            </div>
-            
-            <button type="submit" class="btn" style="width: 100%; background: #ff4757; color: white; font-weight: bold; height: 45px; border-radius: 12px; border: none; cursor: pointer;">Опубликовать альбом</button>
-        </form>
-    </div>
-</div>
-
-<script> // ОТКРЫВАЕМ ВТОРОЙ СКРИПТ ДЛЯ ВСЕХ ОСТАЛЬНЫХ ФУНКЦИЙ
-function openCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        const form = document.getElementById('album-creation-form');
-        if (form) form.reset();
-        const priceContainer = document.getElementById('album-price-container');
-        if (priceContainer) priceContainer.style.display = 'none';
-        const counter = document.getElementById('files-counter');
-        if (counter) counter.innerText = 'Файлы не выбраны';
-    }
-}
-
-// Запуск при загрузке страницы с безопасной проверкой наличия функций
-window.onload = function() {
-    if (typeof checkAuth === 'function') {
-        checkAuth();
-    } else {
-        console.error("Ошибка: Функция checkAuth не найдена в глобальной области видимости. Проверь синтаксис выше!");
-    }
-    
-    if (typeof startTimer === 'function') {
-        startTimer();
-    }
-};
-</script>
+    </script>
 </body>
 </html>
