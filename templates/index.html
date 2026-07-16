@@ -626,57 +626,54 @@
         </a>
     </div>
 
-    <div class="main-wrapper">
-
     <div id="auth-page" class="auth-container" style="display: none;">
-        <div class="auth-box">
-            <h2 id="auth-title">Вход в аккаунт</h2>
-            
-            <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
-                <input type="text" name="fake_username_remembered" style="display:none;">
-                <input type="password" name="fake_password_remembered" style="display:none;">
+    <div class="auth-box">
+        <h2 id="auth-title">Вход в аккаунт</h2>
+        
+        <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
+            <input type="text" name="fake_username_remembered" style="display:none;">
+            <input type="password" name="fake_password_remembered" style="display:none;">
 
-                <input type="text" id="username" placeholder="Логин" autocomplete="off">
-                <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
-                  
-                <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                        
-                <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-                    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
-                    <div style="display: flex; gap: 10px;">
-                        <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
-                            <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
-                            <span style="font-size: 1.5rem; display: block;">👤</span>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
-                        </label>
-                        <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
-                            <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
-                            <span style="font-size: 1.5rem; display: block;">📸</span>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
-                        </label>
-                    </div>
+            <input type="text" id="username" placeholder="Логин" autocomplete="off">
+            <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+              
+            <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
+                                    
+            <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
+                <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
+                        <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
+                        <span style="font-size: 1.5rem; display: block;">👤</span>
+                        <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
+                    </label>
+                    <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
+                        <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
+                        <span style="font-size: 1.5rem; display: block;">📸</span>
+                        <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
+                    </label>
                 </div>
-
-                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
-            </form>
-            <div id="tg-divider" style="display: flex; align-items: center; margin: 20px 0 15px 0;">
-                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
-                <span style="padding: 0 10px; color: var(--text-muted); font-size: 0.85rem;">или</span>
-                <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
             </div>
 
-            <button type="button" id="tg-login-btn" onclick="startTelegramLogin()" style="width: 100%; height: 45px; background: #24A1DE; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: background 0.2s ease;">
-                <svg viewBox="0 0 24 24" width="20" height="20" style="fill: currentColor;">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-1-.65-.35-1 .22-1.62.15-.15 2.72-2.5 2.77-2.7.01-.03.01-.14-.05-.2-.06-.06-.16-.04-.23-.02-.1.02-1.69 1.07-4.78 3.16-.45.3-.87.46-1.25.45-.42-.01-1.24-.24-1.85-.44-.75-.24-1.35-.37-1.3-.79.03-.22.33-.45.91-.69 3.56-1.55 5.94-2.57 7.14-3.07 3.4-1.4 4.1-1.64 4.56-1.65.1 0 .32.02.47.14.12.1.16.24.18.33-.01.07.01.21 0 .33z"/>
-                </svg>
-                Войти через Telegram
-            </button>
+            <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
+        </form>
 
-            <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
-            <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
+        <div id="tg-divider" style="display: flex; align-items: center; margin: 20px 0 15px 0;">
+            <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
+            <span style="padding: 0 10px; color: var(--text-muted); font-size: 0.85rem;">или</span>
+            <div style="flex: 1; height: 1px; background: #e2e8f0;"></div>
         </div>
-    </div>
 
+        <button type="button" id="tg-login-btn" onclick="startTelegramLogin()" style="width: 100%; height: 45px; background: #24A1DE; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 0.95rem; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: background 0.2s ease;">
+            <svg viewBox="0 0 24 24" width="20" height="20" style="fill: currentColor;">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-1-.65-.35-1 .22-1.62.15-.15 2.72-2.5 2.77-2.7.01-.03.01-.14-.05-.2-.06-.06-.16-.04-.23-.02-.1.02-1.69 1.07-4.78 3.16-.45.3-.87.46-1.25.45-.42-.01-1.24-.24-1.85-.44-.75-.24-1.35-.37-1.3-.79.03-.22.33-.45.91-.69 3.56-1.55 5.94-2.57 7.14-3.07 3.4-1.4 4.1-1.64 4.56-1.65.1 0 .32.02.47.14.12.1.16.24.18.33-.01.07.01.21 0 .33z"/>
+            </svg>
+            Войти через Telegram
+        </button>
+
+        <p style="color: var(--text-muted); cursor: pointer; margin-top: 20px; font-size: 0.9rem;" id="auth-toggle-text" onclick="toggleAuthMode()">Нет аккаунта? Зарегистрироваться</p>
+        <p style="color: var(--text-muted); cursor: pointer; margin-top: 10px; font-size: 0.85rem;" onclick="enableResetMode()" id="auth-reset-text">Забыли пароль?</p>
+    </div>
 </div>
         <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
             <header>
