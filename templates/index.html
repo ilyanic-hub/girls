@@ -125,6 +125,32 @@
             animation: flyUpAndFade 0.8s ease-out forwards;
         }
 
+        /* Стиль для кнопки Войти/Зарегистрироваться в шапке */
+#auth-buttons-container button, 
+.btn-auth-header {
+    background: #ffffff !important;
+    color: #ff4757 !important;
+    border: 2px solid #ff4757 !important;
+    padding: 6px 16px !important;
+    font-size: 0.85rem !important;
+    font-weight: bold !important;
+    border-radius: 30px !important; /* Делаем её овальной, как баланс и аватарка */
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+/* Эффект при наведении мышки */
+#auth-buttons-container button:hover, 
+.btn-auth-header:hover {
+    background: #ff4757 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(255, 71, 87, 0.2) !important;
+}
+
         @keyframes flyUpAndFade {
             0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
             100% { transform: translate(var(--x), var(--y)) scale(0.4) rotate(var(--r)); opacity: 0; }
