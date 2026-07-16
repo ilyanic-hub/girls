@@ -765,6 +765,39 @@
     </form>
 </div>
 
+
+            <div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
+    <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
+        
+        <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
+            <div style="position: relative; display: inline-block;">
+                <img id="model-dash-avatar" src="https://via.placeholder.com/150" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
+                <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
+                    📷
+                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
+                </label>
+            </div>
+            <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
+            <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
+            <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold;">
+                Баланс: <span id="model-dash-balance">0</span> коинов
+            </div>
+        </div>
+
+        <div style="flex: 2; min-width: 350px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
+                <button onclick="openCreateAlbumModal()" style="background: #ff4757; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: bold; cursor: pointer;">+ Новый альбом</button>
+            </div>
+
+            <div id="model-albums-list" style="display: flex; flex-direction: column; gap: 12px;">
+                </div>
+        </div>
+    </div>
+</div>
+
+            
+
             <main class="contestants-grid" id="gallery"></main>
 
             <footer style="text-align: center; margin-top: auto; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
@@ -1801,6 +1834,136 @@ async function submitNewAlbum(event) {
     } catch (error) {
         console.error('Ошибка создания альбома:', error);
         alert('Произошла ошибка при соединении с сервером');
+    }
+}
+
+        // Функция инициализации личного кабинета модели
+async function loadModelDashboard() {
+    try {
+        const response = await fetch('/api/model/profile');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        // Показываем кабинет и скрываем главную страницу
+        document.getElementById('model-dashboard').style.display = 'block';
+        if(document.getElementById('main-page')) document.getElementById('main-page').style.display = 'none';
+        
+        // Заполняем данные
+        document.getElementById('model-dash-name').innerText = data.profile.username;
+        document.getElementById('model-dash-balance').innerText = data.profile.balance;
+        if (data.profile.avatar) {
+            document.getElementById('model-dash-avatar').src = data.profile.avatar;
+        }
+
+        // Рендерим альбомы
+        const listContainer = document.getElementById('model-albums-list');
+        listContainer.innerHTML = '';
+        
+        if (data.albums.length === 0) {
+            listContainer.innerHTML = '<p style="color: #a0aec0; text-align: center;">У вас пока нет альбомов.</p>';
+        } else {
+            data.albums.forEach(album => {
+                const cover = album.photos.length > 0 ? album.photos[0] : 'https://via.placeholder.com/60';
+                listContainer.innerHTML += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #f7fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <img src="${cover}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
+                            <div>
+                                <h4 style="margin: 0; color: #2d3748;">${album.title}</h4>
+                                <span style="font-size: 0.75rem; color: ${album.is_paid ? '#ff4757' : '#48bb78'}; font-weight: bold;">
+                                    ${album.is_paid ? `Платный (${album.price} коинов)` : 'Бесплатный'}
+                                </span>
+                            </div>
+                        </div>
+                        <span style="font-size: 0.85rem; color: #a0aec0;">Фотографий: ${album.photos.length}</span>
+                    </div>
+                `;
+            });
+        }
+    } catch (e) {
+        console.error("Ошибка загрузки кабинета модели", e);
+    }
+}
+
+// Загрузка нового главного фото прямо в Dropbox
+async function uploadNewAvatar(input) {
+    if (input.files.length === 0) return;
+    
+    const formData = new FormData();
+    formData.append('file', input.files[i = 0]);
+    
+    try {
+        const response = await fetch('/api/model/update-avatar', { method: 'POST', body: formData });
+        const result = await response.json();
+        if (response.ok) {
+            document.getElementById('model-dash-avatar').src = result.avatar;
+            alert('Главное фото успешно обновлено!');
+        } else {
+            alert('Ошибка: ' + result.detail);
+        }
+    } catch (e) {
+        alert('Не удалось обновить фото');
+    }
+}
+
+// Переключение вкладок внутри карточки модели
+function switchModalTab(tabName) {
+    const bioTab = document.getElementById('modal-tab-bio-content');
+    const albumsTab = document.getElementById('modal-tab-albums-content');
+    const btnBio = document.getElementById('tab-btn-bio');
+    const btnAlbums = document.getElementById('tab-btn-albums');
+    
+    if (tabName === 'bio') {
+        bioTab.style.display = 'block';
+        albumsTab.style.display = 'none';
+        btnBio.style.color = '#ff4757'; btnBio.style.borderBottom = '2px solid #ff4757';
+        btnAlbums.style.color = '#718096'; btnAlbums.style.borderBottom = 'none';
+    } else {
+        bioTab.style.display = 'none';
+        albumsTab.style.display = 'block';
+        btnAlbums.style.color = '#ff4757'; btnAlbums.style.borderBottom = '2px solid #ff4757';
+        btnBio.style.color = '#718096'; btnBio.style.borderBottom = 'none';
+    }
+}
+
+// Вызывается автоматически при клике пользователя на карточку модели на главной
+async function showModelDetails(username) {
+    // Твой старый код открытия модалки карточки...
+    document.getElementById('model-view-modal').style.display = 'flex';
+    switchModalTab('bio'); // Сброс на первую вкладку
+    
+    // Подгружаем альбомы этой модели для сетки
+    try {
+        const res = await fetch(`/api/public/model/${username}/albums`);
+        const albums = await res.json();
+        const grid = document.getElementById('modal-model-albums-grid');
+        grid.innerHTML = '';
+        
+        if (albums.length === 0) {
+            grid.innerHTML = '<p style="color: #a0aec0; grid-column: 1/-1; text-align: center;">У модели пока нет альбомов.</p>';
+            return;
+        }
+        
+        albums.forEach(album => {
+            const cover = album.photos.length > 0 ? album.photos[0] : 'https://via.placeholder.com/150';
+            // Если альбом платный — накладываем легкий CSS-фильтр размытия на обложку
+            const blurStyle = album.is_paid ? 'filter: blur(4px);' : '';
+            
+            grid.innerHTML += `
+                <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; text-align: center; cursor: pointer;">
+                    <div style="position: relative; height: 120px; background: #000; overflow: hidden;">
+                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}">
+                        ${album.is_paid ? `<div style="position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem;">🔒 ${album.price} CC</div>` : ''}
+                    </div>
+                    <div style="padding: 8px;">
+                        <h5 style="margin: 0 0 4px 0; font-size: 0.85rem; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${album.title}</h5>
+                    </div>
+                </div>
+            `;
+        });
+    } catch(e) {
+        console.error(e);
     }
 }
     </script>
