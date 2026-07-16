@@ -919,7 +919,7 @@
 
         async function checkAuth() {
     try {
-        const response = await fetch('/api/auth/me'); // Или твой эндпоинт проверки сессии
+        const response = await fetch('/api/me'); // Или твой эндпоинт проверки сессии
         const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
 
         if (response.ok) {
