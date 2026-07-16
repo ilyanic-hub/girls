@@ -1259,6 +1259,141 @@ async def upload_model_photos(model_id: int, files: list[UploadFile] = File(...)
     except Exception as e:
         print(f"!!! Ошибка при параллельной загрузке: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
+
+# Эндпоинт для создания объявления моделью
+@app.post("/api/announcements")
+async def create_announcement(
+    data: AnnouncementSchema, # Принимаем данные по схеме
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("SELECT id, role FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        db.close()
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+        
+    user_id, role = user[0], user[1]
+    if role != "model":
+        db.close()
+        raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
+
+    # Чистим строку Base64 от возможных переносов строк (как в твоем рабочем коде)
+    inline_photo_url = data.photo_base64.replace("\n", "").replace("\r", "").strip()
+    created_at = datetime.now().isoformat()
+
+    # Записываем все данные прямо в БД
+    cursor.execute("""
+        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, data.name, data.description, inline_photo_url, created_at))
+    
+    db.commit()
+    db.close()
+
+    # Синхронизируем базу с Dropbox, чтобы сохранить изменения навсегда!
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бэкапа базы в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно опубликовано!"}
+
+    # Записываем объявление в базу данных (теперь с вечной ссылкой из Dropbox)
+    cursor.execute("""
+        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, name, description, photo_url, created_at))
+    db.commit()
+    db.close()
+
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бекапа БД в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно опубликовано!"}
+
+
+# Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
+@app.get("/api/announcements")
+async def get_announcements():
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row  # чтобы возвращать данные в виде удобных словарей
+    cursor = db.cursor()
+    
+    # Объединяем таблицы, чтобы получить имя пользователя модели (username)
+    cursor.execute("""
+        SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
+        FROM announcements a
+        JOIN users u ON a.user_id = u.id
+        ORDER BY a.id DESC
+    """)
+    rows = cursor.fetchall()
+    db.close()
+
+    announcements = []
+    for row in rows:
+        announcements.append({
+            "id": row["id"],
+            "name": row["name"],
+            "description": row["description"],
+            "photo_url": row["photo_url"],
+            "created_at": row["created_at"],
+            "username": row["username"]
+        })
+        
+    return announcements
+
+@app.delete("/api/announcements/{announcement_id}")
+async def delete_announcement(
+    announcement_id: int,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    
+    # 1. Проверяем, существует ли объявление и кто его владелец
+    cursor.execute("""
+        SELECT a.id, u.username, u.is_admin 
+        FROM announcements a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = ?
+    """, (announcement_id,))
+    announcement = cursor.fetchone()
+    
+    if not announcement:
+        db.close()
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+        
+    owner_username = announcement[1]
+    is_admin = announcement[2]
+    
+    # Удалить может только владелец объявления или администратор
+    if session_user != owner_username and not is_admin:
+        db.close()
+        raise HTTPException(status_code=403, detail="Вы можете удалять только свои объявления")
+
+    # 2. Удаляем объявление из базы данных
+    cursor.execute("DELETE FROM announcements WHERE id = ?", (announcement_id,))
+    db.commit()
+    db.close()
+
+    # Синхронизируем изменения с Dropbox
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бэкапа базы в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно удалено!"}
         
 
 
