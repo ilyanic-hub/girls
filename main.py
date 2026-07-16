@@ -540,6 +540,64 @@ async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Dep
         print(f"!!! Ошибка парсинга папки Google Drive: {e}")
         return {"status": "error", "message": f"Ошибка на сервере: {str(e)}"}
 
+
+
+
+# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
+def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
+    
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+    
+    return user
+
+
+# ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
+@app.post("/api/user/avatar")
+async def upload_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+    db=Depends(get_db)
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
+    
+    username = user["username"]
+    file_extension = os.path.splitext(file.filename)[1]
+    if not file_extension:
+        file_extension = ".jpg"
+        
+    filename = f"avatar_{username}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            buffer.write(await file.read())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении файла: {str(e)}")
+    
+    avatar_url = f"/static/avatars/{filename}"
+    
+    try:
+        cursor = db.cursor()
+        cursor.execute("UPDATE users SET avatar = ? WHERE username = ?", (avatar_url, username))
+        db.commit()
+        upload_db_to_dropbox()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при обновлении базы данных: {str(e)}")
+    
+    return {"status": "success", "avatar_url": avatar_url}
+
+
+# ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
+
 @app.post("/api/albums/create")
 async def create_album(
     title: str = Form(...),
@@ -629,62 +687,7 @@ async def create_album(
         print(f"Dropbox DB sync error: {e}")
         
     return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
-
-
-# ================= ЗАВИСИМОСТЬ АВТОРИЗАЦИИ =================
-def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
     
-    cursor = db.cursor()
-    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    
-    if not user:
-        raise HTTPException(status_code=401, detail="Пользователь не найден")
-    
-    return user
-
-
-# ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
-@app.post("/api/user/avatar")
-async def upload_avatar(
-    request: Request,
-    file: UploadFile = File(...),
-    user: dict = Depends(get_current_user),
-    db=Depends(get_db)
-):
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
-    
-    username = user["username"]
-    file_extension = os.path.splitext(file.filename)[1]
-    if not file_extension:
-        file_extension = ".jpg"
-        
-    filename = f"avatar_{username}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    
-    try:
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении файла: {str(e)}")
-    
-    avatar_url = f"/static/avatars/{filename}"
-    
-    try:
-        cursor = db.cursor()
-        cursor.execute("UPDATE users SET avatar = ? WHERE username = ?", (avatar_url, username))
-        db.commit()
-        upload_db_to_dropbox()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при обновлении базы данных: {str(e)}")
-    
-    return {"status": "success", "avatar_url": avatar_url}
-
-
-# ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 async def check_channel_subscription(user_id: int) -> bool:
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
