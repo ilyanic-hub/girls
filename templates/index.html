@@ -658,20 +658,20 @@
                 <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
                                         
                 <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
-                    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
-                    <div style="display: flex; gap: 10px;">
-                        <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
-                            <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
-                            <span style="font-size: 1.5rem; display: block;">👤</span>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
-                        </label>
-                        <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
-                            <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
-                            <span style="font-size: 1.5rem; display: block;">📸</span>
-                            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
-                        </label>
-                    </div>
-                </div>
+    <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
+    <div style="display: flex; gap: 10px;">
+        <label style="flex: 1; border: 2px solid #ff4757; background: #fff5f6; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-user">
+            <input type="radio" name="user_role" value="user" checked style="display: none;" onclick="selectRole('user')">
+            <span style="font-size: 1.5rem; display: block;">👤</span>
+            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Зритель</span>
+        </label>
+        <label style="flex: 1; border: 2px solid #e2e8f0; background: #f7fafc; padding: 10px; border-radius: 12px; text-align: center; cursor: pointer; display: block; transition: all 0.2s ease;" id="label-role-model">
+            <input type="radio" name="user_role" value="model" style="display: none;" onclick="selectRole('model')">
+            <span style="font-size: 1.5rem; display: block;">📸</span>
+            <span style="font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: block; margin-top: 4px;">Модель</span>
+        </label>
+    </div>
+</div>
 
                 <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Продолжить</button>
             </form>
@@ -913,33 +913,47 @@
             }
         }
     
-        function toggleAuthMode() {
-            const form = document.getElementById('auth-form');
-            if (form) form.reset();
-            
-            const roleContainer = document.getElementById('role-selection-container');
-            
-            if (authMode === 'login') {
-                authMode = 'register';
-                document.getElementById('auth-title').innerText = "Регистрация";
-                document.getElementById('password').placeholder = "Придумайте пароль";
-                document.getElementById('secret_answer').style.display = 'block';
-                document.getElementById('tg-divider').style.display = 'flex';
-                document.getElementById('tg-login-btn').style.display = 'flex';
-                if (roleContainer) roleContainer.style.display = 'block';
-                selectRole('user');
-                document.getElementById('auth-toggle-text').innerText = "Уже есть аккаунт? Войти";
-                document.getElementById('auth-reset-text').style.display = 'none';
-            } else {
-                authMode = 'login';
-                document.getElementById('auth-title').innerText = "Вход в аккаунт";
-                document.getElementById('password').placeholder = "Пароль";
-                document.getElementById('secret_answer').style.display = 'none';
-                if (roleContainer) roleContainer.style.display = 'none';
-                document.getElementById('auth-toggle-text').innerText = "Нет аккаунта? Зарегистрироваться";
-                document.getElementById('auth-reset-text').style.display = 'block';
-            }
-        }
+        let isRegisterMode = false; // Переменная для отслеживания текущего режима
+
+function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    
+    const authTitle = document.getElementById('auth-title');
+    const authToggleText = document.getElementById('auth-toggle-text');
+    const authResetText = document.getElementById('auth-reset-text');
+    const roleContainer = document.getElementById('role-selection-container');
+    const secretAnswerInput = document.getElementById('secret_answer');
+    const tgDivider = document.getElementById('tg-divider');
+    const tgBtn = document.getElementById('tg-login-btn');
+
+    if (isRegisterMode) {
+        // РЕЖИМ РЕГИСТРАЦИИ
+        authTitle.innerText = 'Регистрация';
+        authToggleText.innerText = 'Уже есть аккаунт? Войти';
+        if (authResetText) authResetText.style.display = 'none'; // Скрываем "забыли пароль"
+        
+        // Показываем выбор роли («Кто вы?») и секретное слово
+        if (roleContainer) roleContainer.style.display = 'block';
+        if (secretAnswerInput) secretAnswerInput.style.display = 'block';
+        
+        // Прячем кнопку телеграм при регистрации (если регистрация только обычная)
+        if (tgDivider) tgDivider.style.display = 'none';
+        if (tgBtn) tgBtn.style.display = 'none';
+    } else {
+        // РЕЖИМ ВХОДА
+        authTitle.innerText = 'Вход в аккаунт';
+        authToggleText.innerText = 'Нет аккаунта? Зарегистрироваться';
+        if (authResetText) authResetText.style.display = 'block';
+        
+        // Скрываем выбор роли и секретное слово
+        if (roleContainer) roleContainer.style.display = 'none';
+        if (secretAnswerInput) secretAnswerInput.style.display = 'none';
+        
+        // Возвращаем кнопку телеграма для входа
+        if (tgDivider) tgDivider.style.display = 'flex';
+        if (tgBtn) tgBtn.style.display = 'flex';
+    }
+}
 
         function openAuthModal(mode) {
             const authPage = document.getElementById('auth-page');
@@ -1029,14 +1043,21 @@
 
         // Функция для показа окна входа (вызывается при клике на «Вход» на главной)
 function showAuthPage() {
-    // Показываем весь контейнер авторизации
-    const authPage = document.getElementById('auth-page');
-    if (authPage) {
-        authPage.style.display = 'flex'; // или 'block', в зависимости от ваших стилей
-    }
+    // Показываем окно
+    document.getElementById('auth-page').style.display = 'flex';
     
-    // Сбрасываем форму на режим Входа по умолчанию
-    resetAuthFormToLogin();
+    // Принудительно ставим режим входа
+    isRegisterMode = false;
+    
+    document.getElementById('auth-title').innerText = 'Вход в аккаунт';
+    document.getElementById('auth-toggle-text').innerText = 'Нет аккаунта? Зарегистрироваться';
+    document.getElementById('role-selection-container').style.display = 'none';
+    document.getElementById('secret_answer').style.display = 'none';
+    if (document.getElementById('auth-reset-text')) {
+        document.getElementById('auth-reset-text').style.display = 'block';
+    }
+    document.getElementById('tg-divider').style.display = 'flex';
+    document.getElementById('tg-login-btn').style.display = 'flex';
 }
 
 // Функция сброса формы в режим обычного входа
