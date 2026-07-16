@@ -598,95 +598,7 @@ async def upload_avatar(
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 
-@app.post("/api/albums/create")
-async def create_album(
-    title: str = Form(...),
-    description: str = Form(None),
-    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
-    price: int = Form(0),
-    files: list[UploadFile] = File(...),  # Используем list вместо List для Python 3.13
-    session_user: str = Depends(get_current_user)
-):
-    # 1. Проверяем роль пользователя в БД
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    cursor = db.cursor()
-    
-    # Так как get_current_user возвращает объект Row/кортеж (id, username), 
-    # достаем чистую строку username:
-    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
-    
-    cursor.execute("SELECT role FROM users WHERE username = ?", (username_str,))
-    user_row = cursor.fetchone()
-    
-    if not user_row or user_row[0] != 'model':
-        db.close()
-        raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
-    
-    # Получаем клиент Dropbox через твою функцию
-    dbx = get_dropbox_client()
-    if not dbx:
-        db.close()
-        raise HTTPException(status_code=500, detail="Dropbox клиент не инициализирован на сервере")
-    
-    # 2. Создаем запись альбома в БД
-    cursor.execute(
-        "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
-        (username_str, title, description, is_paid, price)
-    )
-    album_id = cursor.lastrowid
-    
-    # 3. Загружаем каждый файл в Dropbox
-    for file in files:
-        file_extension = os.path.splitext(file.filename)[1]
-        unique_filename = f"{uuid.uuid4()}{file_extension}"
-        
-        # Путь сохранения внутри твоего Dropbox аккаунта
-        dropbox_path = f"/albums/{username_str}/{unique_filename}"
-        
-        try:
-            # Читаем содержимое файла в память
-            file_bytes = await file.read()
-            
-            # Загружаем файл в Dropbox
-            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-            
-            # Создаем постоянную публичную ссылку для этого файла
-            try:
-                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-                raw_url = shared_link_metadata.url
-            except dropbox.exceptions.ApiError as e:
-                # Если ссылка уже существует, получаем её
-                if e.error.is_shared_link_already_exists():
-                    shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
-                    raw_url = shared_links.links[0].url
-                else:
-                    raise e
-            
-            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (?raw=1)
-            direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
-            
-            # Сохраняем прямую ссылку в локальную базу данных
-            cursor.execute(
-                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
-                (album_id, direct_photo_url)
-            )
-            
-        except Exception as upload_error:
-            db.rollback()
-            db.close()
-            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
-            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
-            
-    db.commit()
-    db.close()
-    
-    # Синхронизируем саму БД с Dropbox
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Dropbox DB sync error: {e}")
-        
-    return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
+
     
 async def check_channel_subscription(user_id: int) -> bool:
     try:
@@ -2029,6 +1941,96 @@ async def update_model_avatar(
         return {"status": "success", "avatar": direct_avatar_url}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка смены фото: {str(e)}")
+
+@app.post("/api/albums/create")
+async def create_album(
+    title: str = Form(...),
+    description: str = Form(None),
+    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
+    price: int = Form(0),
+    files: list[UploadFile] = File(...),  # Используем list вместо List для Python 3.13
+    session_user: str = Depends(get_current_user)
+):
+    # 1. Проверяем роль пользователя в БД
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    
+    # Так как get_current_user возвращает объект Row/кортеж (id, username), 
+    # достаем чистую строку username:
+    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+    
+    cursor.execute("SELECT role FROM users WHERE username = ?", (username_str,))
+    user_row = cursor.fetchone()
+    
+    if not user_row or user_row[0] != 'model':
+        db.close()
+        raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
+    
+    # Получаем клиент Dropbox через твою функцию
+    dbx = get_dropbox_client()
+    if not dbx:
+        db.close()
+        raise HTTPException(status_code=500, detail="Dropbox клиент не инициализирован на сервере")
+    
+    # 2. Создаем запись альбома в БД
+    cursor.execute(
+        "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
+        (username_str, title, description, is_paid, price)
+    )
+    album_id = cursor.lastrowid
+    
+    # 3. Загружаем каждый файл в Dropbox
+    for file in files:
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{uuid.uuid4()}{file_extension}"
+        
+        # Путь сохранения внутри твоего Dropbox аккаунта
+        dropbox_path = f"/albums/{username_str}/{unique_filename}"
+        
+        try:
+            # Читаем содержимое файла в память
+            file_bytes = await file.read()
+            
+            # Загружаем файл в Dropbox
+            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+            
+            # Создаем постоянную публичную ссылку для этого файла
+            try:
+                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                raw_url = shared_link_metadata.url
+            except dropbox.exceptions.ApiError as e:
+                # Если ссылка уже существует, получаем её
+                if e.error.is_shared_link_already_exists():
+                    shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                    raw_url = shared_links.links[0].url
+                else:
+                    raise e
+            
+            # Конвертируем ссылку Dropbox, чтобы она отдавала чистую картинку (?raw=1)
+            direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
+            
+            # Сохраняем прямую ссылку в локальную базу данных
+            cursor.execute(
+                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
+                (album_id, direct_photo_url)
+            )
+            
+        except Exception as upload_error:
+            db.rollback()
+            db.close()
+            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
+            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
+            
+    db.commit()
+    db.close()
+    
+    # Синхронизируем саму БД с Dropbox
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Dropbox DB sync error: {e}")
+        
+    return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
 
 @app.get("/api/public/model/{username}/albums")
 async def get_public_model_albums(username: str):
