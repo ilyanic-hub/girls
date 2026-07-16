@@ -598,25 +598,6 @@ async def upload_avatar(
 
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 
-@app.get("/api/me")
-async def get_me(current_user = Depends(get_current_user)):
-    """
-    Возвращает данные текущего авторизованного пользователя.
-    """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Не авторизован"
-        )
-    
-    # Возвращаем данные, которые ты видела в консоли браузера
-    return {
-        "id": current_user["id"],
-"username": current_user["username"],
-"balance": current_user["balance"],
-"is_admin": current_user["is_admin"],
-"role": current_user["role"]
-    }
 
     
 async def check_channel_subscription(user_id: int) -> bool:
@@ -850,7 +831,6 @@ async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     except Exception as e:
         return {"status": "error", "message": f"Ошибка удаления: {str(e)}"}
 
-import traceback
 
 def check_and_rotate_round(db):
     cursor = db.cursor()
@@ -1261,7 +1241,7 @@ async def add_comment(contestant_id: int, data: dict, session_user: Optional[str
 
 @app.post("/api/auth/tg-generate")
 async def generate_tg_link():
-    import secrets
+    
     code = secrets.token_hex(8)
     
     try:
