@@ -919,38 +919,21 @@
 
         async function checkAuth() {
     try {
-        console.log("Запуск checkAuth...");
         const response = await fetch('/api/me');
-        console.log("Ответ от сервера:", response.status);
+        // ЧИТАЕМ ТЕЛО ОТВЕТА, ЧТОБЫ УВИДЕТЬ, ЧТО ПРИШЛО
+        const data = await response.json(); 
+        console.log("ПОЛУЧИЛИ ОТ СЕРВЕРА:", data);
         
         const buttonsContainer = document.getElementById('auth-buttons');
 
         if (response.ok) {
-            const user = await response.json();
-            console.log("Данные пользователя:", user);
-            
-            currentUserRole = user.role; 
-            showUserUI(user, buttonsContainer);
-            
-            // --- ВАЖНЫЙ ДОБАВОЧНЫЙ КОД ДЛЯ ТЕСТА ---
-            // Принудительно показываем основной контент, если авторизация успешна
-            const mainPage = document.getElementById('main-page');
-            if (mainPage) mainPage.style.display = 'block'; 
+            // ... остальной код
         } else {
-            console.log("Пользователь не авторизован (гость)");
-            currentUserRole = 'guest';
-            if (buttonsContainer) {
-                buttonsContainer.innerHTML = `
-                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                    <button onclick="openModal('register')" class="btn">Регистрация</button>
-                `;
-            }
-            // Также принудительно показываем основной контент, чтобы не было пустоты
-            const mainPage = document.getElementById('main-page');
-            if (mainPage) mainPage.style.display = 'block';
+            console.warn("Сервер ответил, что пользователь не авторизован:", data);
+            // ... остальной код
         }
     } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
+        console.error("КРИТИЧЕСКАЯ ОШИБКА:", error);
     }
 }
         function checkAge(event) {
