@@ -574,6 +574,8 @@
     </style>
 </head>
 <body>
+
+    
     
     <!-- БОКОВОЕ МЕНЮ (ПК версия) -->
     <aside class="sidebar" id="main-sidebar" style="display: none;">
@@ -601,7 +603,9 @@
                 text-decoration: none; 
                 box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
                 transition: all 0.3s ease;
-            " onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='#fff'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';"
+            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard')" style="display: none;">
+    👤 Личный кабинет
+</button>
                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
                 🔞 Контент 18+
             </a>
@@ -625,6 +629,10 @@
         <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
             <span>🔞</span>18+
         </a>
+        <button id="mobile-menu-model-dashboard" onclick="showTab('model-dashboard')" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+    <span>👤</span>
+    <span>Кабинет</span>
+</button>
     </div>
 
     <div class="main-wrapper">
@@ -918,6 +926,38 @@
                 document.getElementById('ageVerifyModal').style.display = 'flex';
             }
         }
+
+        function showTab(tabId) {
+    // Список всех основных разделов контента
+    const tabs = ['tab-rating', 'tab-models', 'tab-announcements', 'tab-top', 'tab-earn', 'tab-wallet', 'model-dashboard'];
+    
+    tabs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    const activeTab = document.getElementById(tabId);
+    if (activeTab) {
+        // Если это кабинет модели, задаем ему flex или block для корректного отображения
+        if (tabId === 'model-dashboard') {
+            activeTab.style.display = 'block';
+            loadModelDashboard(); // Вызов загрузки данных профиля и альбомов из Dropbox
+        } else {
+            activeTab.style.display = 'block';
+        }
+    }
+
+    // Снимаем активный класс со всех кнопок меню
+    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Подсвечиваем активную кнопку
+    const activeBtn = document.querySelector(`button[onclick="showTab('${tabId}')"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Закрываем мобильное меню, если оно было открыто
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) sidebar.classList.remove('open');
+}
 
         // Открытие окна создания альбома
 function openCreateAlbumModal() {
