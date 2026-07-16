@@ -603,8 +603,8 @@
                 text-decoration: none; 
                 box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
                 transition: all 0.3s ease;
-            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard')" style="display: none;">
-    👤 Личный кабинет
+            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard')" style="display: none; align-items: center; gap: 10px;">
+    <span>👤</span> Личный кабинет
 </button>
                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
                 🔞 Контент 18+
@@ -1120,7 +1120,6 @@ function closeCreateAlbumModal() {
 }
 
 function showUserUI(user, buttonsContainer) {
-    // Отображаем кнопку профиля или выхода в панели авторизации
     if (buttonsContainer) {
         buttonsContainer.innerHTML = `
             <div style="display: flex; align-items: center; gap: 10px;">
@@ -1130,77 +1129,29 @@ function showUserUI(user, buttonsContainer) {
         `;
     }
 
-    // Проверяем роль вошедшего пользователя
+    // Если вошла модель
     if (user.role === 'model') {
-        // 1. Показываем кнопку "Личный кабинет" в боковом меню (для ПК)
-        const menuDashboard = document.getElementById('menu-model-dashboard');
-        if (menuDashboard) {
-            menuDashboard.style.display = 'flex';
-        }
-
-        // 2. Показываем кнопку "Кабинет" в нижнем меню (для мобильных устройств)
-        const mobileMenuDashboard = document.getElementById('mobile-menu-model-dashboard');
-        if (mobileMenuDashboard) {
-            mobileMenuDashboard.style.display = 'flex';
-        }
-
-        // 3. Показываем кнопку создания объявлений
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
         const createBtn = document.getElementById('model-create-btn');
-        if (createBtn) {
-            createBtn.style.display = 'block';
-        }
+
+        // Показываем кнопку в ПК-меню с правильным стилем flex
+        if (pcBtn) pcBtn.style.display = 'flex';
+        // Показываем кнопку в мобильном меню
+        if (mobileBtn) mobileBtn.style.display = 'flex';
+        // Показываем кнопку создания объявлений
+        if (createBtn) createBtn.style.display = 'block';
     } else {
-        // Если зашел обычный пользователь, скрываем кабинет и кнопку объявлений
-        const menuDashboard = document.getElementById('menu-model-dashboard');
-        const mobileMenuDashboard = document.getElementById('mobile-menu-model-dashboard');
+        // Если вошел обычный пользователь — скрываем кабинет
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
         const createBtn = document.getElementById('model-create-btn');
 
-        if (menuDashboard) menuDashboard.style.display = 'none';
-        if (mobileMenuDashboard) mobileMenuDashboard.style.display = 'none';
+        if (pcBtn) pcBtn.style.display = 'none';
+        if (mobileBtn) mobileBtn.style.display = 'none';
         if (createBtn) createBtn.style.display = 'none';
     }
 }
-        async function checkAuth() {
-            try {
-                let res = await fetch('/api/me');
-                
-                const mainSidebar = document.getElementById('main-sidebar');
-                const mobileNav = document.getElementById('mobile-nav-bar');
-                const mainPage = document.getElementById('main-page');
-                const authPage = document.getElementById('auth-page');
-                
-                if (authPage) authPage.style.display = 'none';
-                if (mainSidebar) mainSidebar.style.display = 'flex';
-                if (mobileNav) mobileNav.style.display = 'flex';
-                if (mainPage) mainPage.style.display = 'flex';
-
-                const buttonsContainer = document.getElementById('auth-buttons-container');
-                
-                if (res.ok) {
-                    let user = await res.json();
-                    if (user && user.username && user.username !== "Гость") {
-                        showUserUI(user, buttonsContainer);
-                    } else {
-                        showGuestUI(buttonsContainer);
-                    }
-                } else {
-                    showGuestUI(buttonsContainer);
-                }
-                
-                loadContestants();
-
-                if (window.location.hash === '#register' || window.location.href.includes('#register')) {
-                    history.replaceState(null, null, ' ');
-                    openAuthModal('register');
-                }
-
-            } catch (err) {
-                console.error("Ошибка при проверке статуса:", err);
-                const buttonsContainer = document.getElementById('auth-buttons-container');
-                showGuestUI(buttonsContainer);
-                loadContestants();
-            }
-        }
 
         function openWithdrawModal() {
             let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
@@ -1895,44 +1846,41 @@ async function loadModelDashboard() {
         
         const data = await response.json();
         
-        // Показываем кабинет и скрываем главную страницу
-        document.getElementById('model-dashboard').style.display = 'block';
-        if(document.getElementById('main-page')) document.getElementById('main-page').style.display = 'none';
+        // Заполняем данные профиля модели (если элементы есть на странице)
+        const nameEl = document.getElementById('model-dash-name');
+        const avatarEl = document.getElementById('model-dash-avatar');
+        const balanceEl = document.getElementById('model-dash-balance');
         
-        // Заполняем данные
-        document.getElementById('model-dash-name').innerText = data.profile.username;
-        document.getElementById('model-dash-balance').innerText = data.profile.balance;
-        if (data.profile.avatar) {
-            document.getElementById('model-dash-avatar').src = data.profile.avatar;
-        }
-
-        // Рендерим альбомы
-        const listContainer = document.getElementById('model-albums-list');
-        listContainer.innerHTML = '';
+        if (nameEl) nameEl.innerText = data.profile.username;
+        if (avatarEl && data.profile.avatar) avatarEl.src = data.profile.avatar;
+        if (balanceEl) balanceEl.innerText = data.profile.balance;
         
-        if (data.albums.length === 0) {
-            listContainer.innerHTML = '<p style="color: #a0aec0; text-align: center;">У вас пока нет альбомов.</p>';
-        } else {
+        // Отрисовываем её альбомы
+        const grid = document.getElementById('model-albums-list'); // или 'model-albums-grid'
+        if (grid) {
+            grid.innerHTML = '';
+            if (data.albums.length === 0) {
+                grid.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">У вас еще нет альбомов.</p>';
+                return;
+            }
+            
             data.albums.forEach(album => {
-                const cover = album.photos.length > 0 ? album.photos[0] : 'https://via.placeholder.com/60';
-                listContainer.innerHTML += `
-                    <div style="display: flex; align-items: center; justify-content: space-between; background: #f7fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0;">
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <img src="${cover}" style="width: 50px; height: 50px; border-radius: 8px; object-fit: cover;">
+                const cover = album.photos && album.photos.length > 0 ? album.photos[0] : 'https://via.placeholder.com/150';
+                grid.innerHTML += `
+                    <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;">
                             <div>
-                                <h4 style="margin: 0; color: #2d3748;">${album.title}</h4>
-                                <span style="font-size: 0.75rem; color: ${album.is_paid ? '#ff4757' : '#48bb78'}; font-weight: bold;">
-                                    ${album.is_paid ? `Платный (${album.price} коинов)` : 'Бесплатный'}
-                                </span>
+                                <h4 style="margin: 0; color: var(--text-main);">${album.title}</h4>
+                                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
                             </div>
                         </div>
-                        <span style="font-size: 0.85rem; color: #a0aec0;">Фотографий: ${album.photos.length}</span>
                     </div>
                 `;
             });
         }
-    } catch (e) {
-        console.error("Ошибка загрузки кабинета модели", e);
+    } catch (err) {
+        console.error("Ошибка при загрузке кабинета модели:", err);
     }
 }
 
