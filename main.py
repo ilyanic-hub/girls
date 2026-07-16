@@ -225,7 +225,7 @@ async def startup_event():
     db.close()
 
     # 2. Запускаем бота в фоновом режиме
-    asyncio.create_task(dp.start_polling(bot))
+    # asyncio.create_task(dp.start_polling(bot))
 
 def get_db():
     db = sqlite3.connect(DB_LOCAL_PATH, check_same_thread=False)
