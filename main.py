@@ -599,25 +599,23 @@ async def upload_avatar(
 # ================= РОУТЫ СТРАНИЦ СЕРВЕРА =================
 
 @app.get("/api/me")
-async def get_me(current_user = Depends(get_current_user)):
-    """
-    Возвращает данные текущего авторизованного пользователя.
-    """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Не авторизован"
-        )
+async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
+        
+    cursor = db.cursor()
+    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (session_user,))
+    user_row = cursor.fetchone()
     
-    # Возвращаем данные, которые ты видела в консоли браузера
+    if not user_row:
+        return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
+        
     return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "balance": current_user.balance,
-        "is_admin": current_user.is_admin,
-        "role": current_user.role # 'model', 'user' или 'guest'
-    }
-
+        "id": user_row["id"],
+        "username": user_row["username"],
+        "balance": user_row["balance"],
+        "is_admin": user_row["is_admin"],
+        "role": user_row["role"] if user_row["role"] else "user"
 
     
 async def check_channel_subscription(user_id: int) -> bool:
