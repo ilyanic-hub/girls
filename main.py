@@ -51,9 +51,7 @@ CHANNEL_ID = "@photo_rating_club"  # Твой канал
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
 
-# Инициализируем бота
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+
 
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
