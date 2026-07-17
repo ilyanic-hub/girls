@@ -1254,25 +1254,11 @@ function showUserUI(user, buttonsContainer) {
             }
         }
 
-        async function logout() {
-    try {
-        await fetch('/api/logout', { method: 'POST' });
-        
-        // Скрываем элементы кабинета при выходе
-        const menuDashboard = document.getElementById('menu-model-dashboard');
-        const mobileMenuDashboard = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        if (menuDashboard) menuDashboard.style.display = 'none';
-        if (mobileMenuDashboard) mobileMenuDashboard.style.display = 'none';
-        if (createBtn) createBtn.style.display = 'none';
-
-        // Перенаправляем на главную
-        showTab('tab-rating');
-        checkAuth();
-    } catch (err) {
-        console.error("Ошибка при выходе:", err);
-    }
+        function logout() {
+    // Удаляем пометку о входе
+    localStorage.removeItem('isLoggedIn');
+    // Перенаправляем на авторизацию или просто перезагружаем страницу
+    window.location.reload();
 }
 
         async function loadContestants() {
