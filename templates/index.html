@@ -1261,37 +1261,54 @@ function showUserUI(user, buttonsContainer) {
         }
 
         function logout() {
+    console.log("Выполняется выход из аккаунта...");
+
     // 1. Стираем статус авторизации
     localStorage.removeItem('isLoggedIn');
-    
-    // 2. Сбрасываем данные пользователя в шапке на "Гостя"
+
+    // 2. Возвращаем дефолтные значения шапки
     const userNameEl = document.getElementById('user-name');
     const userBalanceEl = document.getElementById('user-balance');
     const avatarDefaultEl = document.getElementById('user-avatar-default');
     const avatarImgEl = document.getElementById('user-avatar-img');
-    const modelDashboardBtn = document.getElementById('menu-model-dashboard');
-    const mobileModelDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
 
     if (userNameEl) userNameEl.textContent = 'Гость';
     if (userBalanceEl) userBalanceEl.textContent = '0';
     if (avatarDefaultEl) avatarDefaultEl.style.display = 'flex';
-    if (avatarImgEl) avatarImgEl.style.display = 'none';
-    
-    // Скрываем кнопки личного кабинета, так как гостю они не положены
-    if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
-    if (mobileModelDashboardBtn) mobileModelDashboardBtn.style.display = 'none';
-
-    // 3. Переключаем вкладку на главную (галерею), чтобы гость точно оказался на ней
-    if (typeof showTab === 'function') {
-        showTab('tab-gallery');
+    if (avatarImgEl) {
+        avatarImgEl.style.display = 'none';
+        avatarImgEl.src = '';
     }
 
-    // 4. Перезагружаем галерею под гостевой сессией
+    // 3. Возвращаем кнопки "Войти / Регистрация" в шапку
+    const buttonsContainer = document.getElementById('auth-buttons-container');
+    showGuestUI(buttonsContainer);
+
+    // 4. Скрываем приватные кнопки ЛК моделей
+    const modelDashboardBtn = document.getElementById('menu-model-dashboard');
+    if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
+    
+    const mobileModelDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
+    if (mobileModelDashboardBtn) mobileModelDashboardBtn.style.display = 'none';
+
+    // 5. Оставляем пользователя на главной
+    const mainPage = document.getElementById('main-page');
+    if (mainPage) mainPage.style.display = 'flex';
+
+    const authPage = document.getElementById('auth-page');
+    if (authPage) authPage.style.display = 'none';
+
+    if (typeof showTab === 'function') {
+        try {
+            showTab('tab-gallery');
+        } catch(e) {}
+    }
+
+    // 6. Загружаем фотографии заново для гостевого режима
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
 }
-
         async function loadContestants() {
     console.log("Попытка загрузить конкурсанток...");
     
