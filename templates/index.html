@@ -628,8 +628,9 @@
     <div class="main-wrapper" style="padding-bottom: 80px;"> <!-- Отступ снизу для мобильного меню -->
 
         <!-- Страница авторизации (ПО УМОЛЧАНИЮ ПОКАЗАНА: display: block) -->
-        <div id="auth-page" class="auth-container" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(248, 250, 252, 0.95); z-index: 9999; justify-content: center; align-items: center; box-sizing: border-box; padding: 20px;">
-            <div class="auth-box">
+        <div id="auth-page" class="auth-container" style="display: none; min-height: 100vh; width: 100%; justify-content: center; align-items: center; box-sizing: border-box; padding: 20px;">
+            
+            <div class="auth-box" style="margin: 10vh auto auto auto; max-width: 400px; width: 100%;">
                 <h2 id="auth-title">Вход в аккаунт</h2>
                 <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
                     <input type="text" name="fake_username_remembered" style="display:none;">
