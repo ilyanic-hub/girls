@@ -578,8 +578,8 @@
     <aside class="sidebar" id="main-sidebar">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
-            <a href="#" onclick="('tab-gallery', event)">🏠 Главная</a>
-            <a href="#" onclick="('tab-announcements', event)" style="position: relative;">
+            <a href="#" onclick="switchTab('tab-gallery', event)">🏠 Главная</a>
+            <a href="#" onclick="switchTab('tab-announcements', event)" style="position: relative;">
                 📢 Объявления
                 <span id="announcements-badge" style="display:none; background: var(--accent); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; position: absolute; right: 10px;">NEW</span>
             </a>
@@ -588,7 +588,7 @@
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
     
             <!-- Кнопка Личного кабинета -->
-            <button id="menu-model-dashboard" class="sidebar-btn" onclick="('model-dashboard', event)" style="display: none; align-items: center; gap: 10px; width: 100%; padding: 10px; background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px; cursor: pointer; text-align: left; margin-top: 15px;">
+            <button id="menu-model-dashboard" class="sidebar-btn" onclick="switchTab('model-dashboard', event)" style="display: none; align-items: center; gap: 10px; width: 100%; padding: 10px; background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px; cursor: pointer; text-align: left; margin-top: 15px;">
                 <span>👤</span> Личный кабинет
             </button>
 
@@ -604,10 +604,10 @@
 
     <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
     <nav class="mobile-nav" id="mobile-navigation" style="display: flex; justify-content: space-around; align-items: center; position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e2e8f0; padding: 10px 0; z-index: 1000;">
-        <a href="#" onclick="('tab-gallery', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
+        <a href="#" onclick="switchTab('tab-gallery', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>🏠</span>Главная
         </a>
-        <a href="#" onclick="('tab-announcements', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
+        <a href="#" onclick="switchTab('tab-announcements', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>📢</span>Объявления
         </a>
         <a href="/models" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
@@ -619,7 +619,7 @@
         <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #ff4757; font-weight: bold; font-size: 0.75rem;">
             <span>🔞</span>18+
         </a>
-        <button id="mobile-menu-model-dashboard" onclick="('model-dashboard', event)" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+        <button id="mobile-menu-model-dashboard" onclick="switchTab('model-dashboard', event)" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
             <span>👤</span>
             <span>Кабинет</span>
         </button>
