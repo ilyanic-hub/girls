@@ -2226,24 +2226,27 @@ window.onload = function() {
 });
 
     function checkAuthOnLoad() {
+    // Проверяем именно тот ключ, который мы стираем!
     const isLoggedIn = localStorage.getItem('isLoggedIn');
 
-    // Главная страница активна в любом случае!
-    document.getElementById('main-page').style.display = 'flex';
-    document.getElementById('auth-page').style.display = 'none';
-
     if (isLoggedIn === 'true') {
-        // Здесь твоя логика для авторизованного юзера (показ баланса, имени и т.д.)
-        // Например, если у тебя есть функция loadUserData()
+        // Пользователь авторизован
+        document.getElementById('main-page').style.display = 'flex';
+        document.getElementById('auth-page').style.display = 'none';
+        
+        // (Опционально) Подгружаем данные пользователя, если есть такая функция
         if (typeof loadUserData === 'function') {
             loadUserData();
         }
     } else {
-        // Логика для гостя
-        console.log("Пользователь зашел как гость");
+        // Гость
+        document.getElementById('main-page').style.display = 'flex';
+        document.getElementById('auth-page').style.display = 'none';
+        
+        const buttonsContainer = document.getElementById('auth-buttons-container');
+        showGuestUI(buttonsContainer);
     }
 
-    // В любом случае загружаем галерею участниц для просмотра
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
