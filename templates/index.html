@@ -696,27 +696,30 @@
     </div>
 
     <!-- ==================== БЛОК ДЛЯ АВТОРИЗОВАННОГО (По умолчанию скрыт) ==================== -->
-    <div id="header-user-block" style="display: none; align-items: center; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <!-- Аватарка -->
-            <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
-                <span id="user-avatar-default" style="font-size: 14px;">👤</span>
-                <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-            </div>
-            <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
-            
-            <!-- Имя и Баланс -->
-            <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
-                <b id="user-name" style="color: var(--accent);">Goblin</b> 
-                <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
-                💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
-            </div>
+<div id="header-user-block" style="display: none; align-items: center; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <!-- Аватарка -->
+        <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
+            <span id="user-avatar-default" style="font-size: 14px;">👤</span>
+            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
         </div>
-
-        <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-        <button id="-btn" class="btn-deposit" onclick="()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
+        <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
+        
+        <!-- Имя и Баланс -->
+        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+            <b id="user-name" style="color: var(--accent);">Goblin</b> 
+            <span style="margin: 0 4px; color: #cbd5e0;">|</span> 
+            💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
+        </div>
     </div>
 
+    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+    <!-- ИСПРАВЛЕНО: id="logout-btn" и onclick="logout()" -->
+    <button id="logout-btn" class="btn-deposit" onclick="logout()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
+</div>
+
+<!-- Резервный контейнер (теперь он будет пустой и скрытый при входе, чтобы ничего не ломать) -->
+<div id="auth-buttons-container" style="display: none;"></div>
     <!-- Резервный контейнер, если он используется твоими скриптами -->
     <div id="auth-buttons-container" style="display: none;"></div>
 </div>
@@ -1214,31 +1217,26 @@
 }
 
 function showUserUI(user, buttonsContainer) {
-    if (!buttonsContainer) return;
-    
-    // Полностью перезаписываем контейнер, убирая любые старые кнопки входа или надписи "Гость"
-    buttonsContainer.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <!-- Блок баланса и пользователя (отображается только для вошедшего) -->
-            <div style="display: flex; align-items: center; gap: 8px; border: 1px solid rgba(0,0,0,0.08); padding: 4px 10px; border-radius: 20px;">
-                <span id="user-avatar-default" class="avatar-circle" style="background: #e2e8f0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.8rem;">👤</span>
-                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
-            </div>
-            
-            <!-- Кнопка Выйти -->
-            <button id="-btn-header" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
-                Выйти
-            </button>
-        </div>
-    `;
+    // 1. Скрываем резервный контейнер, так как кнопка выхода у нас теперь в основном HTML-блоке
+    if (buttonsContainer) {
+        buttonsContainer.style.display = 'none';
+        buttonsContainer.innerHTML = ''; 
+    }
 
-    // Вешаем событие клика на свежесозданную кнопку выхода
-    const Btn = document.getElementById('-btn-header');
-    if (Btn) {
-        Btn.addEventListener('click', function(event) {
-            event.preventDefault();
-            ();
-        });
+    // 2. Обновляем текстовые данные на странице
+    const userNameEl = document.getElementById('user-name');
+    const userBalanceEl = document.getElementById('user-balance');
+
+    if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
+    if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
+
+    // 3. Обновляем аватарку
+    const avatarImgEl = document.getElementById('user-avatar-img');
+    const avatarDefaultEl = document.getElementById('user-avatar-default');
+    if (user.avatar && avatarImgEl && avatarDefaultEl) {
+        avatarImgEl.src = user.avatar;
+        avatarImgEl.style.display = 'block';
+        avatarDefaultEl.style.display = 'none';
     }
 }
 
