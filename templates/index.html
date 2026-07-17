@@ -1255,24 +1255,34 @@ function showUserUI(user, buttonsContainer) {
         }
 
         function logout() {
-    // 1. Стираем статус авторизации из памяти браузера
+    // 1. Стираем статус авторизации
     localStorage.removeItem('isLoggedIn');
     
-    // 2. Скрываем основной контент сайта
-    document.getElementById('main-page').style.display = 'none';
+    // 2. Сбрасываем данные пользователя в шапке на "Гостя"
+    const userNameEl = document.getElementById('user-name');
+    const userBalanceEl = document.getElementById('user-balance');
+    const avatarDefaultEl = document.getElementById('user-avatar-default');
+    const avatarImgEl = document.getElementById('user-avatar-img');
+    const modelDashboardBtn = document.getElementById('menu-model-dashboard');
+    const mobileModelDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
+
+    if (userNameEl) userNameEl.textContent = 'Гость';
+    if (userBalanceEl) userBalanceEl.textContent = '0';
+    if (avatarDefaultEl) avatarDefaultEl.style.display = 'flex';
+    if (avatarImgEl) avatarImgEl.style.display = 'none';
     
-    // 3. Показываем окно авторизации прямо здесь же, без перезагрузки страницы
-    document.getElementById('auth-page').style.display = 'block';
-    
-    // 4. Очищаем поля ввода, чтобы данные старого сеанса не оставались на экране
-    document.getElementById('username').value = '';
-    document.getElementById('password').value = '';
-    
-    // (Опционально) Если у тебя было открыто секретное поле, скрываем его
-    const secretInput = document.getElementById('secret_answer');
-    if (secretInput) {
-        secretInput.value = '';
-        secretInput.style.display = 'none';
+    // Скрываем кнопки личного кабинета, так как гостю они не положены
+    if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
+    if (mobileModelDashboardBtn) mobileModelDashboardBtn.style.display = 'none';
+
+    // 3. Переключаем вкладку на главную (галерею), чтобы гость точно оказался на ней
+    if (typeof showTab === 'function') {
+        showTab('tab-gallery');
+    }
+
+    // 4. Перезагружаем галерею под гостевой сессией
+    if (typeof loadContestants === 'function') {
+        loadContestants();
     }
 }
 
