@@ -938,29 +938,72 @@
         }
 
         async function checkAuth() {
-            try {
-                const response = await fetch('/api/me'); 
-                const buttonsContainer = document.getElementById('auth-buttons-container'); 
+    try {
+        const response = await fetch('/api/me'); 
+        const buttonsContainer = document.getElementById('auth-buttons-container'); 
+        
+        // Получаем наши новые блоки управления отображением в шапке
+        const guestBlock = document.getElementById('header-guest-block');
+        const userBlock = document.getElementById('header-user-block');
+        
+        // Кнопки личного кабинета в боковом и мобильном меню
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
 
-                if (response.ok) {
-                    const user = await response.json();
-                    currentUserRole = user.role; 
-                    showUserUI(user, buttonsContainer);
-                } else {
-                    currentUserRole = 'guest';
-                    if (buttonsContainer) {
-                        buttonsContainer.innerHTML = `
-                            <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                            <button onclick="openModal('register')" class="btn">Регистрация</button>
-                        `;
-                    }
-                    const pcBtn = document.getElementById('menu-model-dashboard');
-                    if (pcBtn) pcBtn.style.display = 'none';
-                }
-            } catch (error) {
-                console.error("Ошибка при проверке авторизации:", error);
+        if (response.ok) {
+            const user = await response.json();
+            currentUserRole = user.role; 
+
+            // 1. Показываем блок авторизованного юзера, скрываем гостя
+            if (guestBlock) guestBlock.style.display = 'none';
+            if (userBlock) userBlock.style.display = 'flex';
+
+            // 2. Обновляем имя и баланс динамическими данными с сервера
+            const userNameEl = document.getElementById('user-name');
+            const userBalanceEl = document.getElementById('user-balance');
+            if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
+            if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
+
+            // 3. Если у тебя настроен вывод аватарки
+            const avatarImgEl = document.getElementById('user-avatar-img');
+            const avatarDefaultEl = document.getElementById('user-avatar-default');
+            if (user.avatar && avatarImgEl && avatarDefaultEl) {
+                avatarImgEl.src = user.avatar;
+                avatarImgEl.style.display = 'block';
+                avatarDefaultEl.style.display = 'none';
             }
+
+            // 4. Управляем кнопками Личного Кабинета (показываем только моделям/админам, если нужно, либо всем вошедшим)
+            // Если кабинет доступен только моделям, раскомментируй проверку: if (user.role === 'model')
+            if (pcBtn) pcBtn.style.display = 'flex';
+            if (mobileBtn) mobileBtn.style.display = 'flex';
+
+            // Вызываем твою стандартную функцию UI (если она делает дополнительные действия)
+            if (typeof showUserUI === 'function') {
+                showUserUI(user, buttonsContainer);
+            }
+
+        } else {
+            // --- ПОЛЬЗОВАТЕЛЬ НЕ АВТОРИЗОВАН (ГОСТЬ) ---
+            currentUserRole = 'guest';
+
+            // 1. Показываем блок гостя, скрываем блок юзера
+            if (guestBlock) guestBlock.style.display = 'flex';
+            if (userBlock) userBlock.style.display = 'none';
+
+            // 2. Очищаем контейнер динамических кнопок (чтобы не дублировались)
+            if (buttonsContainer) {
+                buttonsContainer.innerHTML = ''; 
+            }
+
+            // 3. Скрываем кнопки личного кабинета в меню
+            if (pcBtn) pcBtn.style.display = 'none';
+            if (mobileBtn) mobileBtn.style.display = 'none';
         }
+    } catch (error) {
+        console.error("Ошибка при проверке авторизации:", error);
+    }
+}
 
         function checkAge(event) {
             event.preventDefault();
