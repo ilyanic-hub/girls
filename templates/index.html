@@ -1317,27 +1317,40 @@ function showUserUI(user, buttonsContainer) {
             }
             else { 
                 // --- ВХОД УСПЕШЕН ---
-                // 1. Запоминаем статус входа
+                // 1. Запоминаем статус входа (снимает блокировку в checkAuth)
                 localStorage.setItem('isLoggedIn', 'true');
                 
-                // Если бэкенд вернул токен, сохраняем его точечно!
+                // Если бэкенд вернул токен, сохраняем его
                 if (data.access_token) {
                     localStorage.setItem('token', data.access_token);
                 } else if (data.token) {
                     localStorage.setItem('token', data.token);
                 }
 
-                // 2. Прячем окно авторизации и показываем главную
-                document.getElementById('auth-page').style.display = 'none';
-                document.getElementById('main-page').style.display = 'flex';
+                // 2. Мгновенно запускаем получение актуального профиля и отрисовку шапки
+                if (typeof checkAuth === 'function') {
+                    await checkAuth();
+                }
 
-                // 3. Рисуем UI вошедшего юзера в шапке
-                const buttonsContainer = document.getElementById('auth-buttons-container');
-                showUserUI({ username: u }, buttonsContainer);
+                // 3. Прячем окно авторизации и показываем главную страницу
+                const authPage = document.getElementById('auth-page');
+                if (authPage) authPage.style.display = 'none';
 
-                // 4. Загружаем карточки
+                const mainPage = document.getElementById('main-page');
+                if (mainPage) mainPage.style.display = 'flex';
+
+                // 4. Загружаем карточки конкурсанток
                 if (typeof loadContestants === 'function') {
                     loadContestants();
+                }
+
+                // 5. Переключаемся на вкладку галереи
+                if (typeof switchTab === 'function') {
+                    try {
+                        switchTab('tab-gallery');
+                    } catch(e) {
+                        console.error("Ошибка при авто-переключении вкладки:", e);
+                    }
                 }
             }
         } else { 
