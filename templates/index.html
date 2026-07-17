@@ -1142,13 +1142,47 @@
 
 function showUserUI(user, buttonsContainer) {
     if (buttonsContainer) {
-        buttonsContainer.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
-                <button onclick="logout()" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444;">Выйти</button>
-            </div>
-        `;
+        // 1. Очищаем контейнер
+        buttonsContainer.innerHTML = '';
+
+        // 2. Создаем контейнер-обертку
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.gap = '10px';
+
+        // 3. Создаем спан с именем пользователя
+        const usernameSpan = document.createElement('span');
+        usernameSpan.style.fontWeight = 'bold';
+        usernameSpan.style.color = 'var(--text-main)';
+        usernameSpan.textContent = user.username;
+
+        // 4. Создаем саму кнопку выхода
+        const logoutBtn = document.createElement('button');
+        logoutBtn.className = 'btn btn-sec';
+        logoutBtn.style.padding = '6px 12px';
+        logoutBtn.style.fontSize = '0.85rem';
+        logoutBtn.style.width = 'auto';
+        logoutBtn.style.margin = '0';
+        logoutBtn.style.backgroundColor = '#fee2e2';
+        logoutBtn.style.color = '#ef4444';
+        logoutBtn.style.border = 'none';
+        logoutBtn.style.borderRadius = '6px';
+        logoutBtn.style.cursor = 'pointer';
+        logoutBtn.textContent = 'Выйти';
+
+        // Прямое и надежное связывание с функцией logout
+        logoutBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            logout();
+        });
+
+        // 5. Собираем всё вместе и добавляем на страницу
+        wrapper.appendChild(usernameSpan);
+        wrapper.appendChild(logoutBtn);
+        buttonsContainer.appendChild(wrapper);
     }
+}
 
     // Если вошла модель
     if (user.role === 'model') {
