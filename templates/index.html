@@ -1214,113 +1214,123 @@ function showUserUI(user, buttonsContainer) {
         }
 
         async function submitAuth() {
-            let u = document.getElementById('username').value;
-            let p = document.getElementById('password').value;
-            let s = document.getElementById('secret_answer').value;
-            let url = '/api/login';
-            let bodyData = { username: u, password: p };
+    let u = document.getElementById('username').value;
+    let p = document.getElementById('password').value;
+    let s = document.getElementById('secret_answer').value;
+    let url = '/api/login';
+    let bodyData = { username: u, password: p };
 
-            if (authMode === 'register') { 
-                url = '/api/register'; 
-                bodyData.secret_answer = s;
-                bodyData.role = selectedRole;
-            }
-            else if (authMode === 'reset') { 
-                url = '/api/reset-password';
-                bodyData = { username: u, secret_answer: s, new_password: p };
-            }
+    if (authMode === 'register') { 
+        url = '/api/register'; 
+        bodyData.secret_answer = s;
+        bodyData.role = selectedRole;
+    }
+    else if (authMode === 'reset') { 
+        url = '/api/reset-password';
+        bodyData = { username: u, secret_answer: s, new_password: p };
+    }
 
-            let res = await fetch(url, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(bodyData)
-            });
-            let data = await res.json();
-            if (res.ok) {
-                if (authMode === 'register' || authMode === 'reset') { 
-                    alert("Успешно! Теперь войдите.");
-                    authMode = 'login'; 
-                    toggleAuthMode(); 
-                }
-                else { 
-                    // 1. Запоминаем в браузере, что мы вошли
-                    localStorage.setItem('isLoggedIn', 'true');
-                    
-                    // 2. Переключаем экраны
-                    document.getElementById('auth-page').style.display = 'none';
-                    document.getElementById('main-page').style.display = 'flex'; // или 'block'
-                    
-                    // 3. Загружаем данные
-                    if (typeof loadContestants === 'function') {
-                        loadContestants();
-                    }
-                }
-            } else { 
-                alert("Ошибка: " + data.detail);
+    try {
+        let res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(bodyData)
+        });
+        
+        let data = await res.json();
+        
+        if (res.ok) {
+            if (authMode === 'register' || authMode === 'reset') { 
+                alert("Успешно! Теперь войдите.");
+                authMode = 'login'; 
+                if (typeof toggleAuthMode === 'function') toggleAuthMode(); 
             }
+            else { 
+                // --- ВХОД УСПЕШЕН ---
+                // 1. Запоминаем статус входа
+                localStorage.setItem('isLoggedIn', 'true');
+                
+                // Если бэкенд вернул токен, сохраняем его точечно!
+                if (data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                } else if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
+
+                // 2. Прячем окно авторизации и показываем главную
+                document.getElementById('auth-page').style.display = 'none';
+                document.getElementById('main-page').style.display = 'flex';
+
+                // 3. Рисуем UI вошедшего юзера в шапке
+                const buttonsContainer = document.getElementById('auth-buttons-container');
+                showUserUI({ username: u }, buttonsContainer);
+
+                // 4. Загружаем карточки
+                if (typeof loadContestants === 'function') {
+                    loadContestants();
+                }
+            }
+        } else { 
+            alert("Ошибка: " + (data.detail || "Неверные данные"));
         }
-
-        async function logout() {
-    console.log("Выполняется полная очистка сессии...");
-
-    // 1. Полностью очищаем локальные хранилища браузера
-    try {
-        localStorage.clear(); // Стирает вообще все ключи, включая isLoggedIn, token и т.д.
-        sessionStorage.clear(); // Очищает данные текущей вкладки
-    } catch (e) {
-        console.error("Ошибка при очистке хранилищ:", e);
+    } catch (err) {
+        console.error("Ошибка при авторизации:", err);
+        alert("Произошла ошибка сети.");
     }
+}
 
-    // 2. Отправляем запрос на бэкенд, чтобы он удалил куки/сессию на сервере
-    try {
-        // Замени '/api/logout', если у твоего бэкенда другой эндпоинт для выхода
-        await fetch('/api/logout', { method: 'POST' }); 
-    } catch (e) {
-        console.warn("Бэкенд не ответил на запрос выхода (возможно, сессия удаляется только на клиенте):", e);
-    }
+        function logout() {
+    console.log("Выход пользователя...");
 
-    // 3. Возвращаем дефолтные значения шапки
+    // 1. Удаляем ТОЛЬКО ключи авторизации, не трогая остальное хранилище
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('isLoggedIn');
+
+    // 2. Сбрасываем текст в шапке
     const userNameEl = document.getElementById('user-name');
-    const userBalanceEl = document.getElementById('user-balance');
-    const avatarDefaultEl = document.getElementById('user-avatar-default');
-    const avatarImgEl = document.getElementById('user-avatar-img');
-
     if (userNameEl) userNameEl.textContent = 'Гость';
+
+    const userBalanceEl = document.getElementById('user-balance');
     if (userBalanceEl) userBalanceEl.textContent = '0';
+
+    const avatarDefaultEl = document.getElementById('user-avatar-default');
     if (avatarDefaultEl) avatarDefaultEl.style.display = 'flex';
+
+    const avatarImgEl = document.getElementById('user-avatar-img');
     if (avatarImgEl) {
         avatarImgEl.style.display = 'none';
         avatarImgEl.src = '';
     }
 
-    // 4. Возвращаем кнопки "Войти / Регистрация" в шапку
+    // 3. Возвращаем кнопки "Войти / Регистрация" в шапку
     const buttonsContainer = document.getElementById('auth-buttons-container');
-    showGuestUI(buttonsContainer);
+    if (buttonsContainer) {
+        showGuestUI(buttonsContainer);
+    }
 
-    // 5. Скрываем приватные кнопки ЛК моделей
+    // 4. Скрываем вкладки личного кабинета (если они были открыты)
     const modelDashboardBtn = document.getElementById('menu-model-dashboard');
     if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
-    
-    const mobileModelDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
-    if (mobileModelDashboardBtn) mobileModelDashboardBtn.style.display = 'none';
 
-    // 6. Оставляем пользователя на главной
+    // 5. Гарантируем показ главной и скрытие окна логина
     const mainPage = document.getElementById('main-page');
     if (mainPage) mainPage.style.display = 'flex';
 
     const authPage = document.getElementById('auth-page');
     if (authPage) authPage.style.display = 'none';
 
+    // Переключаемся на вкладку галереи
     if (typeof showTab === 'function') {
-        try {
-            showTab('tab-gallery');
-        } catch(e) {}
+        try { showTab('tab-gallery'); } catch(e) {}
     }
 
-    // 7. Загружаем фотографии заново для гостевого режима
+    // 6. Перезагружаем карточки под гостевым доступом
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
+    
+    console.log("Выход успешно завершен.");
 }
         async function loadContestants() {
     console.log("Попытка загрузить конкурсанток...");
@@ -2226,31 +2236,36 @@ window.onload = function() {
 });
 
     function checkAuthOnLoad() {
-    // Проверяем именно тот ключ, который мы стираем!
     const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const buttonsContainer = document.getElementById('auth-buttons-container');
+
+    // По умолчанию всегда открыта главная, а окно входа скрыто
+    document.getElementById('main-page').style.display = 'flex';
+    document.getElementById('auth-page').style.display = 'none';
 
     if (isLoggedIn === 'true') {
-        // Пользователь авторизован
-        document.getElementById('main-page').style.display = 'flex';
-        document.getElementById('auth-page').style.display = 'none';
+        // Мы авторизованы! Отрисуем имя в кнопках
+        // Если у тебя имя пользователя сохраняется в localStorage, можно вытащить его,
+        // либо временно написать 'Пользователь' пока не загрузятся данные профиля
+        const savedUsername = localStorage.getItem('username') || 'Профиль';
+        showUserUI({ username: savedUsername }, buttonsContainer);
         
-        // (Опционально) Подгружаем данные пользователя, если есть такая функция
         if (typeof loadUserData === 'function') {
             loadUserData();
         }
     } else {
-        // Гость
-        document.getElementById('main-page').style.display = 'flex';
-        document.getElementById('auth-page').style.display = 'none';
-        
-        const buttonsContainer = document.getElementById('auth-buttons-container');
+        // Мы гости
         showGuestUI(buttonsContainer);
     }
 
+    // Загружаем фотки на главную
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
 }
+
+// Запуск при старте страницы
+window.addEventListener('DOMContentLoaded', checkAuthOnLoad);
 </script>
 </body>
 </html>
