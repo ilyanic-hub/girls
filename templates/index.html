@@ -628,7 +628,7 @@
     <div class="main-wrapper" style="padding-bottom: 80px;"> <!-- Отступ снизу для мобильного меню -->
 
         <!-- Страница авторизации (ПО УМОЛЧАНИЮ ПОКАЗАНА: display: block) -->
-        <div id="auth-page" class="auth-container" style="display: block;">
+        <div id="auth-page" class="auth-container" style="display: none;">
             <div class="auth-box">
                 <h2 id="auth-title">Вход в аккаунт</h2>
                 <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
@@ -664,7 +664,7 @@
         </div>
 
         <!-- Основная страница (ПО УМОЛЧАНИЮ СКРЫТА: JS переключит её после логина) -->
-        <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
+        <div id="main-page" style="display: flex; flex-direction: column; width: 100%;">
             <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 20px;">
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
                     <div>
@@ -1255,10 +1255,25 @@ function showUserUI(user, buttonsContainer) {
         }
 
         function logout() {
-    // Удаляем пометку о входе
+    // 1. Стираем статус авторизации из памяти браузера
     localStorage.removeItem('isLoggedIn');
-    // Перенаправляем на авторизацию или просто перезагружаем страницу
-    window.location.reload();
+    
+    // 2. Скрываем основной контент сайта
+    document.getElementById('main-page').style.display = 'none';
+    
+    // 3. Показываем окно авторизации прямо здесь же, без перезагрузки страницы
+    document.getElementById('auth-page').style.display = 'block';
+    
+    // 4. Очищаем поля ввода, чтобы данные старого сеанса не оставались на экране
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    
+    // (Опционально) Если у тебя было открыто секретное поле, скрываем его
+    const secretInput = document.getElementById('secret_answer');
+    if (secretInput) {
+        secretInput.value = '';
+        secretInput.style.display = 'none';
+    }
 }
 
         async function loadContestants() {
