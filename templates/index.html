@@ -941,8 +941,18 @@
         }
 
         async function checkAuth() {
+    // Если в локальном хранилище стоит метка, что мы вышли — даже не делаем запрос к серверу
+    if (localStorage.getItem('isLoggedIn') === 'false') {
+        currentUserRole = 'guest';
+        const guestBlock = document.getElementById('header-guest-block');
+        const userBlock = document.getElementById('header-user-block');
+        if (guestBlock) guestBlock.style.display = 'flex';
+        if (userBlock) userBlock.style.display = 'none';
+        return; // Выходим из функции
+    }
+
     try {
-        const response = await fetch('/api/me'); 
+        const response = await fetch('/api/me');
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
         
         // Получаем наши новые блоки управления отображением в шапке
@@ -1342,60 +1352,34 @@ function showUserUI(user, buttonsContainer) {
         async function logout() {
     console.log("Выход пользователя...");
 
-    try {
-        // 1. Отправляем запрос серверу, чтобы он удалил сессию/куки авторизации
-        const response = await fetch('/api/logout', { method: 'POST' });
-        
-        // Если API принимает GET или другой роут, можно использовать:
-        // const response = await fetch('/api/logout');
-        
-        if (!response.ok) {
-            console.warn("Сервер вернул ошибку при логауте, но очищаем клиентские данные...");
-        }
-    } catch (e) {
-        console.error("Ошибка при запросе выхода на сервере:", e);
-    }
-
-    // 2. Удаляем ключи авторизации из локального хранилища браузера
-    localStorage.removeItem('isLoggedIn');
+    // 1. СРАЗУ ставим метку в браузере, что мы вышли (это остановит циклы авторизации)
+    localStorage.setItem('isLoggedIn', 'false');
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
     localStorage.removeItem('userBalance');
-    sessionStorage.removeItem('isLoggedIn');
 
-    // 3. Вызываем проверку авторизации, чтобы интерфейс мгновенно перестроился под гостя
-    if (typeof checkAuth === 'function') {
-        await checkAuth(); 
+    // 2. Мгновенно переключаем интерфейс на гостя, не дожидаясь ответа сервера
+    const guestBlock = document.getElementById('header-guest-block');
+    const userBlock = document.getElementById('header-user-block');
+    if (guestBlock) guestBlock.style.display = 'flex';
+    if (userBlock) userBlock.style.display = 'none';
+
+    // 3. Скрываем кнопки личного кабинета
+    const pcBtn = document.getElementById('menu-model-dashboard');
+    const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+    if (pcBtn) pcBtn.style.display = 'none';
+    if (mobileBtn) mobileBtn.style.display = 'none';
+
+    // 4. Пытаемся сообщить серверу о выходе
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+    } catch (e) {
+        console.error("Сервер не ответил на запрос выхода:", e);
     }
 
-    // 4. Гарантируем скрытие вкладок личного кабинета и показ главной
-    const modelDashboardBtn = document.getElementById('menu-model-dashboard');
-    if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
-
-    const mobileDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
-    if (mobileDashboardBtn) mobileDashboardBtn.style.display = 'none';
-
-    const mainPage = document.getElementById('main-page');
-    if (mainPage) mainPage.style.display = 'flex';
-
-    const authPage = document.getElementById('auth-page');
-    if (authPage) authPage.style.display = 'none';
-
-    // 5. Переключаемся на вкладку галереи
-    if (typeof switchTab === 'function') {
-        try { 
-            switchTab('tab-gallery'); 
-        } catch(e) {
-            console.error("Ошибка при переключении на галерею:", e);
-        }
-    }
-
-    // 6. Перезагружаем карточки под гостевым доступом
-    if (typeof loadContestants === 'function') {
-        loadContestants();
-    }
-    
-    console.log("Выход успешно завершен.");
+    // 5. Перезагружаем страницу или перенаправляем на главную, чтобы сбросить все состояния скриптов
+    console.log("Выход успешно завершен. Перезагрузка страницы...");
+    window.location.reload(); // Это самый чистый способ сбросить сессию и обнулить UI без багов!
 }
         
         async function loadContestants() {
