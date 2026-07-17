@@ -2153,18 +2153,20 @@ window.onload = function() {
     }
 };
 
-    // Этот код сработает автоматически сразу после загрузки страницы в браузере
-document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
     console.log("Страница полностью готова! Запускаем главную...");
     
-    // 1. Показываем вкладку главной страницы
-    switchTab('gallery'); 
-    
-    // 2. На всякий случай принудительно вызываем загрузку моделей
-    if (typeof loadContestants === 'function') {
-        loadContestants();
+    // Безопасно проверяем, существует ли функция switchTab перед вызовом
+    if (typeof switchTab === 'function') {
+        // switchTab('gallery') сама внутри вызовет loadContestants()!
+        switchTab('gallery'); 
     } else {
-        console.error("ОШИБКА: Функция loadContestants не найдена в коде!");
+        console.error("ОШИБКА: Функция switchTab не найдена. Проверьте порядок подключения скриптов!");
+        
+        // Резервный вариант: если switchTab почему-то нет, но loadContestants есть
+        if (typeof loadContestants === 'function') {
+            loadContestants();
+        }
     }
 });
 </script>
