@@ -1145,24 +1145,38 @@
         }
 
         // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
+function setupRoleUI(role) {
+    // 1. Блоки в шапке (гость и авторизованный)
+    const guestBlock = document.getElementById('header-guest-block');
+    const userBlock = document.getElementById('header-user-block');
 
-        function setupRoleUI(role) {
-    // 1. Кнопка «Личный кабинет» в боковом меню
+    // 2. Элементы модели
     const personalCabinetBtn = document.getElementById('menu-model-dashboard');
-    
-    // 2. Твоя кнопка «Создать объявление» из HTML
     const createAdBtn = document.getElementById('model-create-btn');
-    
-    // 3. Контейнер фильтров «Все / Мои» из HTML
     const filterContainer = document.getElementById('announcements-filter-container');
 
-    if (role === 'model') {
-        // Если зашла модель — показываем все её инструменты
-        if (personalCabinetBtn) personalCabinetBtn.style.display = 'flex';
-        if (createAdBtn) createAdBtn.style.display = 'inline-flex'; // inline-flex для красивого выравнивания иконки и текста
-        if (filterContainer) filterContainer.style.display = 'flex';
+    if (role === 'model' || role === 'user') {
+        // === ПОЛЬЗОВАТЕЛЬ ВОШЕЛ ===
+        if (guestBlock) guestBlock.style.display = 'none'; // Скрываем кнопку "Войти"
+        if (userBlock) userBlock.style.display = 'flex';   // Показываем блок пользователя
+
+        if (role === 'model') {
+            // Если это модель — дополнительно показываем её инструменты
+            if (personalCabinetBtn) personalCabinetBtn.style.display = 'flex';
+            if (createAdBtn) createAdBtn.style.display = 'inline-flex';
+            if (filterContainer) filterContainer.style.display = 'flex';
+        } else {
+            // Если это обычный юзер — скрываем инструменты модели
+            if (personalCabinetBtn) personalCabinetBtn.style.display = 'none';
+            if (createAdBtn) createAdBtn.style.display = 'none';
+            if (filterContainer) filterContainer.style.display = 'none';
+        }
     } else {
-        // Для обычных юзеров и гостей — скрываем эти блоки
+        // === ГОСТЬ (или разлогинен) ===
+        if (guestBlock) guestBlock.style.display = 'flex'; // Показываем кнопку "Войти"
+        if (userBlock) userBlock.style.display = 'none';   // Скрываем блок пользователя
+        
+        // Скрываем всё остальное
         if (personalCabinetBtn) personalCabinetBtn.style.display = 'none';
         if (createAdBtn) createAdBtn.style.display = 'none';
         if (filterContainer) filterContainer.style.display = 'none';
