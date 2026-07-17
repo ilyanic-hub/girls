@@ -1595,25 +1595,36 @@ async function submitAnnouncement(event) {
         // Переключение вкладок без перезагрузки страницы
         function switchTab(tabName, event) {
     if (event) event.preventDefault();
-    activeTab = tabName;
     
+    // Если передали просто 'gallery', превращаем в 'tab-gallery' для поиска ID
+    let targetId = tabName;
+    if (tabName === 'gallery') targetId = 'tab-gallery';
+    if (tabName === 'announcements') targetId = 'tab-announcements';
+    
+    activeTab = tabName; // сохраняем оригинальное имя в активную вкладку
+    
+    // Скрываем все вкладки
     const tabs = ['tab-gallery', 'tab-announcements', 'model-dashboard'];
     tabs.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
 
-    if (tabName === 'gallery') {
-        if (document.getElementById('tab-gallery')) document.getElementById('tab-gallery').style.display = 'block';
+    // Показываем нужную вкладку и вызываем её функцию загрузки
+    const targetEl = document.getElementById(targetId);
+    if (targetEl) {
+        targetEl.style.display = 'block';
+    }
+
+    // Вызываем функции загрузки данных
+    if (tabName === 'gallery' || tabName === 'tab-gallery') {
         loadContestants();
-    } else if (tabName === 'announcements') {
-        if (document.getElementById('tab-announcements')) document.getElementById('tab-announcements').style.display = 'block';
+    } else if (tabName === 'announcements' || tabName === 'tab-announcements') {
         loadAnnouncements();
     } else if (tabName === 'model-dashboard') {
-        if (document.getElementById('model-dashboard')) document.getElementById('model-dashboard').style.display = 'block';
         loadModelDashboard();
     }
-} // <--- Убедись, что эта скобка стоит!
+}
         // Загрузка объявлений из API бэкенда
         async function loadAnnouncements() {
     const listContainer = document.getElementById('announcements-list');
