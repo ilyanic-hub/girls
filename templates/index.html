@@ -1272,41 +1272,76 @@ function showUserUI(user, buttonsContainer) {
 }
 
         async function loadContestants() {
-            let res = await fetch('/api/contestants');
-            if (!res.ok) return;
-            let list = await res.json();
-            let g = document.getElementById('gallery');
-            g.innerHTML = '';
-            list.forEach(girl => {
-                let cCount = girl.comments_count || 0; 
+    console.log("Попытка загрузить конкурсанток...");
+    
+    // 1. Проверяем, существует ли контейнер на странице
+    let g = document.getElementById('gallery');
+    if (!g) {
+        console.error("ОШИБКА: Элемент с id='gallery' не найден на странице!");
+        alert("Критическая ошибка: в HTML нет элемента с id='gallery'!");
+        return;
+    }
 
-                g.innerHTML += `
-                    <div class="contestant-card">
-                        <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
-                        <div class="contestant-info">
-                            <div class="contestant-name">${girl.name}</div>
-                            <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
-                            <button class="btn" onclick="vote(${girl.id}, event)">Голосовать (10)</button>
-                            <br>
-                            <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 (${cCount})</button>
-                        </div>
-                        
-                        <div class="card-comments-box" id="comments-box-${girl.id}">
-                            <div class="mini-comment-form" style="display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px;">
-                                <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий..." style="flex-grow: 1; min-width: 0; box-sizing: border-box;">
-                                <button class="mini-comment-btn" onclick="sendComment(${girl.id})" style="flex-shrink: 0; background: none; border: none; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="card-comments-list" id="comments-list-${girl.id}">
-                                <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
-                            </div>
-                        </div>
-                    </div>`;
-            });
+    try {
+        // Достаем токен (если он нужен для авторизации)
+        const token = localStorage.getItem('token'); 
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`; // или просто token, зависит от твоего бэкенда
         }
+
+        // 2. Делаем запрос к серверу
+        let res = await fetch('/api/contestants', { headers });
+        
+        if (!res.ok) {
+            console.error(`ОШИБКА СЕРВЕРА: статус ${res.status}`);
+            g.innerHTML = `<div style="color: red; padding: 20px;">Не удалось загрузить данные. Ошибка сервера: ${res.status}</div>`;
+            return;
+        }
+
+        let list = await res.json();
+        console.log("Данные успешно получены с сервера:", list);
+
+        if (list.length === 0) {
+            g.innerHTML = `<div style="color: var(--text-muted); padding: 20px;">Список конкурсанток пуст...</div>`;
+            return;
+        }
+
+        g.innerHTML = '';
+        list.forEach(girl => {
+            let cCount = girl.comments_count || 0; 
+
+            g.innerHTML += `
+                <div class="contestant-card">
+                    <img src="${girl.photo_url}" class="contestant-img" onerror="this.src='https://placehold.co/300x350/2c2c35/ffffff?text=${girl.name}'">
+                    <div class="contestant-info">
+                        <div class="contestant-name">${girl.name}</div>
+                        <div class="contestant-votes">Голосов: <span style="color:var(--accent); font-weight:bold">${girl.votes_count}</span></div>
+                        <button class="btn" onclick="vote(${girl.id}, event)">Голосовать (10)</button>
+                        <br>
+                        <button class="btn-comment-toggle" id="comment-btn-${girl.id}" onclick="toggleCommentsBox(${girl.id})">💬 (${cCount})</button>
+                    </div>
+                    
+                    <div class="card-comments-box" id="comments-box-${girl.id}">
+                        <div class="mini-comment-form" style="display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+                            <input type="text" id="comment-input-${girl.id}" class="mini-comment-input" placeholder="Ваш комментарий..." style="flex-grow: 1; min-width: 0; box-sizing: border-box;">
+                            <button class="mini-comment-btn" onclick="sendComment(${girl.id})" style="flex-shrink: 0; background: none; border: none; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13" stroke="#ff4757" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="card-comments-list" id="comments-list-${girl.id}">
+                            <span style="font-size:0.8rem; color:var(--text-muted)">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>`;
+        });
+    } catch (err) {
+        console.error("Произошла ошибка при выполнении loadContestants:", err);
+        g.innerHTML = `<div style="color: red; padding: 20px;">Ошибка при загрузке: ${err.message}</div>`;
+    }
+}
 
         function toggleCommentsBox(contestantId) {
             let box = document.getElementById(`comments-box-${contestantId}`);
