@@ -1260,13 +1260,26 @@ function showUserUI(user, buttonsContainer) {
             }
         }
 
-        function logout() {
-    console.log("Выполняется выход из аккаунта...");
+        async function logout() {
+    console.log("Выполняется полная очистка сессии...");
 
-    // 1. Стираем статус авторизации
-    localStorage.removeItem('isLoggedIn');
+    // 1. Полностью очищаем локальные хранилища браузера
+    try {
+        localStorage.clear(); // Стирает вообще все ключи, включая isLoggedIn, token и т.д.
+        sessionStorage.clear(); // Очищает данные текущей вкладки
+    } catch (e) {
+        console.error("Ошибка при очистке хранилищ:", e);
+    }
 
-    // 2. Возвращаем дефолтные значения шапки
+    // 2. Отправляем запрос на бэкенд, чтобы он удалил куки/сессию на сервере
+    try {
+        // Замени '/api/logout', если у твоего бэкенда другой эндпоинт для выхода
+        await fetch('/api/logout', { method: 'POST' }); 
+    } catch (e) {
+        console.warn("Бэкенд не ответил на запрос выхода (возможно, сессия удаляется только на клиенте):", e);
+    }
+
+    // 3. Возвращаем дефолтные значения шапки
     const userNameEl = document.getElementById('user-name');
     const userBalanceEl = document.getElementById('user-balance');
     const avatarDefaultEl = document.getElementById('user-avatar-default');
@@ -1280,18 +1293,18 @@ function showUserUI(user, buttonsContainer) {
         avatarImgEl.src = '';
     }
 
-    // 3. Возвращаем кнопки "Войти / Регистрация" в шапку
+    // 4. Возвращаем кнопки "Войти / Регистрация" в шапку
     const buttonsContainer = document.getElementById('auth-buttons-container');
     showGuestUI(buttonsContainer);
 
-    // 4. Скрываем приватные кнопки ЛК моделей
+    // 5. Скрываем приватные кнопки ЛК моделей
     const modelDashboardBtn = document.getElementById('menu-model-dashboard');
     if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
     
     const mobileModelDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
     if (mobileModelDashboardBtn) mobileModelDashboardBtn.style.display = 'none';
 
-    // 5. Оставляем пользователя на главной
+    // 6. Оставляем пользователя на главной
     const mainPage = document.getElementById('main-page');
     if (mainPage) mainPage.style.display = 'flex';
 
@@ -1304,7 +1317,7 @@ function showUserUI(user, buttonsContainer) {
         } catch(e) {}
     }
 
-    // 6. Загружаем фотографии заново для гостевого режима
+    // 7. Загружаем фотографии заново для гостевого режима
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
