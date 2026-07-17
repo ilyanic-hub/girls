@@ -714,7 +714,7 @@
         </div>
 
         <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-        <button id="logout-btn" class="btn-deposit" onclick="logout()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
+        <button id="-btn" class="btn-deposit" onclick="()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
     </div>
 
     <!-- Резервный контейнер, если он используется твоими скриптами -->
@@ -1226,18 +1226,18 @@ function showUserUI(user, buttonsContainer) {
             </div>
             
             <!-- Кнопка Выйти -->
-            <button id="logout-btn-header" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
+            <button id="-btn-header" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
                 Выйти
             </button>
         </div>
     `;
 
     // Вешаем событие клика на свежесозданную кнопку выхода
-    const logoutBtn = document.getElementById('logout-btn-header');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function(event) {
+    const Btn = document.getElementById('-btn-header');
+    if (Btn) {
+        Btn.addEventListener('click', function(event) {
             event.preventDefault();
-            logout();
+            ();
         });
     }
 }
@@ -1341,48 +1341,49 @@ function showUserUI(user, buttonsContainer) {
     }
 }
 
-        function logout() {
+        async function logout() {
     console.log("Выход пользователя...");
 
-    // 1. Удаляем ТОЛЬКО ключи авторизации, не трогая остальное хранилище
+    try {
+        // 1. Отправляем запрос серверу, чтобы он удалил сессию/куки авторизации
+        const response = await fetch('/api/logout', { method: 'POST' });
+        
+        // Если API принимает GET или другой роут, можно использовать:
+        // const response = await fetch('/api/logout');
+        
+        if (!response.ok) {
+            console.warn("Сервер вернул ошибку при логауте, но очищаем клиентские данные...");
+        }
+    } catch (e) {
+        console.error("Ошибка при запросе выхода на сервере:", e);
+    }
+
+    // 2. Удаляем ключи авторизации из локального хранилища браузера
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('token');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userBalance');
     sessionStorage.removeItem('isLoggedIn');
 
-    // 2. Сбрасываем текст в шапке
-    const userNameEl = document.getElementById('user-name');
-    if (userNameEl) userNameEl.textContent = 'Гость';
-
-    const userBalanceEl = document.getElementById('user-balance');
-    if (userBalanceEl) userBalanceEl.textContent = '0';
-
-    const avatarDefaultEl = document.getElementById('user-avatar-default');
-    if (avatarDefaultEl) avatarDefaultEl.style.display = 'flex';
-
-    const avatarImgEl = document.getElementById('user-avatar-img');
-    if (avatarImgEl) {
-        avatarImgEl.style.display = 'none';
-        avatarImgEl.src = '';
+    // 3. Вызываем проверку авторизации, чтобы интерфейс мгновенно перестроился под гостя
+    if (typeof checkAuth === 'function') {
+        await checkAuth(); 
     }
 
-    // 3. Возвращаем кнопки "Войти / Регистрация" в шапку
-    const buttonsContainer = document.getElementById('auth-buttons-container');
-    if (buttonsContainer) {
-        showGuestUI(buttonsContainer);
-    }
-
-    // 4. Скрываем вкладки личного кабинета (если они были открыты)
+    // 4. Гарантируем скрытие вкладок личного кабинета и показ главной
     const modelDashboardBtn = document.getElementById('menu-model-dashboard');
     if (modelDashboardBtn) modelDashboardBtn.style.display = 'none';
 
-    // 5. Гарантируем показ главной и скрытие окна логина
+    const mobileDashboardBtn = document.getElementById('mobile-menu-model-dashboard');
+    if (mobileDashboardBtn) mobileDashboardBtn.style.display = 'none';
+
     const mainPage = document.getElementById('main-page');
     if (mainPage) mainPage.style.display = 'flex';
 
     const authPage = document.getElementById('auth-page');
     if (authPage) authPage.style.display = 'none';
 
-    // Переключаемся на вкладку галереи
+    // 5. Переключаемся на вкладку галереи
     if (typeof switchTab === 'function') {
         try { 
             switchTab('tab-gallery'); 
@@ -1391,13 +1392,14 @@ function showUserUI(user, buttonsContainer) {
         }
     }
 
-    // 6. Перезагружаем карточки под гостевым доступом (ТЕПЕРЬ ЭТО ВНУТРИ ФУНКЦИИ)
+    // 6. Перезагружаем карточки под гостевым доступом
     if (typeof loadContestants === 'function') {
         loadContestants();
     }
     
     console.log("Выход успешно завершен.");
-} // <--- Функция корректно закрывается ОДИН раз в самом конце
+}
+        
         async function loadContestants() {
     console.log("Попытка загрузить конкурсанток...");
     
