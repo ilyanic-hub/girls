@@ -1834,9 +1834,7 @@ async function deleteAnnouncement(id) {
             loadAnnouncements(); // Перезапускаем рендер с учетом фильтра
         }
 
-        // Переменная для хранения ID редактируемого объявления
-let editingAnnouncementId = null; 
-
+       
 // Функция открытия формы для РЕДАКТИРОВАНИЯ (вызывается при клике на кнопку)
 function editAnnouncement(id, name, description, currentPhotoBase64) {
     editingAnnouncementId = id;
