@@ -1315,9 +1315,14 @@ function showUserUI(user, buttonsContainer) {
     const authPage = document.getElementById('auth-page');
     if (authPage) authPage.style.display = 'none';
 
-    // Переключаемся на вкладку галереи
-    if (typeof  === 'function') {
-        try { ('tab-gallery'); } catch(e) {}
+   // Переключаемся на вкладку галереи
+if (typeof switchTab === 'function') {
+    try { 
+        switchTab('tab-gallery'); 
+    } catch(e) {
+        console.error("Ошибка при переключении на галерею:", e);
+    }
+}
     }
 
     // 6. Перезагружаем карточки под гостевым доступом
