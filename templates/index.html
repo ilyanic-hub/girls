@@ -1237,17 +1237,18 @@ function showUserUI(user, buttonsContainer) {
                     toggleAuthMode(); 
                 }
                 else { 
-    // 1. Скрываем окно авторизации
-    document.getElementById('auth-page').style.display = 'none';
-    
-    // 2. Показываем главную страницу (выбери flex, block или grid в зависимости от твоей верстки)
-    document.getElementById('main-page').style.display = 'flex'; 
-    
-    // 3. Запускаем загрузку карточек участников
-    if (typeof loadContestants === 'function') {
-        loadContestants();
-    }
-}
+                    // 1. Запоминаем в браузере, что мы вошли
+                    localStorage.setItem('isLoggedIn', 'true');
+                    
+                    // 2. Переключаем экраны
+                    document.getElementById('auth-page').style.display = 'none';
+                    document.getElementById('main-page').style.display = 'flex'; // или 'block'
+                    
+                    // 3. Загружаем данные
+                    if (typeof loadContestants === 'function') {
+                        loadContestants();
+                    }
+                }
             } else { 
                 alert("Ошибка: " + data.detail);
             }
