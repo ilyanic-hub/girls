@@ -627,8 +627,8 @@
 
     <div class="main-wrapper" style="padding-bottom: 80px;"> <!-- Отступ снизу для мобильного меню -->
 
-        <!-- Страница авторизации -->
-        <div id="auth-page" class="auth-container" style="display: none;">
+        <!-- Страница авторизации (ПО УМОЛЧАНИЮ ПОКАЗАНА: display: block) -->
+        <div id="auth-page" class="auth-container" style="display: block;">
             <div class="auth-box">
                 <h2 id="auth-title">Вход в аккаунт</h2>
                 <form id="auth-form" onsubmit="event.preventDefault(); submitAuth();" autocomplete="off">
@@ -639,7 +639,7 @@
                     <input type="password" id="password" placeholder="Пароль" autocomplete="new-password" required>
                       
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                                            
+                                                                
                     <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
                         <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
                         <div style="display: flex; gap: 10px;">
@@ -663,7 +663,7 @@
             </div>
         </div>
 
-        <!-- Основная страница -->
+        <!-- Основная страница (ПО УМОЛЧАНИЮ СКРЫТА: JS переключит её после логина) -->
         <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
             <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 20px;">
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
@@ -701,7 +701,7 @@
             <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
             <div id="tab-gallery" style="display: block; width: 100%;">
                 <h1 class="main-promo-title" style="text-align: center; margin-bottom: 20px;">Кого разденем?</h1>
-                <!-- Единая сетка, куда JS загружает карточки -->
+                <!-- Единая сетка, куда JS загружает карточки (ID "gallery" на месте) -->
                 <main class="contestants-grid" id="gallery"></main>
             </div>
 
