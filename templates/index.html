@@ -589,22 +589,15 @@
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
     
-            <a href="#" onclick="checkAge(event)" style="
-                color: #ff4757; 
-                background-color: transparent; 
-                border: 2px solid #ff4757; 
-                font-weight: bold; 
-                text-align: center; 
-                padding: 10px 20px; 
-                margin-top: 50px; 
-                border-radius: 8px; 
-                display: block; 
-                text-decoration: none; 
-                box-shadow: 0 0 10px rgba(255, 71, 87, 0.3);
-                transition: all 0.3s ease;
-            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard')" style="display: none; align-items: center; gap: 10px;">
-    <span>👤</span> Личный кабинет
-</button>
+            <!-- Кнопка Личного кабинета (теперь лежит правильно и красиво) -->
+            <button id="menu-model-dashboard" class="sidebar-btn" onclick="switchTab('model-dashboard', event)" style="display: none; align-items: center; gap: 10px; width: 100%; padding: 10px; background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px; cursor: pointer; text-align: left; margin-top: 15px;">
+                <span>👤</span> Личный кабинет
+            </button>
+
+            <!-- Кнопка 18+ с исправленными тегами и событиями наведения -->
+            <a href="#" onclick="checkAge(event)" 
+               style="color: #ff4757; background-color: transparent; border: 2px solid #ff4757; font-weight: bold; text-align: center; padding: 10px 20px; margin-top: 50px; border-radius: 8px; display: block; text-decoration: none; box-shadow: 0 0 10px rgba(255, 71, 87, 0.3); transition: all 0.3s ease;"
+               onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='white'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';"
                onmouseout="this.style.backgroundColor='transparent'; this.style.color='#ff4757'; this.style.boxShadow='0 0 10px rgba(255, 71, 87, 0.3)';">
                 🔞 Контент 18+
             </a>
@@ -628,14 +621,15 @@
         <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
             <span>🔞</span>18+
         </a>
-        <button id="mobile-menu-model-dashboard" onclick="showTab('model-dashboard')" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
-    <span>👤</span>
-    <span>Кабинет</span>
-</button>
+        <button id="mobile-menu-model-dashboard" onclick="switchTab('model-dashboard', event)" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+            <span>👤</span>
+            <span>Кабинет</span>
+        </button>
     </div>
 
     <div class="main-wrapper">
 
+        <!-- Страница авторизации -->
         <div id="auth-page" class="auth-container" style="display: none;">
             <div class="auth-box">
                 <h2 id="auth-title">Вход в аккаунт</h2>
@@ -643,11 +637,11 @@
                     <input type="text" name="fake_username_remembered" style="display:none;">
                     <input type="password" name="fake_password_remembered" style="display:none;">
 
-                    <input type="text" id="username" placeholder="Логин" autocomplete="off">
-                    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password">
+                    <input type="text" id="username" placeholder="Логин" autocomplete="off" required>
+                    <input type="password" id="password" placeholder="Пароль" autocomplete="new-password" required>
                       
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                    
+                                                    
                     <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
                         <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
                         <div style="display: flex; gap: 10px;">
@@ -671,8 +665,9 @@
             </div>
         </div>
 
+        <!-- Основная страница -->
         <div id="main-page" style="display: none; flex-direction: column; width: 100%;">
-            <header>
+            <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 20px;">
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
                     <div>
                         <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
