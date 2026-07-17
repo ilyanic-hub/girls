@@ -2114,6 +2114,21 @@ window.onload = function() {
         startTimer();
     }
 };
+
+    // Этот код сработает автоматически сразу после загрузки страницы в браузере
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("Страница полностью готова! Запускаем главную...");
+    
+    // 1. Показываем вкладку главной страницы
+    switchTab('gallery'); 
+    
+    // 2. На всякий случай принудительно вызываем загрузку моделей
+    if (typeof loadContestants === 'function') {
+        loadContestants();
+    } else {
+        console.error("ОШИБКА: Функция loadContestants не найдена в коде!");
+    }
+});
 </script>
 </body>
 </html>
