@@ -1147,18 +1147,25 @@
         // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
 
         function setupRoleUI(role) {
-    // Находим твои кнопки по ID
+    // 1. Кнопка «Личный кабинет» в боковом меню
     const personalCabinetBtn = document.getElementById('menu-model-dashboard');
-    const addAdBtn = document.getElementById('add-ad-btn');
+    
+    // 2. Твоя кнопка «Создать объявление» из HTML
+    const createAdBtn = document.getElementById('model-create-btn');
+    
+    // 3. Контейнер фильтров «Все / Мои» из HTML
+    const filterContainer = document.getElementById('announcements-filter-container');
 
     if (role === 'model') {
-        // Если это модель — показываем личный кабинет и кнопку добавления объявлений
+        // Если зашла модель — показываем все её инструменты
         if (personalCabinetBtn) personalCabinetBtn.style.display = 'flex';
-        if (addAdBtn) addAdBtn.style.display = 'flex';
+        if (createAdBtn) createAdBtn.style.display = 'inline-flex'; // inline-flex для красивого выравнивания иконки и текста
+        if (filterContainer) filterContainer.style.display = 'flex';
     } else {
-        // Для обычных пользователей (user) и гостей (guest) — скрываем эти элементы
+        // Для обычных юзеров и гостей — скрываем эти блоки
         if (personalCabinetBtn) personalCabinetBtn.style.display = 'none';
-        if (addAdBtn) addAdBtn.style.display = 'none';
+        if (createAdBtn) createAdBtn.style.display = 'none';
+        if (filterContainer) filterContainer.style.display = 'none';
     }
 }
         
