@@ -574,15 +574,12 @@
 </head>
 <body>
 
-    
-    
     <!-- БОКОВОЕ МЕНЮ (ПК версия) -->
-    <!-- Убрали display: none, чтобы проверить визуально -->
-<aside class="sidebar" id="main-sidebar">
+    <aside class="sidebar" id="main-sidebar">
         <a href="/" class="logo-sidebar">🔥 PHOTO RATING</a>
         <nav>
-            <a href="#" onclick="switchTab('gallery', event)">🏠 Главная</a>
-            <a href="#" onclick="switchTab('announcements', event)" style="position: relative;">
+            <a href="#" onclick="showTab('tab-gallery', event)">🏠 Главная</a>
+            <a href="#" onclick="showTab('tab-announcements', event)" style="position: relative;">
                 📢 Объявления
                 <span id="announcements-badge" style="display:none; background: var(--accent); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; position: absolute; right: 10px;">NEW</span>
             </a>
@@ -590,12 +587,12 @@
             <a href="/top">👑 Топ участниц</a>
             <a href="/history" style="color: #b8860b;">🏆 Зал славы</a>
     
-            <!-- Кнопка Личного кабинета (теперь лежит правильно и красиво) -->
-            <button id="menu-model-dashboard" class="sidebar-btn" onclick="switchTab('model-dashboard', event)" style="display: none; align-items: center; gap: 10px; width: 100%; padding: 10px; background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px; cursor: pointer; text-align: left; margin-top: 15px;">
+            <!-- Кнопка Личного кабинета -->
+            <button id="menu-model-dashboard" class="sidebar-btn" onclick="showTab('model-dashboard', event)" style="display: none; align-items: center; gap: 10px; width: 100%; padding: 10px; background: none; border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); border-radius: 8px; cursor: pointer; text-align: left; margin-top: 15px;">
                 <span>👤</span> Личный кабинет
             </button>
 
-            <!-- Кнопка 18+ с исправленными тегами и событиями наведения -->
+            <!-- Кнопка 18+ -->
             <a href="#" onclick="checkAge(event)" 
                style="color: #ff4757; background-color: transparent; border: 2px solid #ff4757; font-weight: bold; text-align: center; padding: 10px 20px; margin-top: 50px; border-radius: 8px; display: block; text-decoration: none; box-shadow: 0 0 10px rgba(255, 71, 87, 0.3); transition: all 0.3s ease;"
                onmouseover="this.style.backgroundColor='#ff4757'; this.style.color='white'; this.style.boxShadow='0 0 15px rgba(255, 71, 87, 0.6)';"
@@ -606,30 +603,29 @@
     </aside>
 
     <!-- НИЖНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Мобильная версия) -->
-   <!-- Убрали display: none, чтобы проверить визуально -->
-<aside class="sidebar" id="main-sidebar">
-        <a href="#" onclick="switchTab('gallery', event)" class="mobile-nav-link">
+    <nav class="mobile-nav" id="mobile-navigation" style="display: flex; justify-content: space-around; align-items: center; position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 1px solid #e2e8f0; padding: 10px 0; z-index: 1000;">
+        <a href="#" onclick="showTab('tab-gallery', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>🏠</span>Главная
         </a>
-        <a href="#" onclick="switchTab('announcements', event)" class="mobile-nav-link">
+        <a href="#" onclick="showTab('tab-announcements', event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>📢</span>Объявления
         </a>
-        <a href="/models" class="mobile-nav-link">
+        <a href="/models" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>📸</span>Моделям
         </a>
-        <a href="/top" class="mobile-nav-link">
+        <a href="/top" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: var(--text-main); font-size: 0.75rem;">
             <span>👑</span>Топ
         </a>
-        <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="color: #ff4757; font-weight: bold;">
+        <a href="#" onclick="checkAge(event)" class="mobile-nav-link" style="display: flex; flex-direction: column; align-items: center; text-decoration: none; color: #ff4757; font-weight: bold; font-size: 0.75rem;">
             <span>🔞</span>18+
         </a>
-        <button id="mobile-menu-model-dashboard" onclick="switchTab('model-dashboard', event)" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
+        <button id="mobile-menu-model-dashboard" onclick="showTab('model-dashboard', event)" style="display: none; background: none; border: none; color: var(--text-muted); flex-direction: column; align-items: center; font-size: 0.75rem; font-weight: 600; cursor: pointer;">
             <span>👤</span>
             <span>Кабинет</span>
         </button>
-    </div>
+    </nav>
 
-    <div class="main-wrapper">
+    <div class="main-wrapper" style="padding-bottom: 80px;"> <!-- Отступ снизу для мобильного меню -->
 
         <!-- Страница авторизации -->
         <div id="auth-page" class="auth-container" style="display: none;">
@@ -643,7 +639,7 @@
                     <input type="password" id="password" placeholder="Пароль" autocomplete="new-password" required>
                       
                     <input type="text" id="secret_answer" placeholder="Секретное слово (для восстановления)" style="display: none;" autocomplete="off">
-                                                    
+                                                            
                     <div id="role-selection-container" style="display: none; margin-bottom: 15px; text-align: left;">
                         <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: bold; text-align: center;">Кто вы?</label>
                         <div style="display: flex; gap: 10px;">
@@ -703,126 +699,70 @@
             </header>
 
             <!-- КОНТЕНТ: ГЛАВНАЯ ГАЛЕРЕЯ (РЕЙТИНГ) -->
-            
-           <div id="tab-gallery" style="display: block; width: 100%;">
-               <div id="gallery" class="contestants-grid">
-        <!-- Сюда функция loadContestants() вставит фото автоматически -->
-    </div>
-            <h1 class="main-promo-title">Кого разденем?</h1>
-    <!-- Теперь эта обертка будет показываться/скрываться при переключении меню -->
-<div id="tab-gallery" style="display: block; width: 100%;">
-    
-    <!-- Твоя сетка, куда JS успешно загружает всех девочек -->
-    <main class="contestants-grid" id="gallery"></main>
-
-</div>
-</div>
-
-           <div id="tab-announcements" style="display: none; width: 100%; padding: 20px; box-sizing: border-box; max-width: 1200px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
-        <div>
-            <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: var(--text-main);">📢 Объявления от моделей</h1>
-            <p style="margin: 5px 0 0 0; color: var(--text-muted);">Актуальные предложения, кастинги и приватные встречи</p>
-        </div>
-        <button id="model-create-btn" class="btn" onclick="openAnnouncementModal()" style="display: none; background: #2ed573;">
-            ✨ Создать объявление
-        </button>
-    </div>
-
-    <div id="announcements-filter-container" style="display: none; gap: 10px; margin-bottom: 20px;">
-        <button id="btn-filter-all" class="btn" onclick="filterAnnouncements('all')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: var(--accent); color: white;">
-            🌍 Все объявления
-        </button>
-        <button id="btn-filter-my" class="btn btn-sec" onclick="filterAnnouncements('my')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: #f1f5f9; color: #1e293b;">
-            👤 Мои объявления
-        </button>
-    </div>
-
-    <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-    </div>
-</div>
-
-<div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
-    <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
-        
-        <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
-            <div style="position: relative; display: inline-block;">
-                <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
-                <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
-                    📷
-                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
-                </label>
+            <div id="tab-gallery" style="display: block; width: 100%;">
+                <h1 class="main-promo-title" style="text-align: center; margin-bottom: 20px;">Кого разденем?</h1>
+                <!-- Единая сетка, куда JS загружает карточки -->
+                <main class="contestants-grid" id="gallery"></main>
             </div>
-            <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
-            <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
-            <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold;">
-                Баланс: <span id="model-dash-balance">0</span> коинов
+
+            <!-- КОНТЕНТ: ОБЪЯВЛЕНИЯ -->
+            <div id="tab-announcements" style="display: none; width: 100%; padding: 20px; box-sizing: border-box; max-width: 1200px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                    <div>
+                        <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: var(--text-main);">📢 Объявления от моделей</h1>
+                        <p style="margin: 5px 0 0 0; color: var(--text-muted);">Актуальные предложения, кастинги и приватные встречи</p>
+                    </div>
+                    <button id="model-create-btn" class="btn" onclick="openAnnouncementModal()" style="display: none; background: #2ed573;">
+                        ✨ Создать объявление
+                    </button>
+                </div>
+
+                <div id="announcements-filter-container" style="display: none; gap: 10px; margin-bottom: 20px;">
+                    <button id="btn-filter-all" class="btn" onclick="filterAnnouncements('all')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: var(--accent); color: white;">
+                        🌍 Все объявления
+                    </button>
+                    <button id="btn-filter-my" class="btn btn-sec" onclick="filterAnnouncements('my')" style="padding: 6px 15px; font-size: 0.85rem; width: auto; margin: 0; background: #f1f5f9; color: #1e293b;">
+                        👤 Мои объявления
+                    </button>
+                </div>
+
+                <div id="announcements-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+                </div>
             </div>
-        </div>
 
-        <div style="flex: 2; min-width: 350px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
-        <button onclick="openCreateAlbumModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0;">
-            ➕ Новый альбом
-        </button>
-    </div>
-    <div id="model-albums-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
-        </div>
-</div>
-    </div>
-</div>
+            <!-- КОНТЕНТ: ЛИЧНЫЙ КАБИНЕТ МОДЕЛИ -->
+            <div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
+                <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
+                    
+                    <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
+                        <div style="position: relative; display: inline-block;">
+                            <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
+                            <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
+                                📷
+                                <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
+                            </label>
+                        </div>
+                        <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
+                        <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
+                        <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold;">
+                            Баланс: <span id="model-dash-balance">0</span> коинов
+                        </div>
+                    </div>
 
-<div id="create-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1100;">
-    <div style="background: #ffffff; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-        <span onclick="closeCreateAlbumModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
-        
-        <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 15px; text-align: center;">📸 Создать новый альбом</h3>
-        
-        <form id="album-creation-form" onsubmit="submitNewAlbum(event)">
-            <input type="text" id="album-title" placeholder="Название альбома" required 
-                   style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; box-sizing: border-box;">
-            
-            <textarea id="album-desc" placeholder="Описание альбома (необязательно)" 
-                      style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; resize: vertical; min-height: 80px; box-sizing: border-box;"></textarea>
-            
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 8px;">
-                <input type="checkbox" id="album-is-paid" onchange="toggleAlbumPrice(this)" style="width: 18px; height: 18px; cursor: pointer;">
-                <label for="album-is-paid" style="font-weight: bold; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">Платный альбом (доступ за монеты)</label>
+                    <div style="flex: 2; min-width: 350px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
+                            <button onclick="openCreateAlbumModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0;">
+                                ➕ Новый альбом
+                            </button>
+                        </div>
+                        <div id="model-albums-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div id="album-price-container" style="display: none; margin-bottom: 15px; padding-left: 5px;">
-                <label style="display: block; font-size: 0.85rem; font-weight: bold; color: var(--text-muted); margin-bottom: 6px;">Цена доступа (в монетах):</label>
-                <input type="number" id="album-price" value="100" min="1" 
-                       style="width: 120px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e0;">
-            </div>
-            
-            <div style="margin-bottom: 20px; background: #fff5f6; border: 1px dashed #ff4757; padding: 15px; border-radius: 10px; text-align: center;">
-                <label style="display: block; font-size: 0.9rem; font-weight: bold; color: #ff4757; margin-bottom: 8px; cursor: pointer;">
-                    📁 Выберите фотографии
-                    <input type="file" id="album-files" accept="image/*" multiple required style="display: none;" onchange="updateFilesCounter(this)">
-                </label>
-                <span id="files-counter" style="font-size: 0.8rem; color: var(--text-muted);">Файлы не выбраны</span>
-            </div>
-            
-            <button type="submit" class="btn" style="width: 100%; background: #ff4757; color: white; font-weight: bold; height: 45px; border-radius: 12px; border: none; cursor: pointer; transition: background 0.2s;">Опубликовать альбом</button>
-        </form>
-    </div>
-</div>
 
-            
-
-           
-    <!-- Теперь эта обертка будет показываться/скрываться при переключении меню -->
-<div id="tab-gallery" style="display: block; width: 100%;">
-    
-    <!-- Твоя сетка, куда JS успешно загружает всех девочек -->
-    <main class="contestants-grid" id="gallery"></main>
-
-</div>
-
-</div>
-
+            <!-- ПОДВАЛ -->
             <footer style="text-align: center; margin-top: auto; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
                 <div style="margin-bottom: 20px; font-size: 0.95rem;">
                     <strong style="color: var(--text-main); display: block; margin-bottom: 8px;">Служба поддержки пользователей:</strong>
@@ -840,6 +780,45 @@
         </div>
     </div>
 
+    <!-- Модальное окно: Создание альбома -->
+    <div id="create-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1100;">
+        <div style="background: #ffffff; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; width: 90%; max-width: 500px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+            <span onclick="closeCreateAlbumModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
+            
+            <h3 style="color: var(--text-main); margin-top: 0; margin-bottom: 15px; text-align: center;">📸 Создать новый альбом</h3>
+            
+            <form id="album-creation-form" onsubmit="submitNewAlbum(event)">
+                <input type="text" id="album-title" placeholder="Название альбома" required 
+                       style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; box-sizing: border-box;">
+                
+                <textarea id="album-desc" placeholder="Описание альбома (необязательно)" 
+                          style="width: 100%; margin-bottom: 12px; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e0; resize: vertical; min-height: 80px; box-sizing: border-box;"></textarea>
+                
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 8px;">
+                    <input type="checkbox" id="album-is-paid" onchange="toggleAlbumPrice(this)" style="width: 18px; height: 18px; cursor: pointer;">
+                    <label style="font-weight: bold; font-size: 0.9rem; color: var(--text-main); cursor: pointer;">Платный альбом (доступ за монеты)</label>
+                </div>
+                
+                <div id="album-price-container" style="display: none; margin-bottom: 15px; padding-left: 5px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: bold; color: var(--text-muted); margin-bottom: 6px;">Цена доступа (в монетах):</label>
+                    <input type="number" id="album-price" value="100" min="1" 
+                           style="width: 120px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e0;">
+                </div>
+                
+                <div style="margin-bottom: 20px; background: #fff5f6; border: 1px dashed #ff4757; padding: 15px; border-radius: 10px; text-align: center;">
+                    <label style="display: block; font-size: 0.9rem; font-weight: bold; color: #ff4757; margin-bottom: 8px; cursor: pointer;">
+                        📁 Выберите фотографии
+                        <input type="file" id="album-files" accept="image/*" multiple required style="display: none;" onchange="updateFilesCounter(this)">
+                    </label>
+                    <span id="files-counter" style="font-size: 0.8rem; color: var(--text-muted);">Файлы не выбраны</span>
+                </div>
+                
+                <button type="submit" class="btn" style="width: 100%; background: #ff4757; color: white; font-weight: bold; height: 45px; border-radius: 12px; border: none; cursor: pointer; transition: background 0.2s;">Опубликовать альбом</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Пополнение баланса -->
     <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
         <div class="deposit-modal-content" onclick="event.stopPropagation()">
             <span class="deposit-close" onclick="closeDepositModal()">&times;</span>
@@ -861,6 +840,7 @@
         </div>
     </div>
 
+    <!-- Модальное окно: Проверка 18+ -->
     <div id="ageVerifyModal" class="age-verify-modal">
         <div class="age-verify-content">
             <span style="font-size: 3.5rem;">🔞</span>
@@ -875,38 +855,40 @@
         </div>
     </div>
 
+    <!-- Модальное окно: Создание объявления -->
     <div id="announcementModal" class="deposit-modal" onclick="closeAnnouncementModal()">
-    <div class="deposit-modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
-        <span class="deposit-close" onclick="closeAnnouncementModal()">&times;</span>
-        <h2 style="color: var(--accent); margin-bottom: 15px;">📸 Создать объявление</h2>
-        <p style="color: #718096; margin-bottom: 20px; font-size: 0.9rem;">Заполните анкету, чтобы появиться в общей ленте объявлений</p>
-        
-        <form id="announcementForm" onsubmit="submitAnnouncement(event)">
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Ваше имя/псевдоним:</label>
-                <input type="text" id="announce-name" required placeholder="Например: Алина, 21" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box;">
-            </div>
+        <div class="deposit-modal-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <span class="deposit-close" onclick="closeAnnouncementModal()">&times;</span>
+            <h2 style="color: var(--accent); margin-bottom: 15px;">📸 Создать объявление</h2>
+            <p style="color: #718096; margin-bottom: 20px; font-size: 0.9rem;">Заполните анкету, чтобы появиться в общей ленте объявлений</p>
+            
+            <form id="announcementForm" onsubmit="submitAnnouncement(event)">
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Ваше имя/псевдоним:</label>
+                    <input type="text" id="announce-name" required placeholder="Например: Алина, 21" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box;">
+                </div>
 
-            <div style="margin-bottom: 15px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Описание профиля:</label>
-                <textarea id="announce-desc" required placeholder="Расскажите о себе..." style="width:100%; height:80px; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
-            </div>
+                <div style="margin-bottom: 15px; text-align: left;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Описание профиля:</label>
+                    <textarea id="announce-desc" required placeholder="Расскажите о себе..." style="width:100%; height:80px; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
+                </div>
 
-            <div style="margin-bottom: 20px; text-align: left;">
-                <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Главное фото:</label>
-                <input type="file" id="announce-photo" accept="image/*" required style="width:100%; padding:5px;">
-            </div>
+                <div style="margin-bottom: 20px; text-align: left;">
+                    <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Главное фото:</label>
+                    <input type="file" id="announce-photo" accept="image/*" required style="width:100%; padding:5px;">
+                </div>
 
-            <button type="submit" class="btn-pay-submit" style="background: var(--accent);">Опубликовать объявление</button>
-        </form>
+                <button type="submit" class="btn-pay-submit" style="background: var(--accent);">Опубликовать объявление</button>
+            </form>
+        </div>
     </div>
-</div>
 
     <script>
         let authMode = 'login'; 
         let selectedAmount = 0;
         let balanceCheckInterval;
         let selectedRole = 'user';
+        let currentUserRole = 'guest';
 
         function startCheckingBalance() {
             if (balanceCheckInterval) return;
@@ -932,33 +914,30 @@
         }
 
         async function checkAuth() {
-    try {
-        const response = await fetch('/api/me'); // Или твой эндпоинт проверки сессии
-        const buttonsContainer = document.getElementById('auth-buttons'); // Контейнер для кнопок войти/выйти
+            try {
+                const response = await fetch('/api/me'); 
+                const buttonsContainer = document.getElementById('auth-buttons-container'); 
 
-        if (response.ok) {
-            const user = await response.json();
-            // Сохраняем роль глобально
-            currentUserRole = user.role; 
-            // Передаем данные в функцию отрисовки интерфейса
-            showUserUI(user, buttonsContainer);
-        } else {
-            // Если пользователь не авторизован (гость)
-            currentUserRole = 'guest';
-            if (buttonsContainer) {
-                buttonsContainer.innerHTML = `
-                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                    <button onclick="openModal('register')" class="btn">Регистрация</button>
-                `;
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUserRole = user.role; 
+                    showUserUI(user, buttonsContainer);
+                } else {
+                    currentUserRole = 'guest';
+                    if (buttonsContainer) {
+                        buttonsContainer.innerHTML = `
+                            <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
+                            <button onclick="openModal('register')" class="btn">Регистрация</button>
+                        `;
+                    }
+                    const pcBtn = document.getElementById('menu-model-dashboard');
+                    if (pcBtn) pcBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Ошибка при проверке авторизации:", error);
             }
-            // Скрываем панель модели, если гость
-            const pcBtn = document.getElementById('menu-model-dashboard');
-            if (pcBtn) pcBtn.style.display = 'none';
         }
-    } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
-    }
-}
+
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
@@ -969,55 +948,55 @@
             }
         }
 
-        function showTab(tabId) {
-    // Список всех основных разделов контента
-    const tabs = ['tab-rating', 'tab-models', 'tab-announcements', 'tab-top', 'tab-earn', 'tab-wallet', 'model-dashboard'];
-    
-    tabs.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+        function showTab(tabId, event) {
+            if (event) event.preventDefault();
 
-    const activeTab = document.getElementById(tabId);
-    if (activeTab) {
-        // Если это кабинет модели, задаем ему flex или block для корректного отображения
-        if (tabId === 'model-dashboard') {
-            activeTab.style.display = 'block';
-            loadModelDashboard(); // Вызов загрузки данных профиля и альбомов из Dropbox
-        } else {
-            activeTab.style.display = 'block';
+            // Все существующие ID вкладок в HTML
+            const tabs = ['tab-gallery', 'tab-announcements', 'model-dashboard'];
+            
+            tabs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            const activeTab = document.getElementById(tabId);
+            if (activeTab) {
+                activeTab.style.display = 'block';
+                if (tabId === 'model-dashboard') {
+                    loadModelDashboard(); 
+                }
+            }
+
+            // Активный класс для десктопного бокового меню
+            document.querySelectorAll('#main-sidebar nav a, #main-sidebar nav button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Находим и подсвечиваем активный элемент по onclick атрибуту
+            const activeBtn = document.querySelector(`[onclick*="${tabId}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Скрываем мобильное меню/боковую панель, если был класс "open"
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.remove('open');
         }
-    }
 
-    // Снимаем активный класс со всех кнопок меню
-    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+        function openCreateAlbumModal() {
+            const modal = document.getElementById('create-album-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeCreateAlbumModal() {
+            const modal = document.getElementById('create-album-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.getElementById('album-creation-form').reset();
+                document.getElementById('album-price-container').style.display = 'none';
+                document.getElementById('files-counter').innerText = 'Файлы не выбраны';
+                document.getElementById('files-counter').style.color = 'var(--text-muted)';
+            }
+        }
     
-    // Подсвечиваем активную кнопку
-    const activeBtn = document.querySelector(`button[onclick="showTab('${tabId}')"]`);
-    if (activeBtn) activeBtn.classList.add('active');
-
-    // Закрываем мобильное меню, если оно было открыто
-    const sidebar = document.querySelector('.sidebar');
-    if (sidebar) sidebar.classList.remove('open');
-}
-
-        // Открытие окна создания альбома
-function openCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) modal.style.display = 'flex';
-}
-
-// Закрытие окна создания альбома
-function closeCreateAlbumModal() {
-    const modal = document.getElementById('create-album-modal');
-    if (modal) {
-        modal.style.display = 'none';
-        document.getElementById('album-creation-form').reset();
-        document.getElementById('album-price-container').style.display = 'none';
-        document.getElementById('files-counter').innerText = 'Файлы не выбраны';
-        document.getElementById('files-counter').style.color = 'var(--text-muted)';
-    }
-}
         function confirmAge(isOfAge) {
             if (isOfAge) {
                 localStorage.setItem('isAdultConfirmed', 'true');
@@ -1536,19 +1515,30 @@ function closeAnnouncementModal() {
     editingAnnouncementId = null; // Сбрасываем ID редактирования
 }
 
+// Храним ID редактируемого объявления глобально
+let editingAnnouncementId = null; 
+
+// --- Улучшенная функция отправки / редактирования объявления ---
 async function submitAnnouncement(event) {
     event.preventDefault();
     
     const name = document.getElementById('announce-name').value;
     const description = document.getElementById('announce-desc').value;
-    const photoFile = document.getElementById('announce-photo').files[0];
+    const photoInput = document.getElementById('announce-photo');
+    const photoFile = photoInput.files[0];
 
-    if (!photoFile) {
+    // Если создаем новое и нет фото — ругаемся. 
+    // Если редактируем — фото может остаться старым (не загружаться повторно).
+    if (!photoFile && !editingAnnouncementId) {
         alert("Пожалуйста, выберите фото!");
         return;
     }
 
-    // Функция-помощник для перевода файла в Base64
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    // Вспомогательная функция для Base64
     const toBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -1557,58 +1547,92 @@ async function submitAnnouncement(event) {
     });
 
     try {
-        // Конвертируем картинку в строку Base64
-        const base64Photo = await toBase64(photoFile);
+        let base64Photo = null;
+        if (photoFile) {
+            base64Photo = await toBase64(photoFile);
+        }
 
-        // Формируем JSON-пакет для отправки
         const payload = {
             name: name,
-            description: description,
-            photo_base64: base64Photo
+            description: description
         };
+        
+        // Добавляем фото в payload только если оно выбрано
+        if (base64Photo) {
+            payload.photo_base64 = base64Photo;
+        }
 
-        const response = await fetch('/api/announcements', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json' // Отправляем как JSON
-            },
+        let url = '/api/announcements';
+        let method = 'POST';
+
+        // Если мы в режиме редактирования:
+        if (editingAnnouncementId) {
+            url = `/api/announcements/${editingAnnouncementId}`;
+            method = 'PUT'; // или 'PATCH' в зависимости от вашего API
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            headers: headers,
             body: JSON.stringify(payload)
         });
 
         const data = await response.json();
         if (response.ok) {
-            alert("Ваше объявление успешно опубликовано!");
+            alert(editingAnnouncementId ? "Объявление успешно обновлено!" : "Ваше объявление успешно опубликовано!");
             closeAnnouncementModal();
-            loadAnnouncements(); // Перезагружаем список объявлений
+            loadAnnouncements(); 
         } else {
-            alert("Ошибка при публикации: " + (data.detail || "Что-то пошло не так"));
+            alert("Ошибка: " + (data.detail || "Что-то пошло не так"));
         }
     } catch (error) {
-        console.error("Ошибка:", error);
-        alert("Произошла ошибка при обработке или отправке файла.");
+        console.error("Ошибка отправки объявления:", error);
+        alert("Произошла ошибка при обработке или отправке данных.");
     }
 }
 
-        async function deleteAnnouncement(id) {
-    // Спрашиваем подтверждение перед удалением
+        // --- Функция подготовки модалки к редактированию ---
+function openEditAnnouncementModal(announcement) {
+    editingAnnouncementId = announcement.id;
+    
+    document.getElementById('announce-name').value = announcement.name;
+    document.getElementById('announce-desc').value = announcement.description;
+    
+    // При редактировании фото делать необязательным
+    const photoInput = document.getElementById('announce-photo');
+    if (photoInput) photoInput.required = false; 
+
+    const modalTitle = document.querySelector('#announcementModal h2');
+    if (modalTitle) modalTitle.innerText = "📝 Редактировать объявление";
+
+    openAnnouncementModal();
+}
+
+        // --- Авторизованный запрос на удаление ---
+async function deleteAnnouncement(id) {
     const confirmDelete = confirm("Вы уверены, что хотите окончательно удалить это объявление?");
     if (!confirmDelete) return;
 
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     try {
         const response = await fetch(`/api/announcements/${id}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: headers
         });
 
         const data = await response.json();
         if (response.ok) {
             alert("Объявление успешно удалено!");
-            loadAnnouncements(); // Перезагружаем список объявлений
+            loadAnnouncements();
         } else {
             alert("Ошибка при удалении: " + (data.detail || "Что-то пошло не так"));
         }
     } catch (error) {
-        console.error("Ошибка при отправке запроса:", error);
-        alert("Произошла ошибка сети при попытке удаления.");
+        console.error("Ошибка при удалении:", error);
+        alert("Произошла ошибка сети.");
     }
 }
     </script>
