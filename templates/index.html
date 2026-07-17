@@ -1141,71 +1141,43 @@
 }
 
 function showUserUI(user, buttonsContainer) {
-    if (buttonsContainer) {
-        // 1. Очищаем контейнер
-        buttonsContainer.innerHTML = '';
+    if (!buttonsContainer) return;
+    
+    // Очищаем контейнер от кнопок "Вход / Регистрация"
+    buttonsContainer.innerHTML = '';
 
-        // 2. Создаем контейнер-обертку
-        const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.alignItems = 'center';
-        wrapper.style.gap = '10px';
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.gap = '10px';
 
-        // 3. Создаем спан с именем пользователя
-        const usernameSpan = document.createElement('span');
-        usernameSpan.style.fontWeight = 'bold';
-        usernameSpan.style.color = 'var(--text-main)';
-        usernameSpan.textContent = user.username;
+    const usernameSpan = document.createElement('span');
+    usernameSpan.style.fontWeight = 'bold';
+    usernameSpan.style.color = 'var(--text-main)';
+    usernameSpan.textContent = user.username;
 
-        // 4. Создаем саму кнопку выхода
-        const logoutBtn = document.createElement('button');
-        logoutBtn.className = 'btn btn-sec';
-        logoutBtn.style.padding = '6px 12px';
-        logoutBtn.style.fontSize = '0.85rem';
-        logoutBtn.style.width = 'auto';
-        logoutBtn.style.margin = '0';
-        logoutBtn.style.backgroundColor = '#fee2e2';
-        logoutBtn.style.color = '#ef4444';
-        logoutBtn.style.border = 'none';
-        logoutBtn.style.borderRadius = '6px';
-        logoutBtn.style.cursor = 'pointer';
-        logoutBtn.textContent = 'Выйти';
+    const logoutBtn = document.createElement('button');
+    logoutBtn.className = 'btn btn-sec';
+    logoutBtn.style.padding = '6px 12px';
+    logoutBtn.style.fontSize = '0.85rem';
+    logoutBtn.style.width = 'auto';
+    logoutBtn.style.margin = '0';
+    logoutBtn.style.backgroundColor = '#fee2e2';
+    logoutBtn.style.color = '#ef4444';
+    logoutBtn.style.border = 'none';
+    logoutBtn.style.borderRadius = '6px';
+    logoutBtn.style.cursor = 'pointer';
+    logoutBtn.textContent = 'Выйти';
 
-        // Прямое и надежное связывание с функцией logout
-        logoutBtn.addEventListener('click', function(event) {
-            event.preventDefault();
-            logout();
-        });
+    // Привязываем клик напрямую к нашей безопасной функции выхода
+    logoutBtn.addEventListener('click', function(event) {
+        event.preventDefault();
+        logout();
+    });
 
-        // 5. Собираем всё вместе и добавляем на страницу
-        wrapper.appendChild(usernameSpan);
-        wrapper.appendChild(logoutBtn);
-        buttonsContainer.appendChild(wrapper);
-    }
-}
-
-    // Если вошла модель
-    if (user.role === 'model') {
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        // Показываем кнопку в ПК-меню с правильным стилем flex
-        if (pcBtn) pcBtn.style.display = 'flex';
-        // Показываем кнопку в мобильном меню
-        if (mobileBtn) mobileBtn.style.display = 'flex';
-        // Показываем кнопку создания объявлений
-        if (createBtn) createBtn.style.display = 'block';
-    } else {
-        // Если вошел обычный пользователь — скрываем кабинет
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        const createBtn = document.getElementById('model-create-btn');
-
-        if (pcBtn) pcBtn.style.display = 'none';
-        if (mobileBtn) mobileBtn.style.display = 'none';
-        if (createBtn) createBtn.style.display = 'none';
-    }
+    wrapper.appendChild(usernameSpan);
+    wrapper.appendChild(logoutBtn);
+    buttonsContainer.appendChild(wrapper);
 }
 
         function openWithdrawModal() {
