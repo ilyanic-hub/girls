@@ -1237,8 +1237,17 @@ function showUserUI(user, buttonsContainer) {
                     toggleAuthMode(); 
                 }
                 else { 
-                    window.location.reload();
-                }
+    // 1. Скрываем окно авторизации
+    document.getElementById('auth-page').style.display = 'none';
+    
+    // 2. Показываем главную страницу (выбери flex, block или grid в зависимости от твоей верстки)
+    document.getElementById('main-page').style.display = 'flex'; 
+    
+    // 3. Запускаем загрузку карточек участников
+    if (typeof loadContestants === 'function') {
+        loadContestants();
+    }
+}
             } else { 
                 alert("Ошибка: " + data.detail);
             }
