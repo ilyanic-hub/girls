@@ -941,80 +941,31 @@
         }
 
         async function checkAuth() {
-    // Если в локальном хранилище стоит метка, что мы вышли — даже не делаем запрос к серверу
+    // Если пользователь разлогинен — принудительно ставим роль гостя
     if (localStorage.getItem('isLoggedIn') === 'false') {
-        currentUserRole = 'guest';
-        const guestBlock = document.getElementById('header-guest-block');
-        const userBlock = document.getElementById('header-user-block');
-        if (guestBlock) guestBlock.style.display = 'flex';
-        if (userBlock) userBlock.style.display = 'none';
-        return; // Выходим из функции
+        setupRoleUI('guest');
+        return;
     }
 
     try {
         const response = await fetch('/api/me');
-        const buttonsContainer = document.getElementById('auth-buttons-container'); 
-        
-        // Получаем наши новые блоки управления отображением в шапке
-        const guestBlock = document.getElementById('header-guest-block');
-        const userBlock = document.getElementById('header-user-block');
-        
-        // Кнопки личного кабинета в боковом и мобильном меню
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-
         if (response.ok) {
             const user = await response.json();
-            currentUserRole = user.role; 
-
-            // 1. Показываем блок авторизованного юзера, скрываем гостя
-            if (guestBlock) guestBlock.style.display = 'none';
-            if (userBlock) userBlock.style.display = 'flex';
-
-            // 2. Обновляем имя и баланс динамическими данными с сервера
-            const userNameEl = document.getElementById('user-name');
-            const userBalanceEl = document.getElementById('user-balance');
-            if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
-            if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
-
-            // 3. Если у тебя настроен вывод аватарки
-            const avatarImgEl = document.getElementById('user-avatar-img');
-            const avatarDefaultEl = document.getElementById('user-avatar-default');
-            if (user.avatar && avatarImgEl && avatarDefaultEl) {
-                avatarImgEl.src = user.avatar;
-                avatarImgEl.style.display = 'block';
-                avatarDefaultEl.style.display = 'none';
-            }
-
-            // 4. Управляем кнопками Личного Кабинета (показываем только моделям/админам, если нужно, либо всем вошедшим)
-            // Если кабинет доступен только моделям, раскомментируй проверку: if (user.role === 'model')
-            if (pcBtn) pcBtn.style.display = 'flex';
-            if (mobileBtn) mobileBtn.style.display = 'flex';
-
-            // Вызываем твою стандартную функцию UI (если она делает дополнительные действия)
+            
+            // Запускаем твою стандартную функцию отрисовки шапки (с балансом и именем)
             if (typeof showUserUI === 'function') {
-                showUserUI(user, buttonsContainer);
+                showUserUI(user);
             }
+
+            // Передаем роль пользователя ("model", "user" или "guest") в настройку меню
+            setupRoleUI(user.role);
 
         } else {
-            // --- ПОЛЬЗОВАТЕЛЬ НЕ АВТОРИЗОВАН (ГОСТЬ) ---
-            currentUserRole = 'guest';
-
-            // 1. Показываем блок гостя, скрываем блок юзера
-            if (guestBlock) guestBlock.style.display = 'flex';
-            if (userBlock) userBlock.style.display = 'none';
-
-            // 2. Очищаем контейнер динамических кнопок (чтобы не дублировались)
-            if (buttonsContainer) {
-                buttonsContainer.innerHTML = ''; 
-            }
-
-            // 3. Скрываем кнопки личного кабинета в меню
-            if (pcBtn) pcBtn.style.display = 'none';
-            if (mobileBtn) mobileBtn.style.display = 'none';
+            setupRoleUI('guest');
         }
-    } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
+    } catch (e) {
+        console.error("Ошибка при проверке авторизации:", e);
+        setupRoleUI('guest');
     }
 }
 
@@ -1194,6 +1145,23 @@
         }
 
         // --- ФУНКЦИИ ОТОБРАЖЕНИЯ ИНТЕРФЕЙСА ДЛЯ ГОСТЯ И ПОЛЬЗОВАТЕЛЯ ---
+
+        function setupRoleUI(role) {
+    // Находим твои кнопки по ID
+    const personalCabinetBtn = document.getElementById('menu-model-dashboard');
+    const addAdBtn = document.getElementById('add-ad-btn');
+
+    if (role === 'model') {
+        // Если это модель — показываем личный кабинет и кнопку добавления объявлений
+        if (personalCabinetBtn) personalCabinetBtn.style.display = 'flex';
+        if (addAdBtn) addAdBtn.style.display = 'flex';
+    } else {
+        // Для обычных пользователей (user) и гостей (guest) — скрываем эти элементы
+        if (personalCabinetBtn) personalCabinetBtn.style.display = 'none';
+        if (addAdBtn) addAdBtn.style.display = 'none';
+    }
+}
+        
         function showGuestUI(buttonsContainer) {
     if (!buttonsContainer) return;
 
@@ -1389,6 +1357,7 @@ function showUserUI(user, buttonsContainer) {
     } catch (e) {
         console.error("Сервер не ответил на запрос выхода:", e);
     }
+            setupRoleUI('guest');
 
     // 5. Перезагружаем страницу или перенаправляем на главную, чтобы сбросить все состояния скриптов
     console.log("Выход успешно завершен. Перезагрузка страницы...");
