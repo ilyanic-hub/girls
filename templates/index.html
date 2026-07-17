@@ -2192,23 +2192,26 @@ window.onload = function() {
     function checkAuthOnLoad() {
     const isLoggedIn = localStorage.getItem('isLoggedIn');
 
+    // Главная страница активна в любом случае!
+    document.getElementById('main-page').style.display = 'flex';
+    document.getElementById('auth-page').style.display = 'none';
+
     if (isLoggedIn === 'true') {
-        // Если уже входили — показываем главную и скрываем авторизацию
-        document.getElementById('auth-page').style.display = 'none';
-        document.getElementById('main-page').style.display = 'flex'; // или 'block'
-        
-        if (typeof loadContestants === 'function') {
-            loadContestants();
+        // Здесь твоя логика для авторизованного юзера (показ баланса, имени и т.д.)
+        // Например, если у тебя есть функция loadUserData()
+        if (typeof loadUserData === 'function') {
+            loadUserData();
         }
     } else {
-        // Если не входили — требуем авторизацию
-        document.getElementById('auth-page').style.display = 'block';
-        document.getElementById('main-page').style.display = 'none';
+        // Логика для гостя
+        console.log("Пользователь зашел как гость");
+    }
+
+    // В любом случае загружаем галерею участниц для просмотра
+    if (typeof loadContestants === 'function') {
+        loadContestants();
     }
 }
-
-// Запускаем эту проверку автоматически каждый раз, когда открывается страница
-window.addEventListener('DOMContentLoaded', checkAuthOnLoad);
 </script>
 </body>
 </html>
