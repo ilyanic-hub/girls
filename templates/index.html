@@ -2177,6 +2177,27 @@ window.onload = function() {
         }
     }
 });
+
+    function checkAuthOnLoad() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+
+    if (isLoggedIn === 'true') {
+        // Если уже входили — показываем главную и скрываем авторизацию
+        document.getElementById('auth-page').style.display = 'none';
+        document.getElementById('main-page').style.display = 'flex'; // или 'block'
+        
+        if (typeof loadContestants === 'function') {
+            loadContestants();
+        }
+    } else {
+        // Если не входили — требуем авторизацию
+        document.getElementById('auth-page').style.display = 'block';
+        document.getElementById('main-page').style.display = 'none';
+    }
+}
+
+// Запускаем эту проверку автоматически каждый раз, когда открывается страница
+window.addEventListener('DOMContentLoaded', checkAuthOnLoad);
 </script>
 </body>
 </html>
