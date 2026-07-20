@@ -1293,7 +1293,7 @@ async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=De
         return {"username": "Гость", "balance": 0, "is_admin": 0, "role": "user"}
         
     cursor = db.cursor()
-    cursor.execute("SELECT id, username, balance, is_admin, role FROM users WHERE username = ?", (session_user,))
+    cursor.execute("SELECT id, username, balance, is_admin, role, avatar FROM users WHERE username = ?", (session_user,))
     user_row = cursor.fetchone()
     
     if not user_row:
