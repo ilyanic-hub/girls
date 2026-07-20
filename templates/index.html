@@ -1270,29 +1270,33 @@ function showUserUI(user, buttonsContainer) {
     if (fileInput.files.length === 0) return;
 
     const formData = new FormData();
-    formData.append('avatar', fileInput.files[0]);
+    // ВАЖНО: Ключ должен быть 'file', как на бэкенде!
+    formData.append('file', fileInput.files[0]); 
     
-    // Получаем токен авторизации
+    // Получаем токен из локального хранилища
     const token = localStorage.getItem('token'); 
 
     try {
-        let res = await fetch('/api/user/avatar', {
+        // Укажи точный адрес и порт твоего бэкенда (например, http://127.0.0.1:8000)
+        let res = await fetch('http://127.0.0.1:8000/api/user/avatar', {
             method: 'POST',
             headers: {
-                // Добавляем заголовок авторизации, если токен есть
                 ...(token && { 'Authorization': `Bearer ${token}` })
+                // Content-Type указывать НЕ НАДО, браузер настроит multipart сам!
             },
             body: formData
         });
+
         if (res.ok) {
-            alert("Аватарка успешно обновлена!");
-            checkAuth(); // Перезапрашивает данные профиля и перерисовывает интерфейс
+            alert("Аватарка успешно загружена в Dropbox и обновлена!");
+            checkAuth(); // Перезапускаем проверку, чтобы шапка обновила изображение
         } else {
             let errData = await res.json();
             alert("Ошибка загрузки: " + (errData.detail || "Неизвестная ошибка"));
         }
     } catch (err) {
-        alert("Ошибка сети при загрузке изображения.");
+        console.error(err);
+        alert("Ошибка сети или CORS блокировка при загрузке изображения.");
     }
 }
 
