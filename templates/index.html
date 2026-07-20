@@ -947,15 +947,22 @@
         }
 
        async function checkAuth() {
-    // Функция для жесткого скрытия кнопок кабинета у гостей
-    const hideDashboardButtons = () => {
+    // Утилита для управления кнопками кабинета (показываем только модели)
+    const handleDashboardVisibility = (role) => {
         const pcBtn = document.getElementById('menu-model-dashboard');
         const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        if (pcBtn) pcBtn.style.display = 'none';
-        if (mobileBtn) mobileBtn.style.display = 'none';
+        
+        if (role === 'model') {
+            if (pcBtn) pcBtn.style.display = 'flex'; // или 'block'
+            if (mobileBtn) mobileBtn.style.display = 'block';
+        } else {
+            // Для обычных пользователей ('user') и гостей ('guest') — скрываем!
+            if (pcBtn) pcBtn.style.display = 'none';
+            if (mobileBtn) mobileBtn.style.display = 'none';
+        }
     };
 
-    // 1. Если пользователь намеренно вышел (кликнул "Выйти")
+    // 1. Если пользователь намеренно вышел
     if (localStorage.getItem('isLoggedIn') === 'false') {
         currentUserRole = 'guest';
         
@@ -971,7 +978,7 @@
             buttonsContainer.innerHTML = '';
         }
 
-        hideDashboardButtons();
+        handleDashboardVisibility('guest'); // Жестко прячем кабинет
 
         if (typeof setupRoleUI === 'function') {
             setupRoleUI('guest');
@@ -989,17 +996,19 @@
             const user = await response.json();
             currentUserRole = user.role; 
 
-            // Обновляем текст и аватарку через стандартную логику
+            // Стандартная логика интерфейса (имя, баланс)
             showUserUI(user, buttonsContainer);
             
-            // Включаем блок авторизованного юзера, прячем гостя
+            // Переключаем блоки шапки
             if (userBlock) userBlock.style.display = 'flex';
             if (guestBlock) guestBlock.style.display = 'none'; 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // 🌟 ИСПРАВЛЕНО: Вместо слепого включения кнопки, вызываем распределение ролей!
+            // 🌟 УПРАВЛЕНИЕ КАБИНЕТОМ: Показываем только если user.role === 'model'
+            handleDashboardVisibility(user.role);
+
             if (typeof setupRoleUI === 'function') {
-                setupRoleUI(user.role); 
+                setupRoleUI(user.role);
             }
 
             // Отрисовка аватарки
@@ -1018,7 +1027,7 @@
             }
 
         } else {
-            // 2. Если бэкенд не авторизовал (сессия истекла / гость)
+            // 2. ЕСЛИ ТЫ ГОСТЬ по ответу сервера
             currentUserRole = 'guest';
             
             if (userBlock) userBlock.style.display = 'none';       
@@ -1029,7 +1038,7 @@
                 buttonsContainer.innerHTML = '';
             }
 
-            hideDashboardButtons();
+            handleDashboardVisibility('guest'); // Жестко прячем кабинет
 
             if (typeof setupRoleUI === 'function') {
                 setupRoleUI('guest');
