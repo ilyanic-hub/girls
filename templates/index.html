@@ -957,10 +957,10 @@
 
         if (userBlock) userBlock.style.display = 'none';
         if (guestBlock) guestBlock.style.display = 'flex';
-        if (buttonsContainer) {
-            buttonsContainer.style.display = 'block';
-            buttonsContainer.innerHTML = `<button onclick="switchTab('auth-page', event)" class="btn btn-sec">Войти</button>`;
-        }
+        // 🌟 ИСПРАВЛЕНО: Прячем дублирующуюся кнопку
+            if (buttonsContainer) {
+                buttonsContainer.style.display = 'none';
+                buttonsContainer.innerHTML = '';
         return; // Выходим из функции, fetch('/api/me') не сработает!
     }
 
