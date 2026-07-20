@@ -906,6 +906,7 @@ async def create_announcement(
 
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
+# Эндпоинт для получения списка всех объявлений с их альбомами
 @app.get("/api/announcements")
 async def get_announcements():
     db = sqlite3.connect(DB_LOCAL_PATH)
@@ -920,20 +921,93 @@ async def get_announcements():
         ORDER BY a.id DESC
     """)
     rows = cursor.fetchall()
-    db.close()
 
     announcements = []
     for row in rows:
+        username = row["username"]
+        
+        # Достаем альбомы этой модели
+        cursor.execute("""
+            SELECT id, title, description, is_paid, price, cover_url 
+            FROM albums 
+            WHERE model_username = ?
+        """, (username,))
+        album_rows = cursor.fetchall()
+        
+        albums = []
+        for alb in album_rows:
+            album_dict = dict(alb)
+            cover = album_dict.get("cover_url") or ""
+            # Корректируем ссылку Dropbox на raw=1
+            if "?dl=0" in cover:
+                album_dict["cover_url"] = cover.replace("?dl=0", "?raw=1")
+            elif "&dl=0" in cover:
+                album_dict["cover_url"] = cover.replace("&dl=0", "&raw=1")
+            albums.append(album_dict)
+
         announcements.append({
             "id": row["id"],
             "name": row["name"],
             "description": row["description"],
             "photo_url": row["photo_url"],
             "created_at": row["created_at"],
-            "username": row["username"]
+            "username": username,
+            "albums": albums  # <-- Передаем альбомы прямо внутри карточки объявления
         })
         
+    db.close()
     return announcements
+
+
+# Эндпоинт для получения ОДНОГО объявления по ID (например, при переходе на карточку)
+@app.get("/api/announcements/{announcement_id}")
+async def get_single_announcement(announcement_id: int):
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    
+    cursor.execute("""
+        SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
+        FROM announcements a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.id = ?
+    """, (announcement_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        db.close()
+        raise HTTPException(status_code=404, detail="Объявление не найдено")
+
+    username = row["username"]
+    
+    # Достаем альбомы модели
+    cursor.execute("""
+        SELECT id, title, description, is_paid, price, cover_url 
+        FROM albums 
+        WHERE model_username = ?
+    """, (username,))
+    album_rows = cursor.fetchall()
+    db.close()
+
+    albums = []
+    for alb in album_rows:
+        album_dict = dict(alb)
+        cover = album_dict.get("cover_url") or ""
+        if "?dl=0" in cover:
+            album_dict["cover_url"] = cover.replace("?dl=0", "?raw=1")
+        elif "&dl=0" in cover:
+            album_dict["cover_url"] = cover.replace("&dl=0", "&raw=1")
+        albums.append(album_dict)
+
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "description": row["description"],
+        "photo_url": row["photo_url"],
+        "created_at": row["created_at"],
+        "username": username,
+        "albums": albums
+    }
 
 @app.delete("/api/announcements/{announcement_id}")
 async def delete_announcement(
