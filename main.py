@@ -1977,8 +1977,17 @@ async def create_album(
         except Exception as upload_error:
             db.rollback()
             db.close()
-            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
-            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
+            # 🌟 ВЫВОДИМ ПОЛНУЮ ОШИБКУ В КОНСОЛЬ СЕРВЕРА
+            import traceback
+            print("--- НАЧАЛО ЛОГА ОШИБКИ DROPBOX ---")
+            traceback.print_exc()
+            print("--- КОНЕЦ ЛОГА ОШИБКИ DROPBOX ---")
+            
+            # Отправляем точное описание ошибки на фронтенд, чтобы сразу увидеть её в alert
+            raise HTTPException(
+                status_code=500, 
+                detail=f" Dropbox Error: {str(upload_error)}"
+            )
             
     db.commit()
     db.close()
