@@ -2246,21 +2246,23 @@ async function loadModelDashboard() {
             const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
             data.albums.forEach(album => {
-                // Используем уже готовую прямую ссылку cover_url от бэкенда
-                const cover = album.cover_url || defaultSvg;
+    const cover = album.cover_url || defaultSvg;
 
-                grid.innerHTML += `
-                    <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%;">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
-                            <div>
-                                <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
-                                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платвый (${album.price} коинов)` : '🔓 Бесплатный'}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
+    grid.innerHTML += `
+        <div onclick="openAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
+                <div>
+                    <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
+                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
+                </div>
+            </div>
+            <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
+                Смотреть &rarr;
+            </div>
+        </div>
+    `;
+});
         } else {
             console.error("🚨 Ошибка: На HTML-странице не найден блок ни с id='model-albums-list', ни с id='model-albums-grid'!");
         }
