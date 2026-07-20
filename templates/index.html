@@ -964,6 +964,17 @@
 
             // Передаем роль пользователя ("model", "user" или "guest") в настройку меню
             setupRoleUI(user.role);
+            // Внутри функции, которая обрабатывает данные пользователя (например, после успешного checkAuth)
+if (user.avatar_url) {
+    const avatarImg = document.getElementById('user-avatar-img');
+    const avatarDefault = document.getElementById('user-avatar-default');
+    
+    if (avatarImg && avatarDefault) {
+        avatarImg.src = user.avatar_url;       // Устанавливаем путь к картинке
+        avatarImg.style.display = 'block';     // Показываем картинку
+        avatarDefault.style.display = 'none';  // Прячем серый силуэт 👤
+    }
+}
 
         } else {
             setupRoleUI('guest');
@@ -1255,27 +1266,35 @@ function showUserUI(user, buttonsContainer) {
         }
 
         async function uploadAvatar() {
-            const fileInput = document.getElementById('avatar-input');
-            if (fileInput.files.length === 0) return;
+    const fileInput = document.getElementById('avatar-input');
+    if (fileInput.files.length === 0) return;
 
-            const formData = new FormData();
-            formData.append('avatar', fileInput.files[0]);
-            try {
-                let res = await fetch('/api/user/avatar', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (res.ok) {
-                    alert("Аватарка успешно обновлена!");
-                    checkAuth(); 
-                } else {
-                    let errData = await res.json();
-                    alert("Ошибка загрузки: " + (errData.detail || "Неизвестная ошибка"));
-                }
-            } catch (err) {
-                alert("Ошибка сети при загрузке изображения.");
-            }
+    const formData = new FormData();
+    formData.append('avatar', fileInput.files[0]);
+    
+    // Получаем токен авторизации
+    const token = localStorage.getItem('token'); 
+
+    try {
+        let res = await fetch('/api/user/avatar', {
+            method: 'POST',
+            headers: {
+                // Добавляем заголовок авторизации, если токен есть
+                ...(token && { 'Authorization': `Bearer ${token}` })
+            },
+            body: formData
+        });
+        if (res.ok) {
+            alert("Аватарка успешно обновлена!");
+            checkAuth(); // Перезапрашивает данные профиля и перерисовывает интерфейс
+        } else {
+            let errData = await res.json();
+            alert("Ошибка загрузки: " + (errData.detail || "Неизвестная ошибка"));
         }
+    } catch (err) {
+        alert("Ошибка сети при загрузке изображения.");
+    }
+}
 
         async function submitAuth() {
     let u = document.getElementById('username').value;
