@@ -965,15 +965,15 @@
             // Передаем роль пользователя ("model", "user" или "guest") в настройку меню
             setupRoleUI(user.role);
             // Внутри функции, которая обрабатывает данные пользователя (например, после успешного checkAuth)
-if (user.avatar_url) {
-    const avatarImg = document.getElementById('user-avatar-img');
-    const avatarDefault = document.getElementById('user-avatar-default');
-    
-    if (avatarImg && avatarDefault) {
-        avatarImg.src = user.avatar_url;       // Устанавливаем путь к картинке
-        avatarImg.style.display = 'block';     // Показываем картинку
-        avatarDefault.style.display = 'none';  // Прячем серый силуэт 👤
-    }
+// Находим элементы в шапке
+const avatarImg = document.getElementById('user-avatar-img');
+const avatarDefault = document.getElementById('user-avatar-default');
+
+// Проверяем именно user.avatar (как в базе данных)
+if (user && user.avatar) {
+    avatarImg.src = user.avatar; // Меняем путь на ссылку из Dropbox
+    avatarImg.style.display = 'block'; // Показываем картинку
+    avatarDefault.style.display = 'none'; // Скрываем стандартный силуэт 👤
 }
 
         } else {
