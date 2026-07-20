@@ -1897,11 +1897,13 @@ async def update_model_avatar(
 async def create_album(
     title: str = Form(...),
     description: str = Form(None),
-    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
+    is_paid: int = Form(0),
     price: int = Form(0),
     files: List[UploadFile] = File(...),
-    session_user: str = Depends(get_current_user)
+    session_user: Optional[str] = Cookie(None) # 🌟 Используем куки напрямую для проверки
 ):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Не авторизован")
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
     # Чтобы получать результаты в виде словарей (удобно для user_row["role"])
