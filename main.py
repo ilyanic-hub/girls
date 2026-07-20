@@ -112,6 +112,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_LOCAL_PATH = os.path.join(BASE_DIR, "database.db")
 DB_DROPBOX_PATH = "/database.db"
 
+# 🌟 ДОБАВЛЯЕМ ИНИЦИАЛИЗАЦИЮ КЛИЕНТА DROPBOX С REFRESH ТОКЕНОМ
+dbx = dropbox.Dropbox(
+    oauth2_refresh_token=DROPBOX_REFRESH_TOKEN,
+    app_key=DROPBOX_APP_KEY,
+    app_secret=DROPBOX_APP_SECRET
+)
+
 def get_dropbox_client():
     try:
         return dropbox.Dropbox(
