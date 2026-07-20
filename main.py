@@ -1904,15 +1904,17 @@ async def create_album(
 ):
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
+    # Чтобы получать результаты в виде словарей (удобно для user_row["role"])
+    db.row_factory = sqlite3.Row 
     cursor = db.cursor()
+    
     cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
     user_row = cursor.fetchone()
     
-    if not user_row or user_row[0] != 'model':
+    if not user_row or user_row["role"] != 'model':
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
     
-    # Инициализируем клиент Dropbox внутри функции
     dbx = get_dropbox_client()
     if not dbx:
         db.close()
@@ -1926,7 +1928,7 @@ async def create_album(
     album_id = cursor.lastrowid
     
     # 3. Загружаем каждый файл в Dropbox
-    for file in files:
+    for idx, file in enumerate(files):
         file_extension = os.path.splitext(file.filename)[1]
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         
@@ -1937,28 +1939,37 @@ async def create_album(
             # Читаем содержимое файла в память
             file_bytes = await file.read()
             
-            # Загружаем файл в Dropbox с помощью инициализированного dbx
+            # Загружаем файл в Dropbox
             dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
             
-            # Создаем постоянную публичную ссылку для этого файла
-            try:
-                shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-                raw_url = shared_link_metadata.url
-            except dropbox.exceptions.ApiError as e:
-                # Если ссылка уже существует, получаем её
-                if e.error.is_shared_link_already_exists():
-                    shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
-                    raw_url = shared_links.links[0].url
-                else:
-                    raise e
+            # Определяем, является ли фото превью (первое фото всегда бесплатное для обложки)
+            is_preview = 1 if idx == 0 else 0
             
-            # Конвертируем ссылку Dropbox для прямого скачивания картинок на сайт
-            direct_photo_url = raw_url.replace("?dl=0", "?raw=1")
+            # 🌟 ЛОГИКА ЗАЩИТЫ: 
+            # Если альбом бесплатный ИЛИ это первое фото-превью — делаем ссылку публичной
+            if is_paid == 0 or is_preview == 1:
+                try:
+                    shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                    raw_url = shared_link_metadata.url
+                except dropbox.exceptions.ApiError as e:
+                    if e.error.is_shared_link_already_exists():
+                        shared_links = dbx.sharing_list_shared_links(dropbox_path, direct_only=True)
+                        raw_url = shared_links.links[0].url
+                    else:
+                        raise e
+                
+                final_photo_url = raw_url.replace("?dl=0", "?raw=1")
+            else:
+                # 🔒 Для платных скрытых фото НЕ создаем публичную ссылку Dropbox.
+                # Вместо этого сохраняем внутренний путь к файлу в Dropbox.
+                # Отдавать этот файл мы будем через специальный эндпоинт /api/albums/photo/{id}
+                final_photo_url = dropbox_path
             
-            # Сохраняем прямую ссылку в локальную базу данных
+            # Сохраняем данные в таблицу. 
+            # 💡 Важно: Убедись, что в твоей таблице `album_photos` есть колонка `is_preview`
             cursor.execute(
-                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
-                (album_id, direct_photo_url)
+                "INSERT INTO album_photos (album_id, photo_url, is_preview) VALUES (?, ?, ?)",
+                (album_id, final_photo_url, is_preview)
             )
             
         except Exception as upload_error:
@@ -1976,7 +1987,7 @@ async def create_album(
     except Exception as e:
         print(f"Dropbox DB sync error: {e}")
         
-    return {"status": "success", "message": "Альбом успешно сохранен в Dropbox!"}
+    return {"status": "success", "message": "Альбом успешно сохранен!"}
 
 @app.get("/api/public/model/{username}/albums")
 async def get_public_model_albums(username: str):
