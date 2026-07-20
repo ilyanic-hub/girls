@@ -1907,10 +1907,10 @@ async def update_model_avatar(
 async def create_album(
     title: str = Form(...),
     description: str = Form(None),
-    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
+    is_paid: int = Form(0),
     price: int = Form(0),
     files: List[UploadFile] = File(...),
-    session_user: Any = Depends(get_current_user) # Меняем тип на Any, так как прилетает Row
+    session_user = Depends(get_current_user)  # 🌟 Просто убрали ": Any"
 ):
     # 🌟 ИЗВЛЕКАЕМ СТРОКУ: Вытаскиваем текстовое имя пользователя из объекта sqlite3.Row
     # В зависимости от настроек get_db, это делается либо по ключу, либо по индексу
