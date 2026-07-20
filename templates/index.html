@@ -2219,19 +2219,25 @@ async function loadModelDashboard() {
         
         const data = await response.json();
         
-        // Заполняем данные профиля модели
-        const nameEl = document.getElementById('model-dash-name');
-        const avatarEl = document.getElementById('model-dash-avatar');
-        const balanceEl = document.getElementById('model-dash-balance');
+        // Безопасно заполняем профиль (если элементов нет, код не упадет)
+        try {
+            const nameEl = document.getElementById('model-dash-name');
+            const avatarEl = document.getElementById('model-dash-avatar');
+            const balanceEl = document.getElementById('model-dash-balance');
+            
+            if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
+            if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
+            if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
+        } catch (profileErr) {
+            console.warn("Некоторые элементы профиля не найдены на странице, но продолжаем загрузку альбомов:", profileErr);
+        }
         
-        if (nameEl) nameEl.innerText = data.profile.username;
-        if (avatarEl && data.profile.avatar) avatarEl.src = data.profile.avatar;
-        if (balanceEl) balanceEl.innerText = data.profile.balance;
+        // Ищем контейнер для альбомов (проверяем оба частых варианта id)
+        let grid = document.getElementById('model-albums-list') || document.getElementById('model-albums-grid');
         
-        // Отрисовываем её альбомы
-        const grid = document.getElementById('model-albums-list');
         if (grid) {
             grid.innerHTML = '';
+            
             if (!data.albums || data.albums.length === 0) {
                 grid.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">У вас еще нет альбомов.</p>';
                 return;
@@ -2240,21 +2246,23 @@ async function loadModelDashboard() {
             const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
             data.albums.forEach(album => {
-                // 🌟 Берем прямую обложку от бэкенда, либо первое доступное фото, либо дефолтный SVG
-                const cover = album.cover_url || (album.photos && album.photos.length > 0 && album.photos[0].startsWith('http') ? album.photos[0] : defaultSvg);
+                // Используем уже готовую прямую ссылку cover_url от бэкенда
+                const cover = album.cover_url || defaultSvg;
 
                 grid.innerHTML += `
-                    <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <div style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%;">
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
                             <div>
-                                <h4 style="margin: 0; color: var(--text-main);">${album.title}</h4>
-                                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-muted);">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
+                                <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
+                                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платвый (${album.price} коинов)` : '🔓 Бесплатный'}</p>
                             </div>
                         </div>
                     </div>
                 `;
             });
+        } else {
+            console.error("🚨 Ошибка: На HTML-странице не найден блок ни с id='model-albums-list', ни с id='model-albums-grid'!");
         }
     } catch (err) {
         console.error("Ошибка при загрузке кабинета модели:", err);
