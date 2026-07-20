@@ -1384,13 +1384,13 @@ let res = await fetch('/api/user/avatar', {
         async function logout() {
     console.log("Выход пользователя...");
 
-    // 1. СРАЗУ ставим метку в браузере, что мы вышли (это остановит циклы авторизации)
+    // 1. Сразу ставим метки в браузере
     localStorage.setItem('isLoggedIn', 'false');
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
     localStorage.removeItem('userBalance');
 
-    // 2. Мгновенно переключаем интерфейс на гостя, не дожидаясь ответа сервера
+    // 2. Мгновенно переключаем интерфейс на гостя в текущей сессии
     const guestBlock = document.getElementById('header-guest-block');
     const userBlock = document.getElementById('header-user-block');
     if (guestBlock) guestBlock.style.display = 'flex';
@@ -1402,17 +1402,22 @@ let res = await fetch('/api/user/avatar', {
     if (pcBtn) pcBtn.style.display = 'none';
     if (mobileBtn) mobileBtn.style.display = 'none';
 
-    // 4. Пытаемся сообщить серверу о выходе
+    // 4. Ждем ответа от сервера, чтобы кука ТОЧНО успела удалиться
     try {
         await fetch('/api/logout', { method: 'POST' });
+        console.log("Сервер подтвердил удаление сессии.");
     } catch (e) {
         console.error("Сервер не ответил на запрос выхода:", e);
     }
-            setupRoleUI('guest');
+    
+    // Безопасно выставляем роль перед перезагрузкой
+    if (typeof setupRoleUI === 'function') {
+        setupRoleUI('guest');
+    }
 
-    // 5. Перезагружаем страницу или перенаправляем на главную, чтобы сбросить все состояния скриптов
+    // 5. Перезагружаем страницу ПОСЛЕ удаления куки сервером
     console.log("Выход успешно завершен. Перезагрузка страницы...");
-    window.location.reload(); // Это самый чистый способ сбросить сессию и обнулить UI без багов!
+    window.location.reload(); 
 }
         
         async function loadContestants() {
