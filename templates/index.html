@@ -947,25 +947,21 @@
 
        async function checkAuth() {
     try {
-        const token = localStorage.getItem('token'); // Достаем токен
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        // Делаем запрос к твоему эндпоинту профиля с заголовками
-        const response = await fetch('/api/user/me', { headers }); 
+        // 🌟 Возвращаем твой оригинальный путь эндпоинта
+        const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
+        const userBlock = document.getElementById('header-user-block');
 
         if (response.ok) {
             const user = await response.json();
             currentUserRole = user.role; 
 
-            // 🌟 БЕЗОПАСНО ОБНОВЛЯЕМ АВАТАРКУ ИЗ DROPBOX (Берем user.avatar)
+            // 🌟 БЕЗОПАСНОЕ ОБНОВЛЯЕМ АВАТАРКУ
             try {
                 const avatarImg = document.getElementById('user-avatar-img');
                 const avatarDefault = document.getElementById('user-avatar-default');
-                const currentAvatar = user.avatar || user.avatar_url; // Подстраховка для ключа
+                // Проверяем, что вернул бэкенд (avatar или avatar_url)
+                const currentAvatar = user.avatar || user.avatar_url;
 
                 if (avatarImg) {
                     if (currentAvatar) {
@@ -981,29 +977,23 @@
                 console.error("Ошибка при отрисовке аватара:", avatarErr);
             }
 
-            // Твоя родная логика переключения интерфейса
+            // Твоя оригинальная логика переключения интерфейса
             showUserUI(user, buttonsContainer);
             
-            // Гарантированно включаем блок пользователя в шапке
-            const userBlock = document.getElementById('header-user-block');
+            // Показываем блок авторизованного юзера
             if (userBlock) userBlock.style.display = 'flex';
 
         } else {
-            // Если сервер ответил ошибкой (например, токен протух)
             currentUserRole = 'guest';
-            localStorage.removeItem('token');
-            
             if (buttonsContainer) {
                 buttonsContainer.innerHTML = `
                     <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
                     <button onclick="openModal('register')" class="btn">Регистрация</button>
                 `;
             }
-            
             const pcBtn = document.getElementById('menu-model-dashboard');
             if (pcBtn) pcBtn.style.display = 'none';
             
-            const userBlock = document.getElementById('header-user-block');
             if (userBlock) userBlock.style.display = 'none';
         }
     } catch (error) {
