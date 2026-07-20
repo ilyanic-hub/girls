@@ -1975,8 +1975,17 @@ async def create_album(
         except Exception as upload_error:
             db.rollback()
             db.close()
-            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
-            raise HTTPException(status_code=500, detail=f"Dropbox Error: {str(upload_error)}")
+            
+            # 🌟 Это напечатает точную строку и причину падения в терминале Python
+            import traceback
+            print("\n!!! КРИТИЧЕСКАЯ ОШИБКА НА БЭКЕНДЕ !!!")
+            traceback.print_exc()
+            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+            
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Внутренняя ошибка сервера: {str(upload_error)}"
+            )
             
     db.commit()
     db.close()
