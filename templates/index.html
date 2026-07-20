@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -956,20 +957,35 @@
             const user = await response.json();
             currentUserRole = user.role; 
 
-            // 1. ЖЕСТКО переключаем видимость блоков
-            if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
-            if (guestBlock) guestBlock.style.display = 'none'; // ПРЯЧЕМ ГОСТЯ COMPLETELY
+            // 1. Вызов твоей стандартной логики интерфейса
+            showUserUI(user, buttonsContainer);
+            
+            // 2. ИСПРАВЛЕНО: Безопасное переключение видимости блоков
+            if (userBlock) userBlock.style.display = 'flex';
+            if (guestBlock) guestBlock.style.display = 'none'; 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // 2. Вызываем обновление текста и аватара
-            showUserUI(user, buttonsContainer);
+            // 3. Отрисовка аватарки
+            const avatarImg = document.getElementById('user-avatar-img');
+            const avatarDefault = document.getElementById('user-avatar-default');
+
+            if (avatarImg) {
+                if (user.avatar) {
+                    avatarImg.src = user.avatar;
+                    avatarImg.style.display = 'block';     
+                    if (avatarDefault) avatarDefault.style.display = 'none';  
+                } else {
+                    avatarImg.style.display = 'none';
+                    if (avatarDefault) avatarDefault.style.display = 'block'; 
+                }
+            }
 
         } else {
-            // 🌟 ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО МЫ ГОСТЬ
+            // 🌟 ЕСЛИ ТЫ ГОСТЬ: Показываем ТОЛЬКО гостевой блок, а личный кабинет прячем
             currentUserRole = 'guest';
             
-            if (userBlock) userBlock.style.display = 'none';   // ПРЯЧЕМ КАБИНЕТ COMPLETELY
-            if (guestBlock) guestBlock.style.display = 'flex'; // Показываем только блок Гостя
+            if (userBlock) userBlock.style.display = 'none';       // Прячем кабинет, баланс и "+ Пополнить"
+            if (guestBlock) guestBlock.style.display = 'flex';     // Показываем чистую плашку "Гость" и кнопку "Войти"
             
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'block';
@@ -1229,34 +1245,28 @@ function setupRoleUI(role) {
 }
 
 function showUserUI(user, buttonsContainer) {
-    if (!buttonsContainer) return;
-    
-    // Полностью перезаписываем контейнер, убирая любые старые кнопки входа или надписи "Гость"
-    buttonsContainer.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <!-- Блок баланса и пользователя (отображается только для вошедшего) -->
-            <div style="display: flex; align-items: center; gap: 8px; border: 1px solid rgba(0,0,0,0.08); padding: 4px 10px; border-radius: 20px;">
-                <span id="user-avatar-default" class="avatar-circle" style="background: #e2e8f0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.8rem;">👤</span>
-                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
-            </div>
-            
-            <!-- Кнопка Выйти -->
-            <button id="logout-btn-header" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
-                Выйти
-            </button>
-        </div>
-    `;
+    // 1. Скрываем резервный контейнер, так как кнопка выхода у нас теперь в основном HTML-блоке
+    if (buttonsContainer) {
+        buttonsContainer.style.display = 'none';
+        buttonsContainer.innerHTML = ''; 
+    }
 
-    // Вешаем событие клика на свежесозданную кнопку выхода
-    const logoutBtn = document.getElementById('logout-btn-header');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', function(event) {
-            event.preventDefault();
-            logout();
-        });
+    // 2. Обновляем текстовые данные на странице
+    const userNameEl = document.getElementById('user-name');
+    const userBalanceEl = document.getElementById('user-balance');
+
+    if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
+    if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
+
+    // 3. Обновляем аватарку
+    const avatarImgEl = document.getElementById('user-avatar-img');
+    const avatarDefaultEl = document.getElementById('user-avatar-default');
+    if (user.avatar && avatarImgEl && avatarDefaultEl) {
+        avatarImgEl.src = user.avatar;
+        avatarImgEl.style.display = 'block';
+        avatarDefaultEl.style.display = 'none';
     }
 }
-
 
         function openWithdrawModal() {
             let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
@@ -1384,13 +1394,13 @@ let res = await fetch('/api/user/avatar', {
         async function logout() {
     console.log("Выход пользователя...");
 
-    // 1. Сразу ставим метки в браузере
+    // 1. СРАЗУ ставим метку в браузере, что мы вышли (это остановит циклы авторизации)
     localStorage.setItem('isLoggedIn', 'false');
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
     localStorage.removeItem('userBalance');
 
-    // 2. Мгновенно переключаем интерфейс на гостя в текущей сессии
+    // 2. Мгновенно переключаем интерфейс на гостя, не дожидаясь ответа сервера
     const guestBlock = document.getElementById('header-guest-block');
     const userBlock = document.getElementById('header-user-block');
     if (guestBlock) guestBlock.style.display = 'flex';
@@ -1402,22 +1412,17 @@ let res = await fetch('/api/user/avatar', {
     if (pcBtn) pcBtn.style.display = 'none';
     if (mobileBtn) mobileBtn.style.display = 'none';
 
-    // 4. Ждем ответа от сервера, чтобы кука ТОЧНО успела удалиться
+    // 4. Пытаемся сообщить серверу о выходе
     try {
         await fetch('/api/logout', { method: 'POST' });
-        console.log("Сервер подтвердил удаление сессии.");
     } catch (e) {
         console.error("Сервер не ответил на запрос выхода:", e);
     }
-    
-    // Безопасно выставляем роль перед перезагрузкой
-    if (typeof setupRoleUI === 'function') {
-        setupRoleUI('guest');
-    }
+            setupRoleUI('guest');
 
-    // 5. Перезагружаем страницу ПОСЛЕ удаления куки сервером
+    // 5. Перезагружаем страницу или перенаправляем на главную, чтобы сбросить все состояния скриптов
     console.log("Выход успешно завершен. Перезагрузка страницы...");
-    window.location.reload(); 
+    window.location.reload(); // Это самый чистый способ сбросить сессию и обнулить UI без багов!
 }
         
         async function loadContestants() {
