@@ -1297,7 +1297,7 @@ async def check_tg_status(code: str, response: Response):
         logging.error(f"Ошибка в tg-status: {e}")
         return {"status": "pending"}
 
-@app.get("/api/albums/debug")
+@app.get("/api/s/debug")
 def debug_albums():
     db = sqlite3.connect(DB_LOCAL_PATH)
     # Используем Row, чтобы увидеть человеческие ключи
@@ -1870,8 +1870,30 @@ async def get_model_profile(session_user: str = Depends(get_current_user)):
     
     # Для каждого альбома подтягиваем фотографии
     for album in albums:
-        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
-        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
+        cursor.execute("SELECT photo_url, is_preview FROM album_photos WHERE album_id = ?", (album["id"],))
+        photos_rows = cursor.fetchall()
+        
+        processed_photos = []
+        cover_url = None
+        
+        for r in photos_rows:
+            url = r["photo_url"]
+            # 🌟 Железобетонно выпрямляем ссылки Dropbox (и для ?dl=0, и для &dl=0)
+            if url and ("dropbox.com" in url):
+                if "?dl=0" in url:
+                    url = url.replace("?dl=0", "?raw=1")
+                elif "&dl=0" in url:
+                    url = url.replace("&dl=0", "&raw=1")
+            
+            processed_photos.append(url)
+            
+            # Если это превью-фото, запоминаем его как обложку альбома
+            if r["is_preview"] == 1:
+                cover_url = url
+                
+        album["photos"] = processed_photos
+        # 🌟 Явно передаем обложку, если фронтенд ищет именно её
+        album["cover_url"] = cover_url if cover_url else (processed_photos[0] if processed_photos else None)
         
     db.close()
     return {
@@ -2032,8 +2054,26 @@ async def get_public_model_albums(username: str):
     albums = [dict(row) for row in cursor.fetchall()]
     
     for album in albums:
-        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
-        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
+        cursor.execute("SELECT photo_url, is_preview FROM album_photos WHERE album_id = ?", (album["id"],))
+        photos_rows = cursor.fetchall()
+        
+        processed_photos = []
+        cover_url = None
+        
+        for r in photos_rows:
+            url = r["photo_url"]
+            if url and ("dropbox.com" in url):
+                if "?dl=0" in url:
+                    url = url.replace("?dl=0", "?raw=1")
+                elif "&dl=0" in url:
+                    url = url.replace("&dl=0", "&raw=1")
+            processed_photos.append(url)
+            
+            if r["is_preview"] == 1:
+                cover_url = url
+                
+        album["photos"] = processed_photos
+        album["cover_url"] = cover_url if cover_url else (processed_photos[0] if processed_photos else None)
         
     db.close()
     return albums
