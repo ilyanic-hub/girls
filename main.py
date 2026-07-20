@@ -1868,33 +1868,31 @@ async def get_model_profile(session_user: str = Depends(get_current_user)):
     cursor.execute("SELECT * FROM albums WHERE model_username = ? ORDER BY created_at DESC", (username_str,))
     albums = [dict(row) for row in cursor.fetchall()]
     
-    # Для каждого альбома подтягиваем фотографии
+    # Для каждого альбома находим обложку и список фото
     for album in albums:
-        cursor.execute("SELECT photo_url, is_preview FROM album_photos WHERE album_id = ?", (album["id"],))
-        photos_rows = cursor.fetchall()
+        # Сначала ищем явную обложку (is_preview = 1)
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND is_preview = 1 LIMIT 1", (album["id"],))
+        preview_row = cursor.fetchone()
         
-        processed_photos = []
         cover_url = None
-        
-        for r in photos_rows:
-            url = r["photo_url"]
-            # 🌟 Железобетонно выпрямляем ссылки Dropbox (и для ?dl=0, и для &dl=0)
-            if url and ("dropbox.com" in url):
-                if "?dl=0" in url:
-                    url = url.replace("?dl=0", "?raw=1")
-                elif "&dl=0" in url:
-                    url = url.replace("&dl=0", "&raw=1")
-            
-            processed_photos.append(url)
-            
-            # Если это превью-фото, запоминаем его как обложку альбома
-            if r["is_preview"] == 1:
-                cover_url = url
-                
-        album["photos"] = processed_photos
-        # 🌟 Явно передаем обложку, если фронтенд ищет именно её
-        album["cover_url"] = cover_url if cover_url else (processed_photos[0] if processed_photos else None)
-        
+        if preview_row and preview_row["photo_url"].startswith("http"):
+            cover_url = preview_row["photo_url"]
+        else:
+            # Если по какой-то причине is_preview не задан, берем любую первую публичную ссылку (http...)
+            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND photo_url LIKE 'http%' LIMIT 1", (album["id"],))
+            first_public = cursor.fetchone()
+            if first_public:
+                cover_url = first_public["photo_url"]
+
+        # Выпрямляем ссылку Dropbox для отображения в <img>
+        if cover_url:
+            if "?dl=0" in cover_url:
+                cover_url = cover_url.replace("?dl=0", "?raw=1")
+            elif "&dl=0" in cover_url:
+                cover_url = cover_url.replace("&dl=0", "&raw=1")
+
+        album["cover_url"] = cover_url
+
     db.close()
     return {
         "profile": dict(user_data),
