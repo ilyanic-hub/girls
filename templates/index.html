@@ -945,59 +945,30 @@
             }, 4000);
         }
 
-        async function checkAuth() {
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            if (typeof showAuthButtons === 'function') showAuthButtons();
-            return;
-        }
+       async function checkAuth() {
+            try {
+                const response = await fetch('/api/me'); 
+                const buttonsContainer = document.getElementById('auth-buttons-container'); 
 
-        let res = await fetch('/api/user/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (res.ok) {
-            let user = await res.json();
-            
-            // 1. Безопасное обновление текста
-            const nameEl = document.getElementById('user-name');
-            const balanceEl = document.getElementById('user-balance');
-            if (nameEl) nameEl.innerText = user.username || "Пользователь";
-            if (balanceEl) balanceEl.innerText = user.balance || 0;
-
-            // 2. Безопасное обновление аватара
-            const avatarImg = document.getElementById('user-avatar-img');
-            const avatarDefault = document.getElementById('user-avatar-default');
-            const currentAvatar = user.avatar || user.avatar_url;
-
-            if (avatarImg) {
-                if (currentAvatar) {
-                    avatarImg.src = currentAvatar;
-                    avatarImg.style.display = 'block';
-                    if (avatarDefault) avatarDefault.style.display = 'none';
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUserRole = user.role; 
+                    showUserUI(user, buttonsContainer);
                 } else {
-                    avatarImg.style.display = 'none';
-                    if (avatarDefault) avatarDefault.style.display = 'block';
+                    currentUserRole = 'guest';
+                    if (buttonsContainer) {
+                        buttonsContainer.innerHTML = `
+                            <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
+                            <button onclick="openModal('register')" class="btn">Регистрация</button>
+                        `;
+                    }
+                    const pcBtn = document.getElementById('menu-model-dashboard');
+                    if (pcBtn) pcBtn.style.display = 'none';
                 }
+            } catch (error) {
+                console.error("Ошибка при проверке авторизации:", error);
             }
-
-            // 3. Переключение видимости блоков
-            const userBlock = document.getElementById('header-user-block');
-            const authContainer = document.getElementById('auth-buttons-container');
-            
-            if (userBlock) userBlock.style.display = 'flex';
-            if (authContainer) authContainer.style.display = 'none';
-
-        } else {
-            console.warn("Сервер вернул ошибку авторизации:", res.status);
-            localStorage.removeItem('token');
-            if (typeof showAuthButtons === 'function') showAuthButtons();
         }
-    } catch (err) {
-        console.error("Критическая ошибка в checkAuth:", err);
-    }
-}
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
