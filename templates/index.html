@@ -1958,72 +1958,70 @@ async function deleteAnnouncement(id) {
         // Загрузка объявлений из API бэкенда
         async function loadAnnouncements() {
     try {
-        console.log("Загрузка объявлений...");
         const response = await fetch('/api/announcements');
-        
-        if (!response.ok) {
-            console.error("Ошибка сети:", response.status);
-            return;
-        }
+        if (!response.ok) return;
 
         const announcements = await response.json();
-        console.log("Полученные объявления:", announcements);
-
-        // Находим контейнер для объявлений на странице
-        const container = document.getElementById('announcements-list') || document.querySelector('.announcements-list');
-        if (!container) {
-            console.error("Контейнер для объявлений не найден на странице!");
-            return;
-        }
+        const container = document.getElementById('announcements-list') || document.getElementById('announcements-container');
+        if (!container) return;
 
         container.innerHTML = '';
 
         if (!announcements || announcements.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: #718096; padding: 20px;">Объявлений пока нет.</p>';
+            container.innerHTML = '<p style="text-align: center; color: var(--text-muted); grid-column: 1/-1;">Объявлений пока нет.</p>';
             return;
         }
 
-        const defaultImg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+        const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
         announcements.forEach(item => {
-            const photo = item.photo_url || item.photo || defaultImg;
+            const photo = item.photo_url || defaultSvg;
             const name = item.name || 'Модель';
             const username = item.username ? `@${item.username}` : '';
             const desc = item.description || '';
 
-            // Альбомы модели (если есть)
+            // Блок с обложками альбомов
             let albumsHtml = '';
             if (item.albums && item.albums.length > 0) {
                 albumsHtml = `
-                    <div style="margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 10px;">
-                        <span style="font-size: 0.85rem; font-weight: 600; color: #4a5568;">📸 Альбомы модели (${item.albums.length}):</span>
-                        <div style="display: flex; gap: 10px; overflow-x: auto; padding: 8px 0;">
-                            ${item.albums.map(alb => `
-                                <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 70px; cursor: pointer; text-align: center;">
-                                    <img src="${alb.cover_url || defaultImg}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">
-                                    <div style="font-size: 0.75rem; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px;">${alb.title || 'Альбом'}</div>
-                                </div>
-                            `).join('')}
+                    <div style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            📸 Альбомы модели (${item.albums.length})
+                        </div>
+                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin;">
+                            ${item.albums.map(alb => {
+                                const coverImg = alb.cover_url || defaultSvg;
+                                return `
+                                    <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 75px; cursor: pointer; text-align: center; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+                                        <div style="width: 75px; height: 75px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
+                                            <img src="${coverImg}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
+                                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
+                                    </div>
+                                `;
+                            }).join('')}
                         </div>
                     </div>
                 `;
             }
 
-            // Создаём карточку объявления
             const card = document.createElement('div');
-            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);";
+            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;";
             
             card.innerHTML = `
-                <div style="display: flex; gap: 15px; align-items: flex-start;">
-                    <img src="${photo}" style="width: 90px; height: 90px; border-radius: 12px; object-fit: cover; flex-shrink: 0;" alt="${name}">
-                    <div style="flex: 1; min-width: 0;">
-                        <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: #1a202c; display: flex; align-items: center; gap: 8px;">
-                            ${name} <span style="font-size: 0.85rem; color: #718096; font-weight: normal;">${username}</span>
-                        </h3>
-                        <p style="margin: 0; color: #4a5568; font-size: 0.95rem; white-space: pre-wrap; word-break: break-word;">${desc}</p>
+                <div>
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <img src="${photo}" style="width: 85px; height: 85px; border-radius: 12px; object-fit: cover; flex-shrink: 0;" alt="${name}">
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; font-weight: 700;">
+                                ${name} <span style="font-size: 0.85rem; color: #64748b; font-weight: normal;">${username}</span>
+                            </h3>
+                            <p style="margin: 0; color: #334155; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${desc}</p>
+                        </div>
                     </div>
+                    ${albumsHtml}
                 </div>
-                ${albumsHtml}
             `;
 
             container.appendChild(card);
