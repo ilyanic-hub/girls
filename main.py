@@ -14,6 +14,7 @@ import asyncio
 import shutil
 import secrets
 import logging
+from dropbox.exceptions import ApiError  # 🌟 Добавь эту строчку!
 
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
