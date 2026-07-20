@@ -910,53 +910,61 @@ async def create_announcement(
 @app.get("/api/announcements")
 async def get_announcements():
     db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row  # чтобы возвращать данные в виде удобных словарей
+    db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # Объединяем таблицы, чтобы получить имя пользователя модели (username)
-    cursor.execute("""
-        SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
-        FROM announcements a
-        JOIN users u ON a.user_id = u.id
-        ORDER BY a.id DESC
-    """)
-    rows = cursor.fetchall()
-
-    announcements = []
-    for row in rows:
-        username = row["username"]
-        
-        # Достаем альбомы этой модели
+    try:
+        # 1. Получаем список всех объявлений
         cursor.execute("""
-            SELECT id, title, description, is_paid, price, cover_url 
-            FROM albums 
-            WHERE model_username = ?
-        """, (username,))
-        album_rows = cursor.fetchall()
-        
-        albums = []
-        for alb in album_rows:
-            album_dict = dict(alb)
-            cover = album_dict.get("cover_url") or ""
-            # Корректируем ссылку Dropbox на raw=1
-            if "?dl=0" in cover:
-                album_dict["cover_url"] = cover.replace("?dl=0", "?raw=1")
-            elif "&dl=0" in cover:
-                album_dict["cover_url"] = cover.replace("&dl=0", "&raw=1")
-            albums.append(album_dict)
+            SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
+            FROM announcements a
+            JOIN users u ON a.user_id = u.id
+            ORDER BY a.id DESC
+        """)
+        rows = cursor.fetchall()
 
-        announcements.append({
-            "id": row["id"],
-            "name": row["name"],
-            "description": row["description"],
-            "photo_url": row["photo_url"],
-            "created_at": row["created_at"],
-            "username": username,
-            "albums": albums  # <-- Передаем альбомы прямо внутри карточки объявления
-        })
-        
-    db.close()
-    return announcements
+        announcements = []
+        for row in rows:
+            username = row["username"]
+            albums = []
+            
+            # 2. Пытаемся достать альбомы модели (с защитой от ошибок структуры)
+            try:
+                cursor.execute("SELECT * FROM albums WHERE model_username = ?", (username,))
+                album_rows = cursor.fetchall()
+                
+                for alb in album_rows:
+                    album_dict = dict(alb)
+                    cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
+                    
+                    if "?dl=0" in cover:
+                        cover = cover.replace("?dl=0", "?raw=1")
+                    elif "&dl=0" in cover:
+                        cover = cover.replace("&dl=0", "&raw=1")
+                        
+                    album_dict["cover_url"] = cover
+                    albums.append(album_dict)
+            except Exception as album_err:
+                # Если названия колонок в albums отличаются, выводим ошибку в консоль сервера
+                print(f"[WARN] Ошибка при чтении альбомов для {username}: {album_err}")
+
+            announcements.append({
+                "id": row["id"],
+                "name": row["name"],
+                "description": row["description"],
+                "photo_url": row["photo_url"],
+                "created_at": row["created_at"],
+                "username": username,
+                "albums": albums
+            })
+            
+        db.close()
+        return announcements
+
+    except Exception as e:
+        db.close()
+        print(f"[ERROR] Ошибка в /api/announcements: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Эндпоинт для получения ОДНОГО объявления по ID (например, при переходе на карточку)
