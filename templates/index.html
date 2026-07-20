@@ -945,7 +945,59 @@
             }, 4000);
         }
 
-        checkAuth
+        async function checkAuth() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            if (typeof showAuthButtons === 'function') showAuthButtons();
+            return;
+        }
+
+        let res = await fetch('/api/user/me', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            let user = await res.json();
+            
+            // 1. Безопасное обновление текста
+            const nameEl = document.getElementById('user-name');
+            const balanceEl = document.getElementById('user-balance');
+            if (nameEl) nameEl.innerText = user.username || "Пользователь";
+            if (balanceEl) balanceEl.innerText = user.balance || 0;
+
+            // 2. Безопасное обновление аватара
+            const avatarImg = document.getElementById('user-avatar-img');
+            const avatarDefault = document.getElementById('user-avatar-default');
+            const currentAvatar = user.avatar || user.avatar_url;
+
+            if (avatarImg) {
+                if (currentAvatar) {
+                    avatarImg.src = currentAvatar;
+                    avatarImg.style.display = 'block';
+                    if (avatarDefault) avatarDefault.style.display = 'none';
+                } else {
+                    avatarImg.style.display = 'none';
+                    if (avatarDefault) avatarDefault.style.display = 'block';
+                }
+            }
+
+            // 3. Переключение видимости блоков
+            const userBlock = document.getElementById('header-user-block');
+            const authContainer = document.getElementById('auth-buttons-container');
+            
+            if (userBlock) userBlock.style.display = 'flex';
+            if (authContainer) authContainer.style.display = 'none';
+
+        } else {
+            console.warn("Сервер вернул ошибку авторизации:", res.status);
+            localStorage.removeItem('token');
+            if (typeof showAuthButtons === 'function') showAuthButtons();
+        }
+    } catch (err) {
+        console.error("Критическая ошибка в checkAuth:", err);
+    }
+}
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
