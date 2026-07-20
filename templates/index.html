@@ -1027,19 +1027,32 @@
             }
 
             // Отрисовка аватарки
-            const avatarImg = document.getElementById('user-avatar-img');
-            const avatarDefault = document.getElementById('user-avatar-default');
+const avatarImg = document.getElementById('user-avatar-img');
+const avatarDefault = document.getElementById('user-avatar-default');
 
-            if (avatarImg) {
-                if (user.avatar) {
-                    avatarImg.src = user.avatar;
-                    avatarImg.style.display = 'block';     
-                    if (avatarDefault) avatarDefault.style.display = 'none';  
-                } else {
-                    avatarImg.style.display = 'none';
-                    if (avatarDefault) avatarDefault.style.display = 'block'; 
-                }
-            }
+if (avatarImg) {
+    if (user.avatar && user.avatar.trim() !== '' && user.avatar !== 'null') {
+        
+        let finalSrc = user.avatar;
+        
+        // 🌟 Авто-фикс для ссылок Dropbox: меняем dl=0 на raw=1
+        if (finalSrc.includes('dropbox.com') && finalSrc.includes('dl=0')) {
+            finalSrc = finalSrc.replace('dl=0', 'raw=1');
+        }
+        
+        avatarImg.src = finalSrc; 
+        avatarImg.style.display = 'block';     
+        if (avatarDefault) avatarDefault.style.display = 'none';  
+        
+        avatarImg.onerror = function() {
+            avatarImg.style.display = 'none';
+            if (avatarDefault) avatarDefault.style.display = 'block';
+        };
+    } else {
+        avatarImg.style.display = 'none';
+        if (avatarDefault) avatarDefault.style.display = 'block'; 
+    }
+}
 
         } else {
             // 2. ЕСЛИ ТЫ ГОСТЬ по ответу сервера
