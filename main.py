@@ -1949,7 +1949,7 @@ async def create_album(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         
         # Путь сохранения внутри Dropbox
-        dropbox_path = f"/albums/{session_user}/{unique_filename}"
+        dropbox_path = f"/albums/{username_str}/{unique_filename}"
         
         try:
             file_bytes = await file.read()
