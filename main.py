@@ -385,6 +385,15 @@ def init_db():
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
 
+    # === Миграция для таблицы album_photos (добавляем is_preview, если таблица уже существовала) ===
+    try:
+        cursor.execute("ALTER TABLE album_photos ADD COLUMN is_preview INTEGER DEFAULT 0")
+        db.commit()
+        print("Колонка is_preview успешно добавлена в существующую таблицу album_photos.")
+    except sqlite3.OperationalError:
+        # Если колонка уже создана или таблицы еще нет — SQLite выдаст ошибку, просто идем дальше
+        pass
+
     # Таблица альбомов
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS albums (
