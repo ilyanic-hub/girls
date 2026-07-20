@@ -399,15 +399,15 @@ def init_db():
     """)
     
     # Таблица фотографий в альбомах (Обновленная версия)
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS album_photos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    album_id INTEGER NOT NULL,
-    photo_url TEXT NOT NULL,
-    is_preview INTEGER DEFAULT 0, -- 🌟 0 = приватное фото, 1 = бесплатное превью
-    FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
-)
-""")
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS album_photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        album_id INTEGER NOT NULL,
+        photo_url TEXT NOT NULL,
+        is_preview INTEGER DEFAULT 0, -- 🌟 0 = приватное фото, 1 = бесплатное превью
+        FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
+    )
+    """)
 
     
 
