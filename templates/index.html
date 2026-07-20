@@ -947,54 +947,54 @@
 
        async function checkAuth() {
     try {
-        // 🌟 Возвращаем твой оригинальный путь эндпоинта
         const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
         const userBlock = document.getElementById('header-user-block');
+        const guestBlock = document.getElementById('header-guest-block'); // Нашли гостевой блок!
 
         if (response.ok) {
             const user = await response.json();
             currentUserRole = user.role; 
 
-            // 🌟 БЕЗОПАСНОЕ ОБНОВЛЯЕМ АВАТАРКУ
-            try {
-                const avatarImg = document.getElementById('user-avatar-img');
-                const avatarDefault = document.getElementById('user-avatar-default');
-                // Проверяем, что вернул бэкенд (avatar или avatar_url)
-                const currentAvatar = user.avatar || user.avatar_url;
-
-                if (avatarImg) {
-                    if (currentAvatar) {
-                        avatarImg.src = currentAvatar;
-                        avatarImg.style.display = 'block';
-                        if (avatarDefault) avatarDefault.style.display = 'none';
-                    } else {
-                        avatarImg.style.display = 'none';
-                        if (avatarDefault) avatarDefault.style.display = 'block';
-                    }
-                }
-            } catch (avatarErr) {
-                console.error("Ошибка при отрисовке аватара:", avatarErr);
-            }
-
-            // Твоя оригинальная логика переключения интерфейса
+            // 1. Вызов твоей стандартной логики интерфейса
             showUserUI(user, buttonsContainer);
             
-            // Показываем блок авторизованного юзера
-            if (userBlock) userBlock.style.display = 'flex';
+            // 2. Переключение блоков: авторизованный показываем, гостевой скрываем
+            if (userBlock) userBlock.style.style.setProperty('display', 'flex', 'important');
+            if (guestBlock) guestBlock.style.style.setProperty('display', 'none', 'important'); 
+            if (buttonsContainer) buttonsContainer.style.display = 'none';
+
+            // 3. 🔍 Проверка аватара в консоли браузера (F12)
+            console.log("Данные пользователя с сервера:", user);
+            console.log("Значение поля avatar:", user.avatar);
+
+            // 4. Отрисовка аватарки
+            const avatarImg = document.getElementById('user-avatar-img');
+            const avatarDefault = document.getElementById('user-avatar-default');
+
+            if (avatarImg) {
+                if (user.avatar) {
+                    avatarImg.src = user.avatar;
+                    avatarImg.style.display = 'block';     // Включаем картинку
+                    if (avatarDefault) avatarDefault.style.display = 'none';  // Выключаем смайлик 👤
+                } else {
+                    avatarImg.style.display = 'none';
+                    if (avatarDefault) avatarDefault.style.display = 'block'; // Оставляем смайлик 👤
+                }
+            }
 
         } else {
+            // Если гость или сессия истекла
             currentUserRole = 'guest';
+            if (userBlock) userBlock.style.display = 'none';
+            if (guestBlock) guestBlock.style.display = 'flex'; // Возвращаем гостевую шапку
+            
             if (buttonsContainer) {
+                buttonsContainer.style.display = 'block';
                 buttonsContainer.innerHTML = `
-                    <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
-                    <button onclick="openModal('register')" class="btn">Регистрация</button>
+                    <button onclick="switchTab('auth-page', event)" class="btn btn-sec">Войти</button>
                 `;
             }
-            const pcBtn = document.getElementById('menu-model-dashboard');
-            if (pcBtn) pcBtn.style.display = 'none';
-            
-            if (userBlock) userBlock.style.display = 'none';
         }
     } catch (error) {
         console.error("Ошибка при проверке авторизации:", error);
