@@ -947,6 +947,14 @@
         }
 
        async function checkAuth() {
+    // Функция для жесткого скрытия кнопок кабинета у гостей
+    const hideDashboardButtons = () => {
+        const pcBtn = document.getElementById('menu-model-dashboard');
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+        if (pcBtn) pcBtn.style.display = 'none';
+        if (mobileBtn) mobileBtn.style.display = 'none';
+    };
+
     // 1. Если пользователь намеренно вышел (кликнул "Выйти")
     if (localStorage.getItem('isLoggedIn') === 'false') {
         currentUserRole = 'guest';
@@ -963,7 +971,8 @@
             buttonsContainer.innerHTML = '';
         }
 
-        // 🌟 Скрываем личные кабинеты на странице для гостей
+        hideDashboardButtons();
+
         if (typeof setupRoleUI === 'function') {
             setupRoleUI('guest');
         }
@@ -988,7 +997,12 @@
             if (guestBlock) guestBlock.style.display = 'none'; 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // Отрисовка аватарки (если в базе null — останется дефолтный силуэт)
+            // 🌟 ИСПРАВЛЕНО: Вместо слепого включения кнопки, вызываем распределение ролей!
+            if (typeof setupRoleUI === 'function') {
+                setupRoleUI(user.role); 
+            }
+
+            // Отрисовка аватарки
             const avatarImg = document.getElementById('user-avatar-img');
             const avatarDefault = document.getElementById('user-avatar-default');
 
@@ -1010,13 +1024,13 @@
             if (userBlock) userBlock.style.display = 'none';       
             if (guestBlock) guestBlock.style.display = 'flex';     
             
-            // 🌟 Исправлено: Скрываем резервный контейнер, чтобы кнопка "Войти" не дублировалась
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'none';
                 buttonsContainer.innerHTML = '';
             }
 
-            // 🌟 Скрываем приватный контент и кабинеты на самой странице
+            hideDashboardButtons();
+
             if (typeof setupRoleUI === 'function') {
                 setupRoleUI('guest');
             }
