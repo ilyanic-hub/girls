@@ -1910,27 +1910,36 @@ async def create_album(
     is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
     price: int = Form(0),
     files: List[UploadFile] = File(...),
-    session_user: str = Depends(get_current_user)
+    session_user: Any = Depends(get_current_user) # Меняем тип на Any, так как прилетает Row
 ):
+    # 🌟 ИЗВЛЕКАЕМ СТРОКУ: Вытаскиваем текстовое имя пользователя из объекта sqlite3.Row
+    # В зависимости от настроек get_db, это делается либо по ключу, либо по индексу
+    if hasattr(session_user, "keys") or isinstance(session_user, dict):
+        username_str = session_user["username"]
+    else:
+        username_str = session_user[1] # Если это обычный кортеж (id, username)
+
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
     cursor = db.cursor()
-    cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
+    
+    # 🌟 Передаем чистую строку username_str вместо объекта сессии
+    cursor.execute("SELECT role FROM users WHERE username = ?", (username_str,))
     user_row = cursor.fetchone()
     
     if not user_row or user_row[0] != 'model':
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
-    
+        
     dbx = get_dropbox_client()
     if not dbx:
         db.close()
         raise HTTPException(status_code=500, detail="Dropbox клиент не готов")
 
-    # 2. Создаем запись альбома в БД
+    # 2. Создаем запись альбома в БД (тоже используем username_str)
     cursor.execute(
         "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
-        (session_user, title, description, is_paid, price)
+        (username_str, title, description, is_paid, price)
     )
     album_id = cursor.lastrowid
     
