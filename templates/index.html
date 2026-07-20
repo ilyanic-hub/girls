@@ -947,6 +947,23 @@
         }
 
        async function checkAuth() {
+    // 🌟 1. ДОБАВЛЕНО: Если пользователь нажал "Выйти", жестко блокируем автологин
+    if (localStorage.getItem('isLoggedIn') === 'false') {
+        currentUserRole = 'guest';
+        
+        const userBlock = document.getElementById('header-user-block');
+        const guestBlock = document.getElementById('header-guest-block');
+        const buttonsContainer = document.getElementById('auth-buttons-container');
+
+        if (userBlock) userBlock.style.display = 'none';
+        if (guestBlock) guestBlock.style.display = 'flex';
+        if (buttonsContainer) {
+            buttonsContainer.style.display = 'block';
+            buttonsContainer.innerHTML = `<button onclick="switchTab('auth-page', event)" class="btn btn-sec">Войти</button>`;
+        }
+        return; // Выходим из функции, fetch('/api/me') не сработает!
+    }
+
     try {
         const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
@@ -957,15 +974,15 @@
             const user = await response.json();
             currentUserRole = user.role; 
 
-            // 1. Вызов твоей стандартной логики интерфейса
+            // Вызов твоей стандартной логики интерфейса
             showUserUI(user, buttonsContainer);
             
-            // 2. ИСПРАВЛЕНО: Безопасное переключение видимости блоков
+            // Безопасное переключение видимости блоков
             if (userBlock) userBlock.style.display = 'flex';
             if (guestBlock) guestBlock.style.display = 'none'; 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // 3. Отрисовка аватарки
+            // Отрисовка аватарки
             const avatarImg = document.getElementById('user-avatar-img');
             const avatarDefault = document.getElementById('user-avatar-default');
 
@@ -981,11 +998,11 @@
             }
 
         } else {
-            // 🌟 ЕСЛИ ТЫ ГОСТЬ: Показываем ТОЛЬКО гостевой блок, а личный кабинет прячем
+            // ЕСЛИ ТЫ ГОСТЬ по ответу сервера
             currentUserRole = 'guest';
             
-            if (userBlock) userBlock.style.display = 'none';       // Прячем кабинет, баланс и "+ Пополнить"
-            if (guestBlock) guestBlock.style.display = 'flex';     // Показываем чистую плашку "Гость" и кнопку "Войти"
+            if (userBlock) userBlock.style.display = 'none';       
+            if (guestBlock) guestBlock.style.display = 'flex';     
             
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'block';
