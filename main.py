@@ -2078,39 +2078,40 @@ async def get_public_model_albums(username: str):
     return albums
 
 @app.get("/api/albums/{album_id}")
-async def get_album_details(
-    album_id: int, 
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)  # <--- убрали : User
-):
-    # 1. Ищем альбом в БД
-    album = db.query(Album).filter(Album.id == album_id).first()
-    if not album:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Альбом не найден"
-        )
+async def get_album_details(album_id: int, session_user: str = Depends(get_current_user)):
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
     
-    # 2. Формируем список ссылок на фотографии
+    # 1. Достаем сам альбом
+    cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
+    album = cursor.fetchone()
+    
+    if not album:
+        db.close()
+        raise HTTPException(status_code=404, detail="Альбом не найден")
+        
+    # 2. Достаем фотографии этого альбома из album_photos
+    cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album_id,))
+    photos_rows = cursor.fetchall()
+    db.close()
+    
+    # 3. Формируем список ссылок и прячем закрытые Dropbox-пути
     photo_urls = []
-    if hasattr(album, 'photos') and album.photos:
-        for photo in album.photos:
-            url = photo.url
+    for row in photos_rows:
+        url = row["photo_url"]
+        # Если ссылка публичная (начинается на http), приводим ее к прямому формату raw=1
+        if url and url.startswith("http"):
             if "?dl=0" in url:
                 url = url.replace("?dl=0", "?raw=1")
             elif "&dl=0" in url:
                 url = url.replace("&dl=0", "&raw=1")
             photo_urls.append(url)
-
-    # 3. Возвращаем JSON
-    return {
-        "id": album.id,
-        "title": album.title,
-        "description": getattr(album, 'description', ''),
-        "is_paid": album.is_paid,
-        "price": album.price,
-        "photos": photo_urls
-    }
+        
+    album_dict = dict(album)
+    album_dict["photos"] = photo_urls
+    
+    return album_dict
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
