@@ -907,32 +907,35 @@ async def create_announcement(
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
 # Эндпоинт для получения списка всех объявлений с их альбомами
-@app.get("/api/announcements")
+@app.get("/api/announcements/")
 async def get_announcements():
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
     try:
-        # 1. Получаем список всех объявлений
         cursor.execute("""
-            SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
+            SELECT a.id, a.name, a.description, a.photo_url, a.created_at, a.user_id, u.username
             FROM announcements a
-            JOIN users u ON a.user_id = u.id
+            LEFT JOIN users u ON a.user_id = u.id
             ORDER BY a.id DESC
         """)
         rows = cursor.fetchall()
 
         announcements = []
         for row in rows:
-            username = row["username"]
+            username = row["username"] or ""
+            user_id = row["user_id"]
             albums = []
             
-            # 2. Пытаемся достать альбомы модели (с защитой от ошибок структуры)
             try:
-                cursor.execute("SELECT * FROM albums WHERE model_username = ?", (username,))
-                album_rows = cursor.fetchall()
+                # Ищем альбомы и по username, и по user_id
+                cursor.execute("""
+                    SELECT * FROM albums 
+                    WHERE model_username = ? OR model_username = ? OR user_id = ?
+                """, (username, str(user_id), user_id))
                 
+                album_rows = cursor.fetchall()
                 for alb in album_rows:
                     album_dict = dict(alb)
                     cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
@@ -945,8 +948,7 @@ async def get_announcements():
                     album_dict["cover_url"] = cover
                     albums.append(album_dict)
             except Exception as album_err:
-                # Если названия колонок в albums отличаются, выводим ошибку в консоль сервера
-                print(f"[WARN] Ошибка при чтении альбомов для {username}: {album_err}")
+                print(f"[WARN] Ошибка чтения альбомов: {album_err}")
 
             announcements.append({
                 "id": row["id"],
