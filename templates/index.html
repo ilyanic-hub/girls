@@ -947,29 +947,32 @@
         }
 
        async function checkAuth() {
-    // Утилита для управления кнопками кабинета (показываем только модели)
+    // Функция для поиска и скрытия/показа кнопки Кабинет по её тексту
     const handleDashboardVisibility = (role) => {
-        // 1. Пробуем найти по ID (старый способ)
-        let pcBtn = document.getElementById('menu-model-dashboard');
-        let mobileBtn = document.getElementById('mobile-menu-model-dashboard');
-        
-        // 2. 🌟 ЕСЛИ НЕ НАШЛИ ПО ID: Ищем кнопку по тексту "Кабинет" внутри шапки
-        if (!pcBtn) {
-            const allButtons = document.querySelectorAll('#header-user-block button, #header-user-block a, .header btn');
-            allButtons.forEach(el => {
-                if (el.textContent.includes('Кабинет')) {
-                    pcBtn = el;
-                }
-            });
-        }
+        // Находим все возможные элементы внутри блока авторизованного юзера
+        const userBlock = document.getElementById('header-user-block');
+        if (!userBlock) return;
 
-        // 3. Управляем видимостью
+        // Ищем внутри него любые ссылки или кнопки, содержащие текст "Кабинет"
+        const elements = userBlock.querySelectorAll('a, button, div, span');
+        let cabinetBtn = null;
+
+        elements.forEach(el => {
+            if (el.textContent.trim().includes('Кабинет')) {
+                // Берем именно тот элемент, который кликабелен (обычно ссылка <a> или <button>)
+                cabinetBtn = el;
+            }
+        });
+
+        // Также проверяем старый мобильный ID на всякий случай
+        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+
         if (role === 'model') {
-            if (pcBtn) pcBtn.style.display = 'flex'; // Показываем только модели
+            if (cabinetBtn) cabinetBtn.style.display = 'inline-flex'; // или 'block' / 'flex' в зависимости от верстки
             if (mobileBtn) mobileBtn.style.display = 'block';
         } else {
-            // Для обычных пользователей ('user') и гостей ('guest') — гарантированно прячем!
-            if (pcBtn) pcBtn.style.display = 'none';
+            // Для обычных пользователей ('user') и гостей ('guest') — жестко прячем!
+            if (cabinetBtn) cabinetBtn.style.display = 'none';
             if (mobileBtn) mobileBtn.style.display = 'none';
         }
     };
@@ -990,7 +993,7 @@
             buttonsContainer.innerHTML = '';
         }
 
-        handleDashboardVisibility('guest'); // Жестко прячем кабинет
+        handleDashboardVisibility('guest');
 
         if (typeof setupRoleUI === 'function') {
             setupRoleUI('guest');
@@ -1011,12 +1014,12 @@
             // Стандартная логика интерфейса (имя, баланс)
             showUserUI(user, buttonsContainer);
             
-            // Переключаем блоки шапки
+            // Сначала включаем блок шапки (вместе с ним временно появится и кабинет)
             if (userBlock) userBlock.style.display = 'flex';
             if (guestBlock) guestBlock.style.display = 'none'; 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // 🌟 УПРАВЛЕНИЕ КАБИНЕТОМ: Показываем только если user.role === 'model'
+            // 🌟 СРАЗУ ПОСЛЕ ЭТОГО фильтруем видимость кнопки "Кабинет" по роли
             handleDashboardVisibility(user.role);
 
             if (typeof setupRoleUI === 'function') {
@@ -1050,7 +1053,7 @@
                 buttonsContainer.innerHTML = '';
             }
 
-            handleDashboardVisibility('guest'); // Жестко прячем кабинет
+            handleDashboardVisibility('guest');
 
             if (typeof setupRoleUI === 'function') {
                 setupRoleUI('guest');
