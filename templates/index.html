@@ -950,7 +950,7 @@
         const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
         const userBlock = document.getElementById('header-user-block');
-        const guestBlock = document.getElementById('header-guest-block'); // Нашли гостевой блок!
+        const guestBlock = document.getElementById('header-guest-block'); 
 
         if (response.ok) {
             const user = await response.json();
@@ -959,9 +959,9 @@
             // 1. Вызов твоей стандартной логики интерфейса
             showUserUI(user, buttonsContainer);
             
-            // 2. Переключение блоков: авторизованный показываем, гостевой скрываем
-            if (userBlock) userBlock.style.style.setProperty('display', 'flex', 'important');
-            if (guestBlock) guestBlock.style.style.setProperty('display', 'none', 'important'); 
+            // 2. ИСПРАВЛЕНО: Переключение видимости блоков (без лишних .style)
+            if (userBlock) userBlock.style.setProperty('display', 'flex', 'important');
+            if (guestBlock) guestBlock.style.setProperty('display', 'none', 'important'); 
             if (buttonsContainer) buttonsContainer.style.display = 'none';
 
             // 3. 🔍 Проверка аватара в консоли браузера (F12)
@@ -984,10 +984,9 @@
             }
 
         } else {
-            // Если гость или сессия истекла
             currentUserRole = 'guest';
             if (userBlock) userBlock.style.display = 'none';
-            if (guestBlock) guestBlock.style.display = 'flex'; // Возвращаем гостевую шапку
+            if (guestBlock) guestBlock.style.display = 'flex'; 
             
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'block';
