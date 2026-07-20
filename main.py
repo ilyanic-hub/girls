@@ -928,25 +928,31 @@ async def get_announcements():
             username = row["username"] or ""
             albums = []
             
-            # 2. Ищем альбомы модели только по model_username
             if username:
                 try:
-                    cursor.execute("""
-                        SELECT * FROM albums 
-                        WHERE model_username = ?
-                    """, (username,))
-                    
+                    cursor.execute("SELECT * FROM albums WHERE model_username = ?", (username,))
                     album_rows = cursor.fetchall()
+                    
                     for alb in album_rows:
                         album_dict = dict(alb)
                         cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
                         
-                        # Приводим ссылки Dropbox к прямому отображению (raw=1)
-                        if "?dl=0" in cover:
-                            cover = cover.replace("?dl=0", "?raw=1")
-                        elif "&dl=0" in cover:
-                            cover = cover.replace("&dl=0", "&raw=1")
-                            
+                        # Если явной обложки нет, берём ПЕРВОЕ фото из альбома
+                        if not cover:
+                            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? LIMIT 1", (album_dict["id"],))
+                            first_photo = cursor.fetchone()
+                            if first_photo:
+                                cover = first_photo["photo_url"] or ""
+
+                        # Превращаем Dropbox-ссылку в прямую для картинки
+                        if cover:
+                            if "?dl=0" in cover:
+                                cover = cover.replace("?dl=0", "?raw=1")
+                            elif "&dl=0" in cover:
+                                cover = cover.replace("&dl=0", "&raw=1")
+                            elif "dropbox.com" in cover and not ("raw=1" in cover or "dl=1" in cover):
+                                cover += "&raw=1" if "?" in cover else "?raw=1"
+                                
                         album_dict["cover_url"] = cover
                         albums.append(album_dict)
                 except Exception as album_err:
