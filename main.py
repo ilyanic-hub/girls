@@ -561,34 +561,51 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
 @app.post("/api/user/avatar")
 async def upload_avatar(
     request: Request,
-    avatar: UploadFile = File(...),
+    file: UploadFile = File(...), # Имя совпадает с фронтендом
     user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
+    # 1. Валидация формата
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Файл должен быть изображением")
     
     username = user["username"]
-    file_extension = os.path.splitext(file.filename)[1]
-    if not file_extension:
-        file_extension = ".jpg"
-        
+    file_extension = os.path.splitext(file.filename)[1] or ".jpg"
     filename = f"avatar_{username}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # Путь, по которому файл сохранится внутри Dropbox
+    dropbox_path = f"/avatars/{filename}"
     
     try:
-        with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
+        # Read content из UploadFile
+        file_content = await file.read()
+        
+        # 2. Загружаем файл в Dropbox (с перезаписью, если уже существует)
+        dbx.files_upload(file_content, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+        
+        # 3. Создаем или получаем прямую ссылку (Shared Link) на файл
+        try:
+            shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+            raw_url = shared_link_metadata.url
+        except ApiError as e:
+            # Если ссылка уже создана ранее, получаем существующую
+            links = dbx.sharing_list_shared_links(path=dropbox_path, direct_only=True)
+            raw_url = links.links[0].url
+
+        # Превращаем ссылку Dropbox в прямую для тега <img> (меняем dl=0 на raw=1)
+        avatar_url = raw_url.replace("?dl=0", "?raw=1")
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении файла: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка при работе с Dropbox: {str(e)}")
     
-    avatar_url = f"/static/avatars/{filename}"
-    
+    # 4. Обновляем URL аватарки в локальной БД SQLite
     try:
         cursor = db.cursor()
         cursor.execute("UPDATE users SET avatar = ? WHERE username = ?", (avatar_url, username))
         db.commit()
-        upload_db_to_dropbox()
+        
+        # Твоя функция синхронизации самой БД в Dropbox
+        upload_db_to_dropbox() 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ошибка при обновлении базы данных: {str(e)}")
     
