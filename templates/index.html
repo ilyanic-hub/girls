@@ -946,42 +946,56 @@
         }
 
         async function checkAuth() {
-    // Если пользователь разлогинен — принудительно ставим роль гостя
-    if (localStorage.getItem('isLoggedIn') === 'false') {
-        setupRoleUI('guest');
-        return;
-    }
-
     try {
-        const response = await fetch('/api/me');
-        if (response.ok) {
-            const user = await response.json();
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Если токена нет, показываем кнопки входа/регистрации
+            showAuthButtons();
+            return;
+        }
+
+        // Запрос к эндпоинту, который отдает инфо о текущем юзере
+        let res = await fetch('/api/user/me', { // или твой эндпоинт профиля
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+            let user = await res.json();
             
-            // Запускаем твою стандартную функцию отрисовки шапки (с балансом и именем)
-            if (typeof showUserUI === 'function') {
-                showUserUI(user);
+            // 1. Обновляем текстовые данные
+            document.getElementById('user-name').innerText = user.username;
+            document.getElementById('user-balance').innerText = user.balance || 0;
+
+            // 2. РАБОТА С АВАТАРОМ (как в конкурсантках)
+            const avatarImg = document.getElementById('user-avatar-img');
+            const avatarDefault = document.getElementById('user-avatar-default');
+
+            // Проверяем, пришел ли avatar от сервера (в БД поле называется avatar)
+            if (user.avatar) {
+                avatarImg.src = user.avatar;           // Вставляем ссылку Dropbox (?raw=1)
+                avatarImg.style.display = 'block';     // Показываем картинку
+                if (avatarDefault) {
+                    avatarDefault.style.display = 'none'; // Прячем смайлик 👤
+                }
+            } else {
+                // Если аватара в базе нет, показываем заглушку
+                avatarImg.style.display = 'none';
+                if (avatarDefault) {
+                    avatarDefault.style.display = 'block';
+                }
             }
 
-            // Передаем роль пользователя ("model", "user" или "guest") в настройку меню
-            setupRoleUI(user.role);
-            // Внутри функции, которая обрабатывает данные пользователя (например, после успешного checkAuth)
-// Находим элементы в шапке
-const avatarImg = document.getElementById('user-avatar-img');
-const avatarDefault = document.getElementById('user-avatar-default');
-
-// Проверяем именно user.avatar (как в базе данных)
-if (user && user.avatar) {
-    avatarImg.src = user.avatar; // Меняем путь на ссылку из Dropbox
-    avatarImg.style.display = 'block'; // Показываем картинку
-    avatarDefault.style.display = 'none'; // Скрываем стандартный силуэт 👤
-}
+            // Показываем блок пользователя в шапке
+            document.getElementById('header-user-block').style.display = 'flex';
+            document.getElementById('auth-buttons-container').style.display = 'none';
 
         } else {
-            setupRoleUI('guest');
+            // Токен невалидный
+            localStorage.removeItem('token');
+            showAuthButtons();
         }
-    } catch (e) {
-        console.error("Ошибка при проверке авторизации:", e);
-        setupRoleUI('guest');
+    } catch (err) {
+        console.error("Ошибка при проверке авторизации:", err);
     }
 }
 
