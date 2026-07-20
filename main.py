@@ -1296,6 +1296,22 @@ async def check_tg_status(code: str, response: Response):
     except Exception as e:
         logging.error(f"Ошибка в tg-status: {e}")
         return {"status": "pending"}
+
+@app.get("/api/albums/debug")
+def debug_albums():
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    # Используем Row, чтобы увидеть человеческие ключи
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+    
+    cursor.execute("SELECT * FROM albums")
+    albums = [dict(row) for row in cursor.fetchall()]
+    
+    cursor.execute("SELECT * FROM album_photos")
+    photos = [dict(row) for row in cursor.fetchall()]
+    
+    db.close()
+    return {"albums_count": len(albums), "albums": albums, "photos": photos}
     
 @app.get("/api/me")
 async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
