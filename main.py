@@ -2081,7 +2081,7 @@ async def get_public_model_albums(username: str):
 async def get_album_details(
     album_id: int, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user = Depends(get_current_user)  # <--- убрали : User
 ):
     # 1. Ищем альбом в БД
     album = db.query(Album).filter(Album.id == album_id).first()
@@ -2091,19 +2091,18 @@ async def get_album_details(
             detail="Альбом не найден"
         )
     
-    # 2. Формируем список прямой ссылки для каждой фотографии
+    # 2. Формируем список ссылок на фотографии
     photo_urls = []
     if hasattr(album, 'photos') and album.photos:
         for photo in album.photos:
             url = photo.url
-            # Корректируем ссылку Dropbox на прямую (raw=1)
             if "?dl=0" in url:
                 url = url.replace("?dl=0", "?raw=1")
             elif "&dl=0" in url:
                 url = url.replace("&dl=0", "&raw=1")
             photo_urls.append(url)
 
-    # 3. Возвращаем JSON для фронтенда
+    # 3. Возвращаем JSON
     return {
         "id": album.id,
         "title": album.title,
@@ -2112,69 +2111,6 @@ async def get_album_details(
         "price": album.price,
         "photos": photo_urls
     }
-
-@app.get("/api/balance")
-async def get_balance(request: Request, db=Depends(get_db)):
-    user_ip = request.client.host
-    cursor = db.cursor()
-    cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
-    row = cursor.fetchone()
-    
-    if not row:
-        cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, 0)", (user_ip,))
-        db.commit()
-        return {"balance": 0}
-        
-    return {"balance": row["balance"]}
-
-@app.post("/api/adult-models/buy")
-async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="🔒 Доступ ограничен. Пожалуйста, войдите в аккаунт.")
-    
-    cursor = db.cursor()
-    
-    # 1. Проверяем баланс пользователя (работаем с колонкой balance!)
-    cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
-    user = cursor.fetchone()
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    
-    # Сравниваем с балансом
-    if user["balance"] < 50:
-        raise HTTPException(status_code=400, detail="💰 Недостаточно средств! Пополните баланс.")
-    
-    # 2. Проверяем, не куплена ли модель уже
-    cursor.execute(
-        "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
-        (session_user, data.model_id)
-    )
-    already_bought = cursor.fetchone()
-    if already_bought:
-        return {"status": "success", "message": "Доступ уже был куплен ранее"}
-    
-    try:
-        # 3. Списываем 50 коинов со счета balance
-        cursor.execute("UPDATE users SET balance = balance - 50 WHERE username = ?", (session_user,))
-        
-        # 4. Записываем покупку в таблицу user_purchases
-        cursor.execute(
-            "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
-            (session_user, data.model_id)
-        )
-        
-        db.commit()
-        
-        # Синхронизация с Dropbox, если функция подключена
-        if "upload_db_to_dropbox" in globals():
-            upload_db_to_dropbox()
-            
-        return {"status": "success", "message": "🎉 Доступ успешно разблокирован!"}
-        
-    except Exception as e:
-        db.rollback()
-        print(f"Ошибка транзакции покупки: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка на сервере при проведении оплаты: {str(e)}")
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
