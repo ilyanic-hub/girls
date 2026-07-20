@@ -2288,35 +2288,45 @@ async function loadModelDashboard() {
 
 // Функция открытия альбома в модальном окне
 async function openAlbumModal(albumId) {
-    const modal = document.getElementById('album-modal'); // Ищем твою модалку
-    const modalContent = document.getElementById('album-modal-photos'); // Контейнер для фото внутри модалки
-    const modalTitle = document.getElementById('album-modal-title'); // Заголовок модалки
+    // Ищем модалку просмотра и её внутренние элементы
+    const modal = document.getElementById('view-album-modal');
+    const modalContent = document.getElementById('view-album-photos');
+    const modalTitle = document.getElementById('view-album-title');
+    const modalDesc = document.getElementById('view-album-desc');
     
     if (!modal) {
-        console.error("На странице не найдено модальное окно с id='album-modal'");
+        console.error("На странице не найдено модальное окно с id='view-album-modal'");
         return;
     }
 
     try {
+        // Очищаем предыдущие данные перед загрузкой
+        if (modalTitle) modalTitle.innerText = 'Загрузка...';
+        if (modalDesc) modalDesc.innerText = '';
+        if (modalContent) modalContent.innerHTML = '';
+
+        // Показываем модальное окно сразу, пока идут фото
+        modal.style.display = 'flex';
+
         // Запрашиваем содержимое альбома
         const response = await fetch(`/api/albums/${albumId}`);
         if (!response.ok) {
             alert('Не удалось загрузить альбом');
+            modal.style.display = 'none';
             return;
         }
 
         const album = await response.json();
 
-        // Заполняем заголовок
-        if (modalTitle) modalTitle.innerText = album.title;
+        // Заполняем заголовок и описание
+        if (modalTitle) modalTitle.innerText = album.title || 'Без названия';
+        if (modalDesc) modalDesc.innerText = album.description || '';
 
         // Рендерим фото
         if (modalContent) {
-            modalContent.innerHTML = '';
-            
             const photos = album.photos || [];
             if (photos.length === 0) {
-                modalContent.innerHTML = '<p style="text-align: center; color: #718096; width: 100%;">В этом альбоме пока нет фотографий.</p>';
+                modalContent.innerHTML = '<p style="text-align: center; color: var(--text-muted); grid-column: 1/-1; width: 100%;">В этом альбоме пока нет фотографий.</p>';
             } else {
                 photos.forEach(photoUrl => {
                     // Корректируем ссылку Dropbox на raw=1 при необходимости
@@ -2325,7 +2335,7 @@ async function openAlbumModal(albumId) {
                     else if (src.includes('&dl=0')) src = src.replace('&dl=0', '&raw=1');
 
                     modalContent.innerHTML += `
-                        <div style="position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #e2e8f0;">
+                        <div style="position: relative; border-radius: 8px; overflow: hidden; aspect-ratio: 1; background: #f7fafc; border: 1px solid #e2e8f0;">
                             <img src="${src}" style="width: 100%; height: 100%; object-fit: cover;" alt="Photo">
                         </div>
                     `;
@@ -2333,15 +2343,18 @@ async function openAlbumModal(albumId) {
             }
         }
 
-        // Показываем модальное окно
-        modal.style.display = 'flex'; // или 'block', в зависимости от верстки
-
     } catch (err) {
         console.error("Ошибка при открытии альбома:", err);
         alert("Ошибка при загрузке альбома");
+        modal.style.display = 'none';
     }
 }
 
+// Функция закрытия модального окна просмотра
+function closeViewAlbumModal() {
+    const modal = document.getElementById('view-album-modal');
+    if (modal) modal.style.display = 'none';
+}
 // Функция закрытия модального окна
 function closeAlbumModal() {
     const modal = document.getElementById('album-modal');
