@@ -1958,66 +1958,79 @@ async function deleteAnnouncement(id) {
         // Загрузка объявлений из API бэкенда
         async function loadAnnouncements() {
     try {
+        console.log("Загрузка объявлений...");
         const response = await fetch('/api/announcements');
-        if (!response.ok) return;
-
-        const announcements = await response.json();
-        const container = document.getElementById('announcements-container'); // Твой контейнер для объявлений
-
-        if (!container) return;
-        container.innerHTML = '';
-
-        if (announcements.length === 0) {
-            container.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Объявлений пока нет.</p>';
+        
+        if (!response.ok) {
+            console.error("Ошибка сети:", response.status);
             return;
         }
 
-        const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+        const announcements = await response.json();
+        console.log("Полученные объявления:", announcements);
+
+        // Находим контейнер для объявлений на странице
+        const container = document.getElementById('announcements-container') || document.querySelector('.announcements-list');
+        if (!container) {
+            console.error("Контейнер для объявлений не найден на странице!");
+            return;
+        }
+
+        container.innerHTML = '';
+
+        if (!announcements || announcements.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #718096; padding: 20px;">Объявлений пока нет.</p>';
+            return;
+        }
+
+        const defaultImg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
         announcements.forEach(item => {
-            // Формируем HTML для блоков альбомов
+            const photo = item.photo_url || item.photo || defaultImg;
+            const name = item.name || 'Модель';
+            const username = item.username ? `@${item.username}` : '';
+            const desc = item.description || '';
+
+            // Альбомы модели (если есть)
             let albumsHtml = '';
             if (item.albums && item.albums.length > 0) {
                 albumsHtml = `
-                    <div style="margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 12px;">
-                        <h5 style="margin: 0 0 10px 0; color: #4a5568; font-size: 0.85rem;">📸 Альбомы модели (${item.albums.length}):</h5>
-                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px;">
-                            ${item.albums.map(album => {
-                                const cover = album.cover_url || defaultSvg;
-                                return `
-                                    <div onclick="openAlbumModal(${album.id})" style="flex: 0 0 80px; cursor: pointer; text-align: center;">
-                                        <div style="width: 80px; height: 80px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #e2e8f0; background: #f7fafc;">
-                                            <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover;" alt="${album.title}">
-                                            ${album.is_paid ? `<span style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
-                                        </div>
-                                        <span style="display: block; font-size: 0.75rem; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px;">${album.title}</span>
-                                    </div>
-                                `;
-                            }).join('')}
+                    <div style="margin-top: 15px; border-top: 1px solid #edf2f7; padding-top: 10px;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #4a5568;">📸 Альбомы модели (${item.albums.length}):</span>
+                        <div style="display: flex; gap: 10px; overflow-x: auto; padding: 8px 0;">
+                            ${item.albums.map(alb => `
+                                <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 70px; cursor: pointer; text-align: center;">
+                                    <img src="${alb.cover_url || defaultImg}" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 1px solid #e2e8f0;">
+                                    <div style="font-size: 0.75rem; color: #2d3748; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px;">${alb.title || 'Альбом'}</div>
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 `;
             }
 
-            // Рендерим само объявление
-            container.innerHTML += `
-                <div style="background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                    <div style="display: flex; gap: 15px; align-items: flex-start;">
-                        ${item.photo_url ? `<img src="${item.photo_url}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 12px;" alt="Model">` : ''}
-                        <div style="flex: 1;">
-                            <h3 style="margin: 0 0 5px 0; color: #2d3748;">${item.name} <span style="font-size: 0.85rem; color: #718096; font-weight: normal;">(@${item.username})</span></h3>
-                            <p style="margin: 0; color: #4a5568; font-size: 0.95rem; white-space: pre-wrap;">${item.description}</p>
-                        </div>
+            // Создаём карточку объявления
+            const card = document.createElement('div');
+            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);";
+            
+            card.innerHTML = `
+                <div style="display: flex; gap: 15px; align-items: flex-start;">
+                    <img src="${photo}" style="width: 90px; height: 90px; border-radius: 12px; object-fit: cover; flex-shrink: 0;" alt="${name}">
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: #1a202c; display: flex; align-items: center; gap: 8px;">
+                            ${name} <span style="font-size: 0.85rem; color: #718096; font-weight: normal;">${username}</span>
+                        </h3>
+                        <p style="margin: 0; color: #4a5568; font-size: 0.95rem; white-space: pre-wrap; word-break: break-word;">${desc}</p>
                     </div>
-
-                    <!-- Вставляем блок альбомов -->
-                    ${albumsHtml}
                 </div>
+                ${albumsHtml}
             `;
+
+            container.appendChild(card);
         });
 
     } catch (err) {
-        console.error("Ошибка при загрузке объявлений:", err);
+        console.error("Ошибка вывода объявлений:", err);
     }
 }
 
