@@ -949,14 +949,26 @@
        async function checkAuth() {
     // Утилита для управления кнопками кабинета (показываем только модели)
     const handleDashboardVisibility = (role) => {
-        const pcBtn = document.getElementById('menu-model-dashboard');
-        const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+        // 1. Пробуем найти по ID (старый способ)
+        let pcBtn = document.getElementById('menu-model-dashboard');
+        let mobileBtn = document.getElementById('mobile-menu-model-dashboard');
         
+        // 2. 🌟 ЕСЛИ НЕ НАШЛИ ПО ID: Ищем кнопку по тексту "Кабинет" внутри шапки
+        if (!pcBtn) {
+            const allButtons = document.querySelectorAll('#header-user-block button, #header-user-block a, .header btn');
+            allButtons.forEach(el => {
+                if (el.textContent.includes('Кабинет')) {
+                    pcBtn = el;
+                }
+            });
+        }
+
+        // 3. Управляем видимостью
         if (role === 'model') {
-            if (pcBtn) pcBtn.style.display = 'flex'; // или 'block'
+            if (pcBtn) pcBtn.style.display = 'flex'; // Показываем только модели
             if (mobileBtn) mobileBtn.style.display = 'block';
         } else {
-            // Для обычных пользователей ('user') и гостей ('guest') — скрываем!
+            // Для обычных пользователей ('user') и гостей ('guest') — гарантированно прячем!
             if (pcBtn) pcBtn.style.display = 'none';
             if (mobileBtn) mobileBtn.style.display = 'none';
         }
