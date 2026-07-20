@@ -2076,6 +2076,42 @@ async def get_public_model_albums(username: str):
     db.close()
     return albums
 
+@app.get("/api/albums/{album_id}")
+async def get_album_details(
+    album_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Ищем альбом в БД
+    album = db.query(Album).filter(Album.id == album_id).first()
+    if not album:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Альбом не найден"
+        )
+    
+    # 2. Формируем список прямой ссылки для каждой фотографии
+    photo_urls = []
+    if hasattr(album, 'photos') and album.photos:
+        for photo in album.photos:
+            url = photo.url
+            # Корректируем ссылку Dropbox на прямую (raw=1)
+            if "?dl=0" in url:
+                url = url.replace("?dl=0", "?raw=1")
+            elif "&dl=0" in url:
+                url = url.replace("&dl=0", "&raw=1")
+            photo_urls.append(url)
+
+    # 3. Возвращаем JSON для фронтенда
+    return {
+        "id": album.id,
+        "title": album.title,
+        "description": getattr(album, 'description', ''),
+        "is_paid": album.is_paid,
+        "price": album.price,
+        "photos": photo_urls
+    }
+
 @app.get("/api/balance")
 async def get_balance(request: Request, db=Depends(get_db)):
     user_ip = request.client.host
