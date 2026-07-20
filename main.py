@@ -907,6 +907,7 @@ async def create_announcement(
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
 # Эндпоинт для получения списка всех объявлений с их альбомами
+@app.get("/api/announcements")
 @app.get("/api/announcements/")
 async def get_announcements():
     db = sqlite3.connect(DB_LOCAL_PATH)
