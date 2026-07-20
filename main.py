@@ -1898,23 +1898,18 @@ async def update_model_avatar(
 async def create_album(
     title: str = Form(...),
     description: str = Form(None),
-    is_paid: int = Form(0),
+    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
     price: int = Form(0),
     files: List[UploadFile] = File(...),
-    session_user: Optional[str] = Cookie(None) # 🌟 Используем куки напрямую для проверки
+    session_user: str = Depends(get_current_user)
 ):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Не авторизован")
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
-    # Чтобы получать результаты в виде словарей (удобно для user_row["role"])
-    db.row_factory = sqlite3.Row 
     cursor = db.cursor()
-    
     cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
     user_row = cursor.fetchone()
     
-    if not user_row or user_row["role"] != 'model':
+    if not user_row or user_row[0] != 'model':
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
     
@@ -1939,17 +1934,13 @@ async def create_album(
         dropbox_path = f"/albums/{session_user}/{unique_filename}"
         
         try:
-            # Читаем содержимое файла в память
             file_bytes = await file.read()
-            
-            # Загружаем файл в Dropbox
             dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
             
-            # Определяем, является ли фото превью (первое фото всегда бесплатное для обложки)
+            # Первое фото в цикле (индекс 0) автоматически становится превью-обложкой
             is_preview = 1 if idx == 0 else 0
             
-            # 🌟 ЛОГИКА ЗАЩИТЫ: 
-            # Если альбом бесплатный ИЛИ это первое фото-превью — делаем ссылку публичной
+            # Если альбом БЕСПЛАТНЫЙ или это ПРЕВЬЮ-фото — генерируем публичную ссылку
             if is_paid == 0 or is_preview == 1:
                 try:
                     shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
@@ -1963,13 +1954,10 @@ async def create_album(
                 
                 final_photo_url = raw_url.replace("?dl=0", "?raw=1")
             else:
-                # 🔒 Для платных скрытых фото НЕ создаем публичную ссылку Dropbox.
-                # Вместо этого сохраняем внутренний путь к файлу в Dropbox.
-                # Отдавать этот файл мы будем через специальный эндпоинт /api/albums/photo/{id}
+                # 🔒 Для скрытых платных фото ссылку НЕ публикуем, пишем внутренний путь Dropbox
                 final_photo_url = dropbox_path
             
-            # Сохраняем данные в таблицу. 
-            # 💡 Важно: Убедись, что в твоей таблице `album_photos` есть колонка `is_preview`
+            # Сохраняем в БД с учетом новой колонки is_preview
             cursor.execute(
                 "INSERT INTO album_photos (album_id, photo_url, is_preview) VALUES (?, ?, ?)",
                 (album_id, final_photo_url, is_preview)
@@ -1978,22 +1966,12 @@ async def create_album(
         except Exception as upload_error:
             db.rollback()
             db.close()
-            # 🌟 ВЫВОДИМ ПОЛНУЮ ОШИБКУ В КОНСОЛЬ СЕРВЕРА
-            import traceback
-            print("--- НАЧАЛО ЛОГА ОШИБКИ DROPBOX ---")
-            traceback.print_exc()
-            print("--- КОНЕЦ ЛОГА ОШИБКИ DROPBOX ---")
-            
-            # Отправляем точное описание ошибки на фронтенд, чтобы сразу увидеть её в alert
-            raise HTTPException(
-                status_code=500, 
-                detail=f" Dropbox Error: {str(upload_error)}"
-            )
+            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
+            raise HTTPException(status_code=500, detail=f"Dropbox Error: {str(upload_error)}")
             
     db.commit()
     db.close()
     
-    # Синхронизируем саму БД с Dropbox
     try:
         upload_db_to_dropbox()
     except Exception as e:
