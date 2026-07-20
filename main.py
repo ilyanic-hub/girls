@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form, Status
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form, status
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
