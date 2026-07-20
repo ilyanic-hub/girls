@@ -2156,7 +2156,6 @@ async function submitNewAlbum(event) {
         return;
     }
     
-    // Передаем данные в формате FormData (так как есть файлы)
     const formData = new FormData();
     formData.append('title', title);
     formData.append('description', description);
@@ -2173,20 +2172,41 @@ async function submitNewAlbum(event) {
             body: formData
         });
         
-        const result = await response.json();
-        
+        // 🌟 СНАЧАЛА проверяем успешность ответа сервера
         if (response.ok) {
+            const result = await response.json();
             alert('Ура! Альбом успешно создан и опубликован.');
-            document.getElementById('album-creation-form').reset();
+            
+            // Сброс формы и интерфейса
+            const form = document.getElementById('album-creation-form');
+            if (form) form.reset();
+            
             document.getElementById('album-price-container').style.display = 'none';
-            document.getElementById('files-counter').innerText = 'Файлы не выбраны';
-            document.getElementById('files-counter').style.color = 'var(--text-muted)';
+            
+            const counter = document.getElementById('files-counter');
+            if (counter) {
+                counter.innerText = 'Файлы не выбраны';
+                counter.style.color = 'var(--text-muted)';
+            }
+            
+            // Если модалка должна закрываться:
+            if (typeof closeCreateAlbumModal === 'function') {
+                closeCreateAlbumModal();
+            }
         } else {
-            alert('Ошибка: ' + (result.detail || 'Не удалось загрузить альбом'));
+            // 🔒 Безопасный разбор ошибок (текст или JSON) при статусах 500/400/403
+            let errorText = 'Не удалось загрузить альбом';
+            try {
+                const result = await response.json();
+                errorText = result.detail || errorText;
+            } catch (e) {
+                errorText = `Ошибка сервера (Статус ${response.status})`;
+            }
+            alert('Ошибка: ' + errorText);
         }
     } catch (error) {
         console.error('Ошибка создания альбома:', error);
-        alert('Произошла ошибка при соединении с сервером');
+        alert('Произошла ошибка при отправке данных на сервер');
     }
 }
 
