@@ -1970,7 +1970,7 @@ async function deleteAnnouncement(id) {
         console.log("Полученные объявления:", announcements);
 
         // Находим контейнер для объявлений на странице
-        const container = document.getElementById('announcements-container') || document.querySelector('.announcements-list');
+        const container = document.getElementById('announcements-list') || document.querySelector('.announcements-list');
         if (!container) {
             console.error("Контейнер для объявлений не найден на странице!");
             return;
