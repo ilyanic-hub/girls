@@ -1278,15 +1278,14 @@ function showUserUI(user, buttonsContainer) {
 
     try {
         // Укажи точный адрес и порт твоего бэкенда (например, http://127.0.0.1:8000)
-        let res = await fetch('http://127.0.0.1:8000/api/user/avatar', {
-            method: 'POST',
-            headers: {
-                ...(token && { 'Authorization': `Bearer ${token}` })
-                // Content-Type указывать НЕ НАДО, браузер настроит multipart сам!
-            },
-            body: formData
-        });
-
+        // Заменяем полный локальный URL на относительный путь
+let res = await fetch('/api/user/avatar', {
+    method: 'POST',
+    headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` })
+    },
+    body: formData
+});
         if (res.ok) {
             alert("Аватарка успешно загружена в Dropbox и обновлена!");
             checkAuth(); // Перезапускаем проверку, чтобы шапка обновила изображение
