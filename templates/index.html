@@ -947,57 +947,39 @@
 
        async function checkAuth() {
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            showAuthButtons();
-            return;
-        }
+        const response = await fetch('/api/me'); 
+        const buttonsContainer = document.getElementById('auth-buttons-container'); 
+        const userBlock = document.getElementById('header-user-block');
+        const guestBlock = document.getElementById('header-guest-block'); 
 
-        let res = await fetch('/api/user/me', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        if (response.ok) {
+            const user = await response.json();
+            currentUserRole = user.role; 
 
-        if (res.ok) {
-            let user = await res.json();
-            
-            // 1. Возвращаем твоё оригинальное обновление текста
-            document.getElementById('user-name').innerText = user.username;
-            document.getElementById('user-balance').innerText = user.balance || 0;
+            // 1. ЖЕСТКО переключаем видимость блоков
+            if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
+            if (guestBlock) guestBlock.style.display = 'none'; // ПРЯЧЕМ ГОСТЯ COMPLETELY
+            if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-            // 2. БЕЗОПАСНОЕ добавление аватарки (если элемент не найден или поля нет, код не упадет)
-            try {
-                const avatarImg = document.getElementById('user-avatar-img');
-                const avatarDefault = document.getElementById('user-avatar-default');
-                
-                // Проверяем оба возможных ключа: avatar и avatar_url
-                const currentAvatar = user.avatar || user.avatar_url;
-
-                if (avatarImg) {
-                    if (currentAvatar) {
-                        avatarImg.src = currentAvatar;
-                        avatarImg.style.display = 'block';
-                        if (avatarDefault) avatarDefault.style.display = 'none';
-                    } else {
-                        avatarImg.style.display = 'none';
-                        if (avatarDefault) avatarDefault.style.display = 'block';
-                    }
-                }
-            } catch (avatarErr) {
-                console.error("Ошибка отрисовки аватара, но авторизация работает:", avatarErr);
-            }
-
-            // 3. Твоё оригинальное переключение видимости шапки
-            document.getElementById('header-user-block').style.display = 'flex';
-            document.getElementById('auth-buttons-container').style.display = 'none';
-
-            // Если у тебя до этого вызывалась еще какая-то функция (например, hideAuthModal() или типа того), добавь её сюда
+            // 2. Вызываем обновление текста и аватара
+            showUserUI(user, buttonsContainer);
 
         } else {
-            localStorage.removeItem('token');
-            showAuthButtons();
+            // 🌟 ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО МЫ ГОСТЬ
+            currentUserRole = 'guest';
+            
+            if (userBlock) userBlock.style.display = 'none';   // ПРЯЧЕМ КАБИНЕТ COMPLETELY
+            if (guestBlock) guestBlock.style.display = 'flex'; // Показываем только блок Гостя
+            
+            if (buttonsContainer) {
+                buttonsContainer.style.display = 'block';
+                buttonsContainer.innerHTML = `
+                    <button onclick="switchTab('auth-page', event)" class="btn btn-sec">Войти</button>
+                `;
+            }
         }
-    } catch (err) {
-        console.error("Ошибка при проверке авторизации:", err);
+    } catch (error) {
+        console.error("Ошибка при проверке авторизации:", error);
     }
 }
         function checkAge(event) {
