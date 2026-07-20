@@ -561,7 +561,7 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
 @app.post("/api/user/avatar")
 async def upload_avatar(
     request: Request,
-    file: UploadFile = File(...),
+    avatar: UploadFile = File(...),
     user: dict = Depends(get_current_user),
     db=Depends(get_db)
 ):
