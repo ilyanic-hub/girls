@@ -1304,7 +1304,8 @@ async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=De
         "username": user_row[1],
         "balance": user_row[2],
         "is_admin": user_row[3],
-        "role": user_row[4] if user_row[4] else "user"
+        "role": user_row[4] if user_row[4] else "user",
+        "avatar": user_row[5] if len(user_row) > 5 else None # 🌟 ДОБАВЛЕНО: передаем аватарку на фронтенд
     }
 
 @app.post("/api/register")
