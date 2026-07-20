@@ -1244,26 +1244,40 @@ function setupRoleUI(role) {
 }
 
 function showUserUI(user, buttonsContainer) {
-    // 1. Скрываем резервный контейнер, так как кнопка выхода у нас теперь в основном HTML-блоке
+    // 1. Скрываем резервный контейнер кнопок
     if (buttonsContainer) {
         buttonsContainer.style.display = 'none';
         buttonsContainer.innerHTML = ''; 
     }
 
-    // 2. Обновляем текстовые данные на странице
+    // 2. ИСПРАВЛЕНО: Управляем видимостью главных блоков шапки
+    const userBlock = document.getElementById('header-user-block');
+    const guestBlock = document.getElementById('header-guest-block');
+    
+    if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
+    if (guestBlock) guestBlock.style.display = 'none'; // Скрываем "Гость"
+
+    // 3. Обновляем текстовые данные на странице
     const userNameEl = document.getElementById('user-name');
     const userBalanceEl = document.getElementById('user-balance');
 
     if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
     if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
 
-    // 3. Обновляем аватарку
+    // 4. ИСПРАВЛЕНО: Умное обновление аватарки (работает, даже если avatar = null)
     const avatarImgEl = document.getElementById('user-avatar-img');
     const avatarDefaultEl = document.getElementById('user-avatar-default');
-    if (user.avatar && avatarImgEl && avatarDefaultEl) {
-        avatarImgEl.src = user.avatar;
-        avatarImgEl.style.display = 'block';
-        avatarDefaultEl.style.display = 'none';
+    
+    if (avatarImgEl) {
+        if (user.avatar) {
+            avatarImgEl.src = user.avatar;
+            avatarImgEl.style.display = 'block';
+            if (avatarDefaultEl) avatarDefaultEl.style.display = 'none';
+        } else {
+            // Если аватарки в базе нет — гарантированно показываем стандартный силуэт
+            avatarImgEl.style.display = 'none';
+            if (avatarDefaultEl) avatarDefaultEl.style.display = 'block';
+        }
     }
 }
 
