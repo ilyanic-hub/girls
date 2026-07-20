@@ -926,30 +926,31 @@ async def get_announcements():
         announcements = []
         for row in rows:
             username = row["username"] or ""
-            user_id = row["user_id"]
             albums = []
             
-            try:
-                # Ищем альбомы и по username, и по user_id
-                cursor.execute("""
-                    SELECT * FROM albums 
-                    WHERE model_username = ? OR model_username = ? OR user_id = ?
-                """, (username, str(user_id), user_id))
-                
-                album_rows = cursor.fetchall()
-                for alb in album_rows:
-                    album_dict = dict(alb)
-                    cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
+            # 2. Ищем альбомы модели только по model_username
+            if username:
+                try:
+                    cursor.execute("""
+                        SELECT * FROM albums 
+                        WHERE model_username = ?
+                    """, (username,))
                     
-                    if "?dl=0" in cover:
-                        cover = cover.replace("?dl=0", "?raw=1")
-                    elif "&dl=0" in cover:
-                        cover = cover.replace("&dl=0", "&raw=1")
+                    album_rows = cursor.fetchall()
+                    for alb in album_rows:
+                        album_dict = dict(alb)
+                        cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
                         
-                    album_dict["cover_url"] = cover
-                    albums.append(album_dict)
-            except Exception as album_err:
-                print(f"[WARN] Ошибка чтения альбомов: {album_err}")
+                        # Приводим ссылки Dropbox к прямому отображению (raw=1)
+                        if "?dl=0" in cover:
+                            cover = cover.replace("?dl=0", "?raw=1")
+                        elif "&dl=0" in cover:
+                            cover = cover.replace("&dl=0", "&raw=1")
+                            
+                        album_dict["cover_url"] = cover
+                        albums.append(album_dict)
+                except Exception as album_err:
+                    print(f"[WARN] Ошибка чтения альбомов для {username}: {album_err}")
 
             announcements.append({
                 "id": row["id"],
