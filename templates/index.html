@@ -946,42 +946,29 @@
         }
 
        async function checkAuth() {
-    try {
-        const response = await fetch('/api/me'); 
-        const buttonsContainer = document.getElementById('auth-buttons-container'); 
-        const userBlock = document.getElementById('header-user-block');
-        const guestBlock = document.getElementById('header-guest-block'); 
+            try {
+                const response = await fetch('/api/me'); 
+                const buttonsContainer = document.getElementById('auth-buttons-container'); 
 
-        if (response.ok) {
-            const user = await response.json();
-            currentUserRole = user.role; 
-
-            // 1. ЖЕСТКО переключаем видимость блоков
-            if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
-            if (guestBlock) guestBlock.style.display = 'none'; // ПРЯЧЕМ ГОСТЯ COMPLETELY
-            if (buttonsContainer) buttonsContainer.style.display = 'none';
-
-            // 2. Вызываем обновление текста и аватара
-            showUserUI(user, buttonsContainer);
-
-        } else {
-            // 🌟 ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО МЫ ГОСТЬ
-            currentUserRole = 'guest';
-            
-            if (userBlock) userBlock.style.display = 'none';   // ПРЯЧЕМ КАБИНЕТ COMPLETELY
-            if (guestBlock) guestBlock.style.display = 'flex'; // Показываем только блок Гостя
-            
-            if (buttonsContainer) {
-                buttonsContainer.style.display = 'block';
-                buttonsContainer.innerHTML = `
-                    <button onclick="switchTab('auth-page', event)" class="btn btn-sec">Войти</button>
-                `;
+                if (response.ok) {
+                    const user = await response.json();
+                    currentUserRole = user.role; 
+                    showUserUI(user, buttonsContainer);
+                } else {
+                    currentUserRole = 'guest';
+                    if (buttonsContainer) {
+                        buttonsContainer.innerHTML = `
+                            <button onclick="openModal('login')" class="btn btn-sec">Войти</button>
+                            <button onclick="openModal('register')" class="btn">Регистрация</button>
+                        `;
+                    }
+                    const pcBtn = document.getElementById('menu-model-dashboard');
+                    if (pcBtn) pcBtn.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Ошибка при проверке авторизации:", error);
             }
         }
-    } catch (error) {
-        console.error("Ошибка при проверке авторизации:", error);
-    }
-}
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
@@ -1229,42 +1216,34 @@ function setupRoleUI(role) {
 }
 
 function showUserUI(user, buttonsContainer) {
-    // 1. Скрываем резервный контейнер кнопок
-    if (buttonsContainer) {
-        buttonsContainer.style.display = 'none';
-        buttonsContainer.innerHTML = ''; 
-    }
-
-    // 2. ИСПРАВЛЕНО: Управляем видимостью главных блоков шапки
-    const userBlock = document.getElementById('header-user-block');
-    const guestBlock = document.getElementById('header-guest-block');
+    if (!buttonsContainer) return;
     
-    if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
-    if (guestBlock) guestBlock.style.display = 'none'; // Скрываем "Гость"
+    // Полностью перезаписываем контейнер, убирая любые старые кнопки входа или надписи "Гость"
+    buttonsContainer.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- Блок баланса и пользователя (отображается только для вошедшего) -->
+            <div style="display: flex; align-items: center; gap: 8px; border: 1px solid rgba(0,0,0,0.08); padding: 4px 10px; border-radius: 20px;">
+                <span id="user-avatar-default" class="avatar-circle" style="background: #e2e8f0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.8rem;">👤</span>
+                <span style="font-weight: bold; color: var(--text-main);">${user.username}</span>
+            </div>
+            
+            <!-- Кнопка Выйти -->
+            <button id="logout-btn-header" class="btn btn-sec" style="padding: 6px 12px; font-size: 0.85rem; width: auto; margin: 0; background: #fee2e2; color: #ef4444; border: none; border-radius: 6px; cursor: pointer;">
+                Выйти
+            </button>
+        </div>
+    `;
 
-    // 3. Обновляем текстовые данные на странице
-    const userNameEl = document.getElementById('user-name');
-    const userBalanceEl = document.getElementById('user-balance');
-
-    if (userNameEl) userNameEl.textContent = user.username || 'Пользователь';
-    if (userBalanceEl) userBalanceEl.textContent = user.balance !== undefined ? user.balance : '0';
-
-    // 4. ИСПРАВЛЕНО: Умное обновление аватарки (работает, даже если avatar = null)
-    const avatarImgEl = document.getElementById('user-avatar-img');
-    const avatarDefaultEl = document.getElementById('user-avatar-default');
-    
-    if (avatarImgEl) {
-        if (user.avatar) {
-            avatarImgEl.src = user.avatar;
-            avatarImgEl.style.display = 'block';
-            if (avatarDefaultEl) avatarDefaultEl.style.display = 'none';
-        } else {
-            // Если аватарки в базе нет — гарантированно показываем стандартный силуэт
-            avatarImgEl.style.display = 'none';
-            if (avatarDefaultEl) avatarDefaultEl.style.display = 'block';
-        }
+    // Вешаем событие клика на свежесозданную кнопку выхода
+    const logoutBtn = document.getElementById('logout-btn-header');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            logout();
+        });
     }
 }
+
 
         function openWithdrawModal() {
             let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
