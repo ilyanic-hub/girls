@@ -945,60 +945,7 @@
             }, 4000);
         }
 
-        async function checkAuth() {
-    try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            // Если токена нет, показываем кнопки входа/регистрации
-            showAuthButtons();
-            return;
-        }
-
-        // Запрос к эндпоинту, который отдает инфо о текущем юзере
-        let res = await fetch('/api/user/me', { // или твой эндпоинт профиля
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (res.ok) {
-            let user = await res.json();
-            
-            // 1. Обновляем текстовые данные
-            document.getElementById('user-name').innerText = user.username;
-            document.getElementById('user-balance').innerText = user.balance || 0;
-
-            // 2. РАБОТА С АВАТАРОМ (как в конкурсантках)
-            const avatarImg = document.getElementById('user-avatar-img');
-            const avatarDefault = document.getElementById('user-avatar-default');
-
-            // Проверяем, пришел ли avatar от сервера (в БД поле называется avatar)
-            if (user.avatar) {
-                avatarImg.src = user.avatar;           // Вставляем ссылку Dropbox (?raw=1)
-                avatarImg.style.display = 'block';     // Показываем картинку
-                if (avatarDefault) {
-                    avatarDefault.style.display = 'none'; // Прячем смайлик 👤
-                }
-            } else {
-                // Если аватара в базе нет, показываем заглушку
-                avatarImg.style.display = 'none';
-                if (avatarDefault) {
-                    avatarDefault.style.display = 'block';
-                }
-            }
-
-            // Показываем блок пользователя в шапке
-            document.getElementById('header-user-block').style.display = 'flex';
-            document.getElementById('auth-buttons-container').style.display = 'none';
-
-        } else {
-            // Токен невалидный
-            localStorage.removeItem('token');
-            showAuthButtons();
-        }
-    } catch (err) {
-        console.error("Ошибка при проверке авторизации:", err);
-    }
-}
-
+        checkAuth
         function checkAge(event) {
             event.preventDefault();
             const isAdult = localStorage.getItem('isAdultConfirmed');
