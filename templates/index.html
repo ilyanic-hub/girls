@@ -949,22 +949,27 @@
     try {
         const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
+        const userBlock = document.getElementById('header-user-block');
+        const guestBlock = document.getElementById('header-guest-block'); 
 
         if (response.ok) {
             const user = await response.json();
             currentUserRole = user.role; 
-            
-            // Передаем управление в обновленную showUserUI
+
+            // 1. ЖЕСТКО переключаем видимость блоков
+            if (userBlock) userBlock.style.display = 'flex';   // Показываем кабинет
+            if (guestBlock) guestBlock.style.display = 'none'; // ПРЯЧЕМ ГОСТЯ COMPLETELY
+            if (buttonsContainer) buttonsContainer.style.display = 'none';
+
+            // 2. Вызываем обновление текста и аватара
             showUserUI(user, buttonsContainer);
+
         } else {
-            // Если гость или ошибка авторизации
+            // 🌟 ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО МЫ ГОСТЬ
             currentUserRole = 'guest';
             
-            const userBlock = document.getElementById('header-user-block');
-            const guestBlock = document.getElementById('header-guest-block');
-            
-            if (userBlock) userBlock.style.display = 'none';
-            if (guestBlock) guestBlock.style.display = 'flex';
+            if (userBlock) userBlock.style.display = 'none';   // ПРЯЧЕМ КАБИНЕТ COMPLETELY
+            if (guestBlock) guestBlock.style.display = 'flex'; // Показываем только блок Гостя
             
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'block';
