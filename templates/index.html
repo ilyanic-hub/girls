@@ -949,42 +949,22 @@
     try {
         const response = await fetch('/api/me'); 
         const buttonsContainer = document.getElementById('auth-buttons-container'); 
-        const userBlock = document.getElementById('header-user-block');
-        const guestBlock = document.getElementById('header-guest-block'); 
 
         if (response.ok) {
             const user = await response.json();
             currentUserRole = user.role; 
-
-            // 1. Вызов твоей стандартной логики интерфейса
-            showUserUI(user, buttonsContainer);
             
-            // 2. ИСПРАВЛЕНО: Безопасное переключение видимости блоков
-            if (userBlock) userBlock.style.display = 'flex';
-            if (guestBlock) guestBlock.style.display = 'none'; 
-            if (buttonsContainer) buttonsContainer.style.display = 'none';
-
-            // 3. Отрисовка аватарки
-            const avatarImg = document.getElementById('user-avatar-img');
-            const avatarDefault = document.getElementById('user-avatar-default');
-
-            if (avatarImg) {
-                if (user.avatar) {
-                    avatarImg.src = user.avatar;
-                    avatarImg.style.display = 'block';     
-                    if (avatarDefault) avatarDefault.style.display = 'none';  
-                } else {
-                    avatarImg.style.display = 'none';
-                    if (avatarDefault) avatarDefault.style.display = 'block'; 
-                }
-            }
-
+            // Передаем управление в обновленную showUserUI
+            showUserUI(user, buttonsContainer);
         } else {
-            // 🌟 ЕСЛИ ТЫ ГОСТЬ: Показываем ТОЛЬКО гостевой блок, а личный кабинет прячем
+            // Если гость или ошибка авторизации
             currentUserRole = 'guest';
             
-            if (userBlock) userBlock.style.display = 'none';       // Прячем кабинет, баланс и "+ Пополнить"
-            if (guestBlock) guestBlock.style.display = 'flex';     // Показываем чистую плашку "Гость" и кнопку "Войти"
+            const userBlock = document.getElementById('header-user-block');
+            const guestBlock = document.getElementById('header-guest-block');
+            
+            if (userBlock) userBlock.style.display = 'none';
+            if (guestBlock) guestBlock.style.display = 'flex';
             
             if (buttonsContainer) {
                 buttonsContainer.style.display = 'block';
