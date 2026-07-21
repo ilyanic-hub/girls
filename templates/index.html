@@ -2468,14 +2468,24 @@ async function openAlbumModal(albumId) {
 
         const album = await response.json();
 
-        // 1. Находим твои элементы в HTML
+        // 1. Находим элементы в HTML
         const modal = document.getElementById('view-album-modal');
         const titleEl = document.getElementById('view-album-title');
         const descEl = document.getElementById('view-album-desc');
         const photosContainer = document.getElementById('view-album-photos');
 
-        // 2. Заполняем заголовок и описание
-        if (titleEl) titleEl.innerText = album.title || 'Альбом';
+        // 2. Заполняем заголовок (с кнопкой редактирования, если пользователь владелец) и описание
+        if (titleEl) {
+            let titleHTML = album.title || 'Альбом';
+            
+            // Если с бэкенда приходит флаг is_owner (или если пользователь владелец)
+            if (album.is_owner) {
+                titleHTML += ` <button onclick="openEditAlbumModal(${album.id})" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; margin-left: 8px;" title="Редактировать альбом">✏️</button>`;
+            }
+            
+            titleEl.innerHTML = titleHTML;
+        }
+
         if (descEl) descEl.innerText = album.description || '';
 
         // 3. Заполняем галерею
@@ -2496,8 +2506,6 @@ async function openAlbumModal(albumId) {
                     </div>
                 `;
             } 
-
-                
             // 📷 Если доступ есть, но фотографий нет
             else if (!album.photos || album.photos.length === 0) {
                 photosContainer.style.display = 'block';
@@ -2519,16 +2527,8 @@ async function openAlbumModal(albumId) {
                 });
             }
         }
-        // Если текущий пользователь — владелец альбома (has_access и is_owner можно передавать с бэкенда)
-const titleEl = document.getElementById('view-album-title');
-if (titleEl) {
-    titleEl.innerHTML = `
-        ${album.title || 'Альбом'}
-        <button onclick="openEditAlbumModal(${album.id})" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; margin-left: 8px;" title="Редактировать альбом">✏️</button>
-    `;
-}
 
-        // 4. Показываем модалку (устанавливаем 'flex', как у тебя в inline-стиле)
+        // 4. Показываем модалку
         if (modal) {
             modal.style.display = 'flex';
         }
