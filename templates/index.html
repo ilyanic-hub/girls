@@ -896,18 +896,34 @@
                 <input type="number" id="edit-album-price" min="1" value="50" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
             </div>
 
-            <button type="button" class="btn" onclick="saveAlbumChanges()">
-    Сохранить изменения
-</button>
+            <button type="submit" class="btn" style="padding: 10px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                Сохранить изменения
+            </button>
         </form>
 
         <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
 
         <!-- Управление фотографиями альбома -->
-        <h4 style="margin: 0 0 10px 0; color: #334155;">Фотографии в альбоме:</h4>
-        <div id="edit-album-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="margin: 0; color: #334155;">Фотографии в альбоме:</h4>
+            
+            <!-- Кнопка загрузки новых фото -->
+            <label style="padding: 6px 12px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
+                ➕ Добавить фото
+                <input type="file" multiple accept="image/*" onchange="uploadNewPhotosToAlbum(this)" style="display: none;">
+            </label>
+        </div>
+
+        <div id="edit-album-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; max-height: 220px; overflow-y: auto; padding: 4px;">
             <!-- Сюда JS вставит миниатюры с кнопками удаления -->
         </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <!-- Удаление всего альбома -->
+        <button type="button" onclick="deleteEntireAlbum()" style="width: 100%; padding: 10px; background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 8px; font-weight: 600; cursor: pointer; text-align: center;">
+            🗑 Удалить альбом полностью
+        </button>
     </div>
 </div>
 
@@ -1384,33 +1400,24 @@ function setupRoleUI(role) {
 }
 
         async function deleteAlbumPhoto(photoId) {
-    if (!confirm("Удалить это фото из альбома?")) return;
+    if (!confirm("Удалить это фото?")) return;
 
     try {
-        const response = await fetch(`/api/albums/photos/${photoId}`, {
-            method: 'DELETE'
-        });
-
+        const response = await fetch(`/api/albums/photos/${photoId}`, { method: 'DELETE' });
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
             return;
         }
 
-        // Перезагружаем данные в модалке редактирования и в самом альбоме
-        if (currentEditAlbumId) {
-            await openEditAlbumModal(currentEditAlbumId);
-            if (typeof openAlbumModal === 'function') {
-                await openAlbumModal(currentEditAlbumId);
-            }
-        }
+        // Обновляем список в открытом окне
+        await openEditAlbumModal(currentEditAlbumId);
 
     } catch (err) {
-        console.error("Ошибка при удалении фото:", err);
-        alert("Произошла ошибка при отправке запроса.");
+        console.error("Ошибка при удалении:", err);
     }
 }
-
+        
 function showUserUI(user, buttonsContainer) {
     // 1. Скрываем резервный контейнер, так как кнопка выхода у нас теперь в основном HTML-блоке
     if (buttonsContainer) {
@@ -1701,7 +1708,10 @@ let res = await fetch('/api/user/avatar', {
         // Переключатель поля цены в модалке редактирования
 function toggleEditPriceField() {
     const isPaid = document.getElementById('edit-album-is-paid').checked;
-    document.getElementById('edit-price-wrapper').style.display = isPaid ? 'block' : 'none';
+    const priceWrapper = document.getElementById('edit-price-wrapper');
+    if (priceWrapper) {
+        priceWrapper.style.display = isPaid ? 'block' : 'none';
+    }
 }
 
 // Открытие модалки редактирования
@@ -1710,30 +1720,56 @@ async function openEditAlbumModal(albumId) {
         currentEditAlbumId = albumId;
 
         const response = await fetch(`/api/albums/${albumId}?t=` + Date.now());
-        if (!response.ok) return alert("Не удалось загрузить данные");
+        if (!response.ok) return alert("Не удалось загрузить данные альбома");
         
         const album = await response.json();
 
-        // Заполняем текстовые поля
-        const titleInput = document.getElementById('edit-album-title') || document.getElementById('edit-album-title-input');
-        const descInput = document.getElementById('edit-album-desc') || document.getElementById('edit-album-desc-input');
+        // Заполняем форму
+        document.getElementById('edit-album-id').value = album.id;
+        document.getElementById('edit-album-title').value = album.title || '';
+        document.getElementById('edit-album-desc').value = album.description || '';
+        
+        const isPaidInput = document.getElementById('edit-album-is-paid');
+        isPaidInput.checked = !!album.is_paid;
+        
         const priceInput = document.getElementById('edit-album-price');
-        const paidCheckbox = document.getElementById('edit-album-is-paid') || document.getElementById('edit-album-paid-checkbox');
+        priceInput.value = album.price || 50;
 
-        if (titleInput) titleInput.value = album.title || '';
-        if (descInput) descInput.value = album.description || '';
-        if (priceInput) priceInput.value = album.price || 0;
-        if (paidCheckbox) paidCheckbox.checked = !!album.is_paid;
+        toggleEditPriceField();
 
-        // 📸 Отрисовываем список фотографий для удаления
+        // Рендерим фото
         renderEditPhotosList(album.photos || []);
 
+        // Показываем модалку
         const editModal = document.getElementById('edit-album-modal');
         if (editModal) editModal.style.display = 'flex';
 
     } catch (err) {
-        console.error("Ошибка открытия:", err);
+        console.error("Ошибка открытия окна:", err);
     }
+}
+
+// Отрисовка списка фотографий в вашей сетке #edit-album-photos-grid
+function renderEditPhotosList(photos) {
+    const grid = document.getElementById('edit-album-photos-grid');
+    if (!grid) return;
+
+    if (!photos || photos.length === 0) {
+        grid.innerHTML = '<p style="color: #64748b; font-size: 13px; grid-column: 1 / -1; margin: 10px 0; text-align: center;">В альбоме нет фотографий</p>';
+        return;
+    }
+
+    grid.innerHTML = photos.map(photo => `
+        <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #f1f5f9; border: 1px solid #cbd5e1;">
+            <img src="${photo.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">
+            <button type="button" 
+                    onclick="deleteAlbumPhoto(${photo.id})" 
+                    title="Удалить фото"
+                    style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                ✕
+            </button>
+        </div>
+    `).join('');
 }
 
 // Функция отрисовки миниатюр в модалке редактирования
@@ -1778,56 +1814,108 @@ function renderEditPhotosList(photos) {
     `).join('');
 }
 
+// Функция добавления новых фото в открытый на редактирование альбом
+async function uploadNewPhotosToAlbum(inputElement) {
+    if (!currentEditAlbumId) return;
+    const files = inputElement.files;
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('photos', files[i]);
+    }
+
+    try {
+        const response = await fetch(`/api/albums/${currentEditAlbumId}/photos`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка загрузки: " + (err.detail || "Не удалось добавить фото"));
+            return;
+        }
+
+        inputElement.value = '';
+        await openEditAlbumModal(currentEditAlbumId);
+
+    } catch (err) {
+        console.error("Ошибка при добавлении фото:", err);
+    }
+}
+
+// Функция удаления ВСЕГО альбома
+async function deleteEntireAlbum() {
+    if (!currentEditAlbumId) return;
+    if (!confirm("Вы уверены, что хотите полностью удалить этот альбом? Отменить действие нельзя.")) return;
+
+    try {
+        const response = await fetch(`/api/albums/${currentEditAlbumId}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка удаления альбома: " + (err.detail || "Не удалось удалить"));
+            return;
+        }
+
+        closeEditAlbumModal();
+        alert("Альбом успешно удалён.");
+
+        if (typeof loadAlbums === 'function') {
+            loadAlbums();
+        } else {
+            location.reload();
+        }
+
+    } catch (err) {
+        console.error("Ошибка при удалении альбома:", err);
+    }
+}
+
+// Закрытие модалки
 function closeEditAlbumModal() {
-    document.getElementById('edit-album-modal').style.display = 'none';
+    const editModal = document.getElementById('edit-album-modal');
+    if (editModal) editModal.style.display = 'none';
+    currentEditAlbumId = null;
 }
 
 // Сохранение изменений инфо альбома
-async function saveAlbumChanges() {
-    if (!currentEditAlbumId) {
-        alert("Ошибка: не выбран альбом для редактирования");
-        return;
-    }
-
-    const titleInput = document.getElementById('edit-album-title') || document.getElementById('edit-album-title-input');
-    const descInput = document.getElementById('edit-album-desc') || document.getElementById('edit-album-desc-input');
-    const priceInput = document.getElementById('edit-album-price');
-    const isPaidCheckbox = document.getElementById('edit-album-is-paid') || document.getElementById('edit-album-paid-checkbox');
+async function saveAlbumChanges(e) {
+    if (e) e.preventDefault();
+    if (!currentEditAlbumId) return;
 
     const payload = {
-        title: titleInput ? titleInput.value.trim() : '',
-        description: descInput ? descInput.value.trim() : '',
-        is_paid: isPaidCheckbox ? isPaidCheckbox.checked : false,
-        price: priceInput ? parseInt(priceInput.value, 10) || 0 : 0
+        title: document.getElementById('edit-album-title').value.trim(),
+        description: document.getElementById('edit-album-desc').value.trim(),
+        is_paid: document.getElementById('edit-album-is-paid').checked,
+        price: parseInt(document.getElementById('edit-album-price').value, 10) || 0
     };
 
     try {
         const response = await fetch(`/api/albums/${currentEditAlbumId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            alert("Ошибка сохранения: " + (errData.detail || "Не удалось сохранить"));
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
             return;
         }
 
-        // Закрываем окно редактирования
-        const editModal = document.getElementById('edit-album-modal');
-        if (editModal) editModal.style.display = 'none';
+        closeEditAlbumModal();
 
-        // Обновляем открытый альбом
+        // Если открыто окно просмотра альбома — обновляем и его
         if (typeof openAlbumModal === 'function') {
             await openAlbumModal(currentEditAlbumId);
         }
+        
+        // Перезагружаем список всех альбомов
+        if (typeof loadAlbums === 'function') loadAlbums();
 
     } catch (err) {
-        console.error("Ошибка сохранения альбома:", err);
-        alert("Произошла ошибка при отправке данных на сервер.");
+        console.error("Ошибка при сохранении:", err);
     }
 }
 
