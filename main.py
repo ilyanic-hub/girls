@@ -971,6 +971,7 @@ async def delete_album(
 
 
 # 2. Добавление новых фото в альбом
+# 2. Добавление новых фото в альбом
 @app.post("/api/albums/{album_id}/photos")
 async def add_photos_to_album(
     album_id: int,
@@ -992,20 +993,38 @@ async def add_photos_to_album(
             db.close()
             raise HTTPException(status_code=403, detail="Доступ запрещён")
 
-        # Сохраняем новые файлы
+        # Инициализируем клиент Dropbox (используем функцию/клиент, принятые в проекте)
+        dbx = get_dropbox_client() 
+
         for photo_file in photos:
             if not photo_file.filename:
                 continue
                 
-            # Генерируем уникальное имя файла
-            ext = os.path.splitext(photo_file.filename)[1]
+            # Генерируем имя файла
+            ext = os.path.splitext(photo_file.filename)[1] or ".jpg"
             filename = f"album_{album_id}_{uuid.uuid4().hex}{ext}"
-            file_path = os.path.join("static/uploads", filename)
-            photo_url = f"/static/uploads/{filename}"
+            dropbox_path = f"/albums/{filename}"
 
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(photo_file.file, buffer)
+            # Читаем содержимое прямо из памяти
+            file_bytes = await photo_file.read()
 
+            # Загружаем напрямую в Dropbox
+            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
+
+            # Получаем или создаем публичную ссылку
+            try:
+                shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
+                raw_url = shared_link.url
+            except Exception:
+                links = dbx.sharing_list_shared_links(path=dropbox_path).links
+                raw_url = links[0].url if links else ""
+
+            # Формируем прямую ссылку с raw=1
+            photo_url = raw_url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
+            if "?raw=1" not in photo_url and "&raw=1" not in photo_url:
+                photo_url += "?raw=1" if "?" not in photo_url else "&raw=1"
+
+            # Сохраняем ссылку Dropbox в базу
             cursor.execute(
                 "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
                 (album_id, photo_url)
@@ -1017,6 +1036,7 @@ async def add_photos_to_album(
 
     except Exception as e:
         db.close()
+        print(f"[ERROR] Ошибка при загрузке в Dropbox: {e}")
         raise HTTPException(status_code=500, detail=str(e))
         
 
