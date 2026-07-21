@@ -1715,8 +1715,12 @@ function closeEditAlbumModal() {
 }
 
 // Сохранение изменений инфо альбома
-async function saveAlbumChanges(albumId) {
-    // Берём значения по правильным ID из твоего HTML
+async function saveAlbumChanges() {
+    if (!currentEditAlbumId) {
+        alert("Ошибка: не выбран альбом для редактирования");
+        return;
+    }
+
     const titleInput = document.getElementById('edit-album-title') || document.getElementById('edit-album-title-input');
     const descInput = document.getElementById('edit-album-desc') || document.getElementById('edit-album-desc-input');
     const priceInput = document.getElementById('edit-album-price');
@@ -1730,7 +1734,7 @@ async function saveAlbumChanges(albumId) {
     };
 
     try {
-        const response = await fetch(`/api/albums/${albumId}`, {
+        const response = await fetch(`/api/albums/${currentEditAlbumId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1750,7 +1754,7 @@ async function saveAlbumChanges(albumId) {
 
         // Обновляем открытый альбом
         if (typeof openAlbumModal === 'function') {
-            await openAlbumModal(albumId);
+            await openAlbumModal(currentEditAlbumId);
         }
 
     } catch (err) {
