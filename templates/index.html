@@ -909,10 +909,10 @@
             
             <!-- Кнопка загрузки новых фото -->
             <!-- Кнопка загрузки новых фото -->
-<label type="button" onclick="event.stopPropagation();" style="padding: 6px 12px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
+            <button type="button" onclick="document.getElementById('edit-album-file-input').click()" style="padding: 6px 12px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
     ➕ Добавить фото
-    <input type="file" multiple accept="image/*" onchange="uploadNewPhotosToAlbum(this)" style="display: none;">
-</label>
+</button>
+<input type="file" id="edit-album-file-input" multiple accept="image/*" onchange="uploadNewPhotosToAlbum(this)" style="display: none;">
         </div>
 
         <div id="edit-album-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; max-height: 220px; overflow-y: auto; padding: 4px;">
@@ -1401,18 +1401,24 @@ function setupRoleUI(role) {
 }
 
         async function deleteAlbumPhoto(photoId) {
-    if (!confirm("Удалить это фото?")) return;
+    const hiddenIdInput = document.getElementById('edit-album-id');
+    const albumId = hiddenIdInput?.value || currentEditAlbumId;
+
+    if (!albumId) return;
 
     try {
-        const response = await fetch(`/api/albums/photos/${photoId}`, { method: 'DELETE' });
+        const response = await fetch(`/api/albums/photos/${photoId}`, {
+            method: 'DELETE'
+        });
+
         if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
+            alert("Не удалось удалить фото");
             return;
         }
 
-        // Обновляем список в открытом окне
-        await openEditAlbumModal(currentEditAlbumId);
+        // Обновляем окно с проверенным ID
+        currentEditAlbumId = albumId;
+        await openEditAlbumModal(albumId);
 
     } catch (err) {
         console.error("Ошибка при удалении:", err);
@@ -1817,16 +1823,12 @@ function renderEditPhotosList(photos) {
 
 // Функция добавления новых фото в открытый на редактирование альбом
 async function uploadNewPhotosToAlbum(inputElement) {
-    // 1. Не даем форме отправляться/перезагружаться
-    if (window.event) {
-        window.event.preventDefault();
-        window.event.stopPropagation();
-    }
+    // 1. Достаем ID альбома из поля формы или из глобальной переменной
+    const hiddenIdInput = document.getElementById('edit-album-id');
+    const albumId = hiddenIdInput?.value || currentEditAlbumId;
 
-    const albumId = document.getElementById('edit-album-id')?.value || currentEditAlbumId;
-
-    if (!albumId || albumId === 'null') {
-        alert("Ошибка: не найден ID альбома");
+    if (!albumId || albumId === 'null' || albumId === 'undefined') {
+        alert("Ошибка: не удалось определить ID альбома. Переоткройте окно редактирования.");
         return;
     }
 
@@ -1839,41 +1841,27 @@ async function uploadNewPhotosToAlbum(inputElement) {
     }
 
     try {
+        // 2. Отправляем фото на бэкенд
         const response = await fetch(`/api/albums/${albumId}/photos`, {
             method: 'POST',
             body: formData
         });
 
         if (!response.ok) {
-            alert("Не удалось загрузить фото");
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка загрузки: " + (err.detail || "Не удалось загрузить фото"));
             return;
         }
 
-        // Очищаем инпут
+        // 3. Очищаем поле выбора файлов
         inputElement.value = '';
 
-        // Получаем свежие фото и перерисовываем
-        const resAlbum = await fetch(`/api/albums/${albumId}?t=` + Date.now());
-        const albumData = await resAlbum.json();
-
-        // Обновляем список фото прямо в модалке
-        if (typeof renderEditAlbumPhotos === 'function') {
-            renderEditAlbumPhotos(albumData.photos || []);
-        } else {
-            // Если отдельного рендера нет — заменяем HTML контейнера
-            const container = document.getElementById('edit-album-photos-container');
-            if (container && albumData.photos) {
-                container.innerHTML = albumData.photos.map(p => `
-                    <div class="photo-item" data-id="${p.id}">
-                        <img src="${p.photo_url || p.url}" />
-                        <button type="button" onclick="deleteAlbumPhoto(${p.id})">✕</button>
-                    </div>
-                `).join('');
-            }
-        }
+        // 4. Обновляем глобальную переменную и переоткрываем модалку с ТОЧНЫМ ID
+        currentEditAlbumId = albumId;
+        await openEditAlbumModal(albumId);
 
     } catch (err) {
-        console.error("Ошибка при загрузке:", err);
+        console.error("Ошибка при добавлении фото:", err);
     }
 }
         
