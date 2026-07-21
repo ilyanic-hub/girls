@@ -2909,6 +2909,12 @@ window.onload = function() {
 
 // Запуск при старте страницы
 window.addEventListener('DOMContentLoaded', checkAuthOnLoad);
+
+    function closeEditAlbumModal() {
+    const editModal = document.getElementById('edit-album-modal');
+    if (editModal) editModal.style.display = 'none';
+    currentEditAlbumId = null;
+}
 </script>
 </body>
 </html>
