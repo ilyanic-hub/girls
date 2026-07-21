@@ -943,6 +943,7 @@ async def delete_album(
     cursor = db.cursor()
 
     try:
+        # Проверяем существование альбома и права
         cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
         album = cursor.fetchone()
         
@@ -954,19 +955,41 @@ async def delete_album(
             db.close()
             raise HTTPException(status_code=403, detail="Вы не можете удалить чужой альбом")
 
-        # Удаляем фотографии альбома и сам альбом
+        # 1. Достаем пути к файлам фото, чтобы удалить их с Dropbox / диска
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album_id,))
+        photos = cursor.fetchall()
+
+        for photo in photos:
+            photo_path = photo["photo_url"]
+            # Если у вас есть функция удаления из Dropbox, вызываем ее:
+            try:
+                # Пример: dbx.files_delete_v2(photo_path)
+                delete_file_from_dropbox(photo_path) 
+            except Exception as file_err:
+                print(f"Ошибка удаления файла {photo_path}: {file_err}")
+
+        # 2. Удаляем записи из таблицы фото и таблицы альбомов
         cursor.execute("DELETE FROM album_photos WHERE album_id = ?", (album_id,))
         cursor.execute("DELETE FROM albums WHERE id = ?", (album_id,))
         
+        # 3. Фиксируем изменения в SQLite
         db.commit()
         db.close()
+
+        # 4. 🔥 КРИТИЧЕСКИ ВАЖНО: Синхронизируем обновлённую SQLite БД с Dropbox!
+        # Если вы используете скрипт автозагрузки базы на Dropbox:
+        if typeof_upload_db_to_dropbox_exists():
+            upload_db_to_dropbox(DB_LOCAL_PATH)
+
         return {"status": "ok", "message": "Альбом успешно удалён"}
 
     except HTTPException:
-        db.close()
+        if 'db' in locals():
+            db.close()
         raise
     except Exception as e:
-        db.close()
+        if 'db' in locals():
+            db.close()
         raise HTTPException(status_code=500, detail=str(e))
 
 
