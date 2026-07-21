@@ -908,10 +908,11 @@
             <h4 style="margin: 0; color: #334155;">Фотографии в альбоме:</h4>
             
             <!-- Кнопка загрузки новых фото -->
-            <label style="padding: 6px 12px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
-                ➕ Добавить фото
-                <input type="file" multiple accept="image/*" onchange="uploadNewPhotosToAlbum(this)" style="display: none;">
-            </label>
+            <!-- Кнопка загрузки новых фото -->
+<label type="button" onclick="event.stopPropagation();" style="padding: 6px 12px; background: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: #334155;">
+    ➕ Добавить фото
+    <input type="file" multiple accept="image/*" onchange="uploadNewPhotosToAlbum(this)" style="display: none;">
+</label>
         </div>
 
         <div id="edit-album-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; max-height: 220px; overflow-y: auto; padding: 4px;">
@@ -1816,7 +1817,12 @@ function renderEditPhotosList(photos) {
 
 // Функция добавления новых фото в открытый на редактирование альбом
 async function uploadNewPhotosToAlbum(inputElement) {
-    // Берём ID альбома
+    // 1. Не даем форме отправляться/перезагружаться
+    if (window.event) {
+        window.event.preventDefault();
+        window.event.stopPropagation();
+    }
+
     const albumId = document.getElementById('edit-album-id')?.value || currentEditAlbumId;
 
     if (!albumId || albumId === 'null') {
@@ -1833,7 +1839,6 @@ async function uploadNewPhotosToAlbum(inputElement) {
     }
 
     try {
-        // 1. Отправляем фото на сервер
         const response = await fetch(`/api/albums/${albumId}/photos`, {
             method: 'POST',
             body: formData
@@ -1844,22 +1849,27 @@ async function uploadNewPhotosToAlbum(inputElement) {
             return;
         }
 
-        // 2. Очищаем инпут
+        // Очищаем инпут
         inputElement.value = '';
 
-        // 3. Сразу запрашиваем обновленный альбом и перерисовываем список
+        // Получаем свежие фото и перерисовываем
         const resAlbum = await fetch(`/api/albums/${albumId}?t=` + Date.now());
         const albumData = await resAlbum.json();
 
-        // Отрисовываем фото в контейнере модалки
-        const container = document.getElementById('edit-album-photos-container'); // проверь id своего контейнера фото!
-        if (container && albumData.photos) {
-            container.innerHTML = albumData.photos.map(p => `
-                <div class="photo-item" data-id="${p.id}">
-                    <img src="${p.photo_url || p.url}" />
-                    <button type="button" onclick="deleteAlbumPhoto(${p.id})">✕</button>
-                </div>
-            `).join('');
+        // Обновляем список фото прямо в модалке
+        if (typeof renderEditAlbumPhotos === 'function') {
+            renderEditAlbumPhotos(albumData.photos || []);
+        } else {
+            // Если отдельного рендера нет — заменяем HTML контейнера
+            const container = document.getElementById('edit-album-photos-container');
+            if (container && albumData.photos) {
+                container.innerHTML = albumData.photos.map(p => `
+                    <div class="photo-item" data-id="${p.id}">
+                        <img src="${p.photo_url || p.url}" />
+                        <button type="button" onclick="deleteAlbumPhoto(${p.id})">✕</button>
+                    </div>
+                `).join('');
+            }
         }
 
     } catch (err) {
