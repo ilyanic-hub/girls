@@ -1879,9 +1879,13 @@ function closeEditAlbumModal() {
 }
 
 // Сохранение изменений инфо альбома
+// Сохранение изменений инфо альбома
 async function saveAlbumChanges(e) {
     if (e) e.preventDefault();
     if (!currentEditAlbumId) return;
+
+    // Запоминаем ID во временную переменную, чтобы не потерять после закрытия модалки
+    const savedAlbumId = currentEditAlbumId;
 
     const payload = {
         title: document.getElementById('edit-album-title').value.trim(),
@@ -1891,7 +1895,7 @@ async function saveAlbumChanges(e) {
     };
 
     try {
-        const response = await fetch(`/api/albums/${currentEditAlbumId}`, {
+        const response = await fetch(`/api/albums/${savedAlbumId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1903,15 +1907,20 @@ async function saveAlbumChanges(e) {
             return;
         }
 
+        // Закрываем окно редактирования
         closeEditAlbumModal();
 
-        // Если открыто окно просмотра альбома — обновляем и его
-        if (typeof openAlbumModal === 'function') {
-            await openAlbumModal(currentEditAlbumId);
+        // Если окно просмотра было открыто, обновляем его по сохранённому ID
+        const viewModal = document.getElementById('view-album-modal');
+        const isViewModalOpen = viewModal && (viewModal.style.display === 'flex' || viewModal.style.display === 'block');
+
+        if (isViewModalOpen && typeof openAlbumModal === 'function') {
+            await openAlbumModal(savedAlbumId);
         }
         
-        // Перезагружаем список всех альбомов
+        // Перезагружаем список всех альбомов / дашборд
         if (typeof loadAlbums === 'function') loadAlbums();
+        if (typeof loadModelDashboard === 'function') loadModelDashboard();
 
     } catch (err) {
         console.error("Ошибка при сохранении:", err);
