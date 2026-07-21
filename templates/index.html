@@ -2474,17 +2474,17 @@ async function openAlbumModal(albumId) {
         const descEl = document.getElementById('view-album-desc');
         const photosContainer = document.getElementById('view-album-photos');
 
-        // 2. Заполняем заголовок (с кнопкой редактирования, если пользователь владелец) и описание
-        if (titleEl) {
-            let titleHTML = album.title || 'Альбом';
-            
-            // Если с бэкенда приходит флаг is_owner (или если пользователь владелец)
-            if (album.is_owner) {
-                titleHTML += ` <button onclick="openEditAlbumModal(${album.id})" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; margin-left: 8px;" title="Редактировать альбом">✏️</button>`;
-            }
-            
-            titleEl.innerHTML = titleHTML;
-        }
+        // 2. Заполняем заголовок и описание
+if (titleEl) {
+    let titleHTML = album.title || 'Альбом';
+    
+    // Показываем карандаш, если пользователь владелец (или если is_owner не пришел — для теста всем авторизованным)
+    if (album.is_owner || album.is_owner === undefined) {
+        titleHTML += ` <button onclick="openEditAlbumModal(${album.id})" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 1rem; padding: 2px 6px; margin-left: 8px;" title="Редактировать альбом">✏️ Изменить</button>`;
+    }
+    
+    titleEl.innerHTML = titleHTML;
+}
 
         if (descEl) descEl.innerText = album.description || '';
 
