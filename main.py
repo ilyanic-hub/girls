@@ -2525,98 +2525,88 @@ async def get_album_details(
     album_id: int, 
     session_user: Optional[str] = Cookie(None)
 ):
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-    
+    # Если залетает некорректный ID из фронтенда
+    if not album_id:
+        raise HTTPException(status_code=400, detail="Некорректный ID альбома")
+
     try:
-        # 1. Получаем данные альбома
-        cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
-        album_row = cursor.fetchone()
-        
-        if not album_row:
-            raise HTTPException(status_code=404, detail="Альбом не найден")
+        with sqlite3.connect(DB_LOCAL_PATH, timeout=10.0) as db:
+            db.row_factory = sqlite3.Row
+            cursor = db.cursor()
             
-        album = dict(album_row)
-        model_username = album.get("model_username") or album.get("username") or ""
-        is_paid = album.get("is_paid", 0)
-        price = album.get("price", 0)
-        
-        # 2. Проверка владельца и доступа
-        is_owner = bool(session_user and session_user == model_username)
-        has_purchased = False
-        
-        if session_user and is_paid and not is_owner:
-            try:
+            # 1. Данные альбома
+            cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
+            album_row = cursor.fetchone()
+            
+            if not album_row:
+                raise HTTPException(status_code=404, detail="Альбом не найден")
+                
+            album = dict(album_row)
+            model_username = album.get("model_username") or album.get("username") or ""
+            is_paid = album.get("is_paid", 0)
+            price = album.get("price", 0)
+            
+            # 2. Проверка доступа
+            is_owner = bool(session_user and session_user == model_username)
+            has_purchased = False
+            
+            if session_user and is_paid and not is_owner:
                 cursor.execute("""
                     SELECT id FROM purchases 
                     WHERE username = ? AND item_type = 'album' AND item_id = ?
                 """, (session_user, album_id))
                 if cursor.fetchone():
                     has_purchased = True
-            except Exception as p_err:
-                print(f"[WARN] Ошибка проверки покупок: {p_err}")
 
-        # Если альбом платный, а пользователь НЕ владелец и НЕ покупал его — скрываем фото!
-        if is_paid and not is_owner and not has_purchased:
+            if is_paid and not is_owner and not has_purchased:
+                return {
+                    "id": album["id"],
+                    "title": album.get("title", "Альбом"),
+                    "description": album.get("description", ""),
+                    "is_paid": True,
+                    "price": price,
+                    "has_access": False,
+                    "is_owner": is_owner,
+                    "photos": [],
+                    "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
+                }
+
+            # 3. Фотографии
+            cursor.execute("SELECT id, photo_url FROM album_photos WHERE album_id = ?", (album_id,))
+            photo_rows = cursor.fetchall()
+            
+            photos = []
+            for p in photo_rows:
+                raw_url = p["photo_url"] or ""
+                
+                # Быстрая замена без множества условий
+                if "dropbox.com" in raw_url:
+                    raw_url = raw_url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
+                    if "?raw=1" not in raw_url and "&raw=1" not in raw_url:
+                        raw_url += "&raw=1" if "?" in raw_url else "?raw=1"
+                
+                photos.append({
+                    "id": p["id"],
+                    "photo_url": raw_url,
+                    "url": raw_url
+                })
+
             return {
                 "id": album["id"],
                 "title": album.get("title", "Альбом"),
                 "description": album.get("description", ""),
-                "is_paid": True,
+                "is_paid": bool(is_paid),
                 "price": price,
-                "has_access": False,
+                "has_access": True,
                 "is_owner": is_owner,
-                "photos": [],
-                "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
+                "photos": photos
             }
 
-        # 3. Достаем фото
-        photos = []
-        try:
-            cursor.execute("SELECT * FROM album_photos WHERE album_id = ?", (album_id,))
-            photo_rows = cursor.fetchall()
-            
-            for p in photo_rows:
-                p_dict = dict(p)
-                url = p_dict.get("photo_url") or p_dict.get("url") or p_dict.get("photo") or ""
-                
-                # Нормализуем Dropbox URL
-                if "?dl=0" in url:
-                    url = url.replace("?dl=0", "?raw=1")
-                elif "&dl=0" in url:
-                    url = url.replace("&dl=0", "&raw=1")
-                elif "dropbox.com" in url and "raw=1" not in url:
-                    url += "&raw=1" if "?" in url else "?raw=1"
-                    
-                photos.append({
-                    "id": p_dict.get("id"), 
-                    "photo_url": url,
-                    "url": url  # Страховка для фронтенда!
-                })
-        except Exception as photo_err:
-            print(f"[WARN] Ошибка чтения фотографий альбома: {photo_err}")
-
-        return {
-            "id": album["id"],
-            "title": album.get("title", "Альбом"),
-            "description": album.get("description", ""),
-            "is_paid": bool(is_paid),
-            "price": price,
-            "has_access": True,
-            "is_owner": is_owner,
-            "photos": photos
-        }
-
     except HTTPException as http_ex:
-        # Пробрасываем HTTP исключения дальше без оборачивания в 500
         raise http_ex
     except Exception as e:
-        print(f"[ERROR] Ошибка в GET /api/albums/{album_id}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        # Гарантированное закрытие базы данных без ошибок повторного закрытия
-        db.close()
+        print(f"[CRITICAL ERROR] GET /api/albums/{album_id}: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка сервера при чтении альбома")
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
