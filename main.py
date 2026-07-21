@@ -719,6 +719,13 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
             upload_db_to_dropbox()
             
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
+        
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as e:
+        db.rollback()
+        print(f"Ошибка покупки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
     #======= Покупка фотоальбомов ===========
 @app.post("/api/albums/buy")
