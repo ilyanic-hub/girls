@@ -721,7 +721,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
 
     #======= Покупка фотоальбомов ===========
-    @app.post("/api/albums/buy")
+@app.post("/api/albums/buy")
 async def buy_album(
     data: BuyAlbumSchema,
     session_user: Optional[str] = Cookie(None)
@@ -789,13 +789,6 @@ async def buy_album(
         db.close()
         print(f"[ERROR] Ошибка покупки альбома: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-        
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as e:
-        db.rollback()
-        print(f"Ошибка покупки: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
 @app.get("/api/admin/get--list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
