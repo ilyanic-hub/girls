@@ -1900,17 +1900,15 @@ function closeEditAlbumModal() {
 
 // Сохранение изменений инфо альбома
 async function saveAlbumChanges(event) {
-    // 1. Блокируем стандартную отправку формы и переход на главную
     if (event) {
         event.preventDefault();
         event.stopPropagation();
     }
 
-    // 2. Достаем ID альбома из скрытого инпута
     const albumId = document.getElementById('edit-album-id')?.value || currentEditAlbumId;
 
     if (!albumId || albumId === 'null') {
-        alert("Ошибка: Не найден ID альбома. Переоткройте редактирование.");
+        alert("Ошибка: Не найден ID альбома");
         return false;
     }
 
@@ -1920,12 +1918,10 @@ async function saveAlbumChanges(event) {
     const price = parseFloat(document.getElementById('edit-album-price').value) || 0;
 
     try {
-        // 3. Отправляем изменения на сервер
+        // 1. Отправляем изменения альбома на бэкенд
         const response = await fetch(`/api/albums/${albumId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 title: title,
                 description: description,
@@ -1940,27 +1936,36 @@ async function saveAlbumChanges(event) {
             return false;
         }
 
-        // 4. Закрываем модалку редактирования
+        // 2. Закрываем модальное окно
         const editModal = document.getElementById('edit-album-modal');
-        if (editModal) {
-            editModal.style.display = 'none';
-        }
+        if (editModal) editModal.style.display = 'none';
 
-        // 5. Точечно обновляем карточки альбомов (БЕЗ перезагрузки страницы location.reload!)
-        if (typeof loadModelAlbums === 'function') {
-            await loadModelAlbums();
-        } else if (typeof loadMyProfileAlbums === 'function') {
-            await loadMyProfileAlbums();
-        } else if (typeof renderAlbums === 'function') {
-            await renderAlbums();
+        // 3. Запрашиваем свежие данные альбома (с новыми фото из Dropbox)
+        const freshRes = await fetch(`/api/albums/${albumId}?t=` + Date.now());
+        if (freshRes.ok) {
+            const freshAlbum = await freshRes.json();
+            
+            // Находим карточку этого альбома на странице и обновляем её названия/фото
+            const albumCard = document.querySelector(`[data-album-id="${albumId}"]`);
+            if (albumCard) {
+                const titleEl = albumCard.querySelector('.album-title');
+                if (titleEl) titleEl.textContent = freshAlbum.title;
+
+                // Если в карточке есть превью фото — обновляем картинку
+                const imgEl = albumCard.querySelector('img');
+                if (imgEl && freshAlbum.photos && freshAlbum.photos.length > 0) {
+                    const lastPhoto = freshAlbum.photos[freshAlbum.photos.length - 1];
+                    imgEl.src = lastPhoto.photo_url || lastPhoto.url;
+                }
+            }
         }
 
     } catch (err) {
         console.error("Ошибка при сохранении альбома:", err);
-        alert("Произошла ошибка при сохранении");
+        alert("Произошла ошибка при отправке данных");
     }
 
-    return false; // Дополнительная страховка от отправки формы
+    return false;
 }
 
 // Удаление отдельного фото
