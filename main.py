@@ -929,6 +929,97 @@ async def delete_album_photo(
         print(f"[ERROR] Ошибка удаления фото {photo_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# 1. Удаление всего альбома (вместе с фото)
+@app.delete("/api/albums/{album_id}")
+async def delete_album(
+    album_id: int, 
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходима авторизация")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
+        album = cursor.fetchone()
+        
+        if not album:
+            db.close()
+            raise HTTPException(status_code=404, detail="Альбом не найден")
+
+        if album["model_username"] != session_user:
+            db.close()
+            raise HTTPException(status_code=403, detail="Вы не можете удалить чужой альбом")
+
+        # Удаляем фотографии альбома и сам альбом
+        cursor.execute("DELETE FROM album_photos WHERE album_id = ?", (album_id,))
+        cursor.execute("DELETE FROM albums WHERE id = ?", (album_id,))
+        
+        db.commit()
+        db.close()
+        return {"status": "ok", "message": "Альбом успешно удалён"}
+
+    except HTTPException:
+        db.close()
+        raise
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 2. Добавление новых фото в альбом
+@app.post("/api/albums/{album_id}/photos")
+async def add_photos_to_album(
+    album_id: int,
+    photos: List[UploadFile] = File(...),
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходима авторизация")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    try:
+        cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
+        album = cursor.fetchone()
+        
+        if not album or album["model_username"] != session_user:
+            db.close()
+            raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+        # Сохраняем новые файлы
+        for photo_file in photos:
+            if not photo_file.filename:
+                continue
+                
+            # Генерируем уникальное имя файла
+            ext = os.path.splitext(photo_file.filename)[1]
+            filename = f"album_{album_id}_{uuid.uuid4().hex}{ext}"
+            file_path = os.path.join("static/uploads", filename)
+            photo_url = f"/static/uploads/{filename}"
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(photo_file.file, buffer)
+
+            cursor.execute(
+                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
+                (album_id, photo_url)
+            )
+
+        db.commit()
+        db.close()
+        return {"status": "ok", "message": "Фотографии добавлены"}
+
+    except Exception as e:
+        db.close()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+
 @app.delete("/api/admin/adult-photos/{photo_id}")
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
