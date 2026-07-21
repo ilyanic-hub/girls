@@ -1677,18 +1677,14 @@ function toggleEditPriceField() {
 // Открытие модалки редактирования
 async function openEditAlbumModal(albumId) {
     try {
-        // 1. Запоминаем ID альбома для кнопки сохранения
         currentEditAlbumId = albumId;
 
-        // 2. Получаем данные альбома
         const response = await fetch(`/api/albums/${albumId}?t=` + Date.now());
-        if (!response.ok) {
-            alert("Не удалось загрузить данные альбома");
-            return;
-        }
+        if (!response.ok) return alert("Не удалось загрузить данные");
+        
         const album = await response.json();
 
-        // 3. Подставляем данные в поля формы
+        // Заполняем текстовые поля
         const titleInput = document.getElementById('edit-album-title') || document.getElementById('edit-album-title-input');
         const descInput = document.getElementById('edit-album-desc') || document.getElementById('edit-album-desc-input');
         const priceInput = document.getElementById('edit-album-price');
@@ -1699,15 +1695,49 @@ async function openEditAlbumModal(albumId) {
         if (priceInput) priceInput.value = album.price || 0;
         if (paidCheckbox) paidCheckbox.checked = !!album.is_paid;
 
-        // 4. Показываем модальное окно редактирования
+        // 📸 Отрисовываем список фотографий для удаления
+        renderEditPhotosList(album.photos || []);
+
         const editModal = document.getElementById('edit-album-modal');
-        if (editModal) {
-            editModal.style.display = 'flex';
-        }
+        if (editModal) editModal.style.display = 'flex';
 
     } catch (err) {
-        console.error("Ошибка при открытии окна редактирования:", err);
+        console.error("Ошибка открытия:", err);
     }
+}
+
+// Функция отрисовки миниатюр в модалке редактирования
+function renderEditPhotosList(photos) {
+    let container = document.getElementById('edit-album-photos-container');
+    
+    // Если контейнера для фото еще нет в модалке, создаем его
+    if (!container) {
+        const modalBody = document.querySelector('#edit-album-modal .modal-content') || document.getElementById('edit-album-modal');
+        container = document.createElement('div');
+        container.id = 'edit-album-photos-container';
+        container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin: 15px 0; max-height: 200px; overflow-y: auto;';
+        
+        // Вставляем перед кнопкой сохранения
+        const saveBtn = modalBody.querySelector('button');
+        if (saveBtn) modalBody.insertBefore(container, saveBtn);
+        else modalBody.appendChild(container);
+    }
+
+    if (photos.length === 0) {
+        container.innerHTML = '<p style="color: #64748b; font-size: 13px;">В альбоме нет фото</p>';
+        return;
+    }
+
+    container.innerHTML = photos.map(photo => `
+        <div style="position: relative; display: inline-block; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f1f5f9;">
+            <img src="${photo.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">
+            <button type="button" 
+                    onclick="deleteAlbumPhoto(${photo.id})" 
+                    style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;">
+                ✕
+            </button>
+        </div>
+    `).join('');
 }
 
 function closeEditAlbumModal() {
