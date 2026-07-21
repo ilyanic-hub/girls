@@ -2170,40 +2170,73 @@ async def get_public_model_albums(username: str):
     return albums
 
 @app.get("/api/albums/{album_id}")
-async def get_album_details(album_id: int, session_user: str = Depends(get_current_user)):
+async def get_album_details(
+    album_id: int, 
+    session_user: Optional[str] = Cookie(None)
+):
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # 1. Достаем сам альбом
+    # 1. Получаем данные альбома
     cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
-    album = cursor.fetchone()
+    album_row = cursor.fetchone()
     
-    if not album:
+    if not album_row:
         db.close()
         raise HTTPException(status_code=404, detail="Альбом не найден")
         
-    # 2. Достаем фотографии этого альбома из album_photos
-    cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album_id,))
-    photos_rows = cursor.fetchall()
+    album = dict(album_row)
+    model_username = album.get("model_username")
+    is_paid = album.get("is_paid", 0)
+    price = album.get("price", 0)
+    
+    # 2. Проверка доступа к платному альбому
+    is_owner = (session_user and session_user == model_username)
+    has_purchased = False
+    
+    if session_user and is_paid and not is_owner:
+        # Проверяем в БД, покупал ли пользователь этот альбом
+        cursor.execute("""
+            SELECT id FROM purchases 
+            WHERE username = ? AND item_type = 'album' AND item_id = ?
+        """, (session_user, album_id))
+        if cursor.fetchone():
+            has_purchased = True
+
+    # Если альбом платный, а пользователь НЕ владелец и НЕ покупал его — скрываем фото!
+    if is_paid and not is_owner and not has_purchased:
+        db.close()
+        return {
+            "id": album["id"],
+            "title": album["title"],
+            "description": album["description"],
+            "is_paid": True,
+            "price": price,
+            "has_access": False,
+            "photos": [], # Не отдаем фотографии!
+            "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
+        }
+
+    # 3. Если доступ есть (бесплатный, владелец или куплен) — достаем все фото!
+    cursor.execute("SELECT id, photo_url FROM album_photos WHERE album_id = ?", (album_id,))
+    photo_rows = cursor.fetchall()
     db.close()
     
-    # 3. Формируем список ссылок и прячем закрытые Dropbox-пути
-    photo_urls = []
-    for row in photos_rows:
-        url = row["photo_url"]
-        # Если ссылка публичная (начинается на http), приводим ее к прямому формату raw=1
-        if url and url.startswith("http"):
-            if "?dl=0" in url:
-                url = url.replace("?dl=0", "?raw=1")
-            elif "&dl=0" in url:
-                url = url.replace("&dl=0", "&raw=1")
-            photo_urls.append(url)
+    photos = []
+    for p in photo_rows:
+        url = p["photo_url"] or ""
+        if "?dl=0" in url:
+            url = url.replace("?dl=0", "?raw=1")
+        elif "&dl=0" in url:
+            url = url.replace("&dl=0", "&raw=1")
+        elif "dropbox.com" in url and "raw=1" not in url:
+            url += "&raw=1" if "?" in url else "?raw=1"
+        photos.append({"id": p["id"], "photo_url": url})
         
-    album_dict = dict(album)
-    album_dict["photos"] = photo_urls
-    
-    return album_dict
+    album["photos"] = photos
+    album["has_access"] = True
+    return album
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
