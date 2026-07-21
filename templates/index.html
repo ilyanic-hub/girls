@@ -1888,42 +1888,54 @@ function closeEditAlbumModal() {
 }
 
 // Сохранение изменений инфо альбома
-async function saveAlbumChanges(e) {
-    if (e) e.preventDefault();
-    if (!currentEditAlbumId) return;
+async function saveAlbumChanges(event) {
+    if (event) event.preventDefault();
 
-    const payload = {
-        title: document.getElementById('edit-album-title').value.trim(),
-        description: document.getElementById('edit-album-desc').value.trim(),
-        is_paid: document.getElementById('edit-album-is-paid').checked,
-        price: parseInt(document.getElementById('edit-album-price').value, 10) || 0
-    };
+    // 1. Берем ID из скрытого инпута модалки или из глобальной переменной
+    const albumIdInput = document.getElementById('edit-album-id');
+    const albumId = albumIdInput ? albumIdInput.value : currentEditAlbumId;
+
+    // 2. Страховка: если albumId равен null, undefined или "null" (строка)
+    if (!albumId || albumId === 'null' || albumId === 'undefined') {
+        alert("Ошибка: не удалось определить ID альбома. Переоткройте окно редактирования.");
+        console.error("saveAlbumChanges: albumId не определен!", { albumId, currentEditAlbumId });
+        return;
+    }
+
+    // Собираем данные формы
+    const title = document.getElementById('edit-album-title').value;
+    const description = document.getElementById('edit-album-desc').value;
+    const isPaid = document.getElementById('edit-album-is-paid').checked;
+    const price = document.getElementById('edit-album-price').value;
 
     try {
-        const response = await fetch(`/api/albums/${currentEditAlbumId}`, {
-            method: 'PUT',
+        const response = await fetch(`/api/albums/${albumId}`, {
+            method: 'PUT', // или POST, смотря как сделано в main.py
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                title: title,
+                description: description,
+                is_paid: isPaid,
+                price: parseFloat(price) || 0
+            })
         });
 
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить изменения"));
             return;
         }
 
+        // Закрываем модалку и обновляем список
         closeEditAlbumModal();
-
-        // Если открыто окно просмотра альбома — обновляем и его
-        if (typeof openAlbumModal === 'function') {
-            await openAlbumModal(currentEditAlbumId);
-        }
         
-        // Перезагружаем список всех альбомов
-        if (typeof loadAlbums === 'function') loadAlbums();
+        // Если нужно обновить список альбомов на странице
+        if (typeof loadModelAlbums === 'function') {
+            await loadModelAlbums();
+        }
 
     } catch (err) {
-        console.error("Ошибка при сохранении:", err);
+        console.error("Ошибка при сохранении альбома:", err);
     }
 }
 
