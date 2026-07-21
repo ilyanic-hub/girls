@@ -1398,16 +1398,19 @@ function setupRoleUI(role) {
     });
 }
 
-        async function deleteAlbumPhoto(photoId) {
+        async function deleteAlbumPhoto(event, photoId) {
+    // Останавливаем стандартную отправку формы или переход по ссылке!
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
     if (!confirm("Удалить это фото?")) return;
 
-    // 1. Пытаемся достать albumId из глобальной переменной или скрытого поля
     const albumIdInput = document.getElementById('edit-album-id');
     const albumId = currentEditAlbumId || albumIdInput?.value;
 
     try {
-        // 2. Выполняем DELETE-запрос
-        // (убедитесь, совпадает ли путь с вашим бэкендом: `/api/albums/photos/${photoId}` или `/api/albums/${albumId}/photos/${photoId}`)
         const response = await fetch(`/api/albums/photos/${photoId}`, { 
             method: 'DELETE' 
         });
@@ -1418,19 +1421,13 @@ function setupRoleUI(role) {
             return;
         }
 
-        // 3. Обновляем модалку только если есть валидный albumId
+        // Обновляем окно редактирования
         if (albumId && albumId !== 'null' && albumId !== 'undefined') {
             await openEditAlbumModal(albumId);
-        } else {
-            console.warn("Альбом успешно обновлен, но albumId не найден для перезагрузки окна.");
         }
-
-        // 4. Фоново обновляем дашборд/список альбомов
-        if (typeof loadModelDashboard === 'function') loadModelDashboard();
 
     } catch (err) {
         console.error("Ошибка при удалении:", err);
-        alert("Сетевая ошибка при попытке удалить фото.");
     }
 }
         
@@ -1862,85 +1859,47 @@ async function uploadNewPhotosToAlbum(inputElement) {
 }
 
 // Функция удаления ВСЕГО альбома
-async function deleteEntireAlbum() {
-    if (!currentEditAlbumId) return;
+// Функция удаления ВСЕГО альбома
+async function deleteEntireAlbum(e) {
+    // 1. Блокируем перезагрузку формы/переход по ссылке
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    // Достаем ID альбома из переменной или поля формы
+    const albumId = currentEditAlbumId || document.getElementById('edit-album-id')?.value;
+
+    if (!albumId) {
+        alert("Не удалось определить ID альбома для удаления.");
+        return;
+    }
+
     if (!confirm("Вы уверены, что хотите полностью удалить этот альбом? Отменить действие нельзя.")) return;
 
     try {
-        const response = await fetch(`/api/albums/${currentEditAlbumId}`, { method: 'DELETE' });
+        const response = await fetch(`/api/albums/${albumId}`, { method: 'DELETE' });
+        
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             alert("Ошибка удаления альбома: " + (err.detail || "Не удалось удалить"));
             return;
         }
 
+        // 2. Закрываем модалку
         closeEditAlbumModal();
         alert("Альбом успешно удалён.");
 
-        if (typeof loadAlbums === 'function') {
-            loadAlbums();
-        } else {
-            location.reload();
+        // 3. Обновляем список БЕЗ location.reload()
+        if (typeof loadModelDashboard === 'function') {
+            await loadModelDashboard();
+        } else if (typeof loadAlbums === 'function') {
+            await loadAlbums();
         }
 
     } catch (err) {
         console.error("Ошибка при удалении альбома:", err);
-    }
-}
-
-// Закрытие модалки
-function closeEditAlbumModal() {
-    const editModal = document.getElementById('edit-album-modal');
-    if (editModal) editModal.style.display = 'none';
-    currentEditAlbumId = null;
-}
-
-// Сохранение изменений инфо альбома
-// Сохранение изменений инфо альбома
-async function saveAlbumChanges(e) {
-    if (e) e.preventDefault();
-    if (!currentEditAlbumId) return;
-
-    // Запоминаем ID во временную переменную, чтобы не потерять после закрытия модалки
-    const savedAlbumId = currentEditAlbumId;
-
-    const payload = {
-        title: document.getElementById('edit-album-title').value.trim(),
-        description: document.getElementById('edit-album-desc').value.trim(),
-        is_paid: document.getElementById('edit-album-is-paid').checked,
-        price: parseInt(document.getElementById('edit-album-price').value, 10) || 0
-    };
-
-    try {
-        const response = await fetch(`/api/albums/${savedAlbumId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить"));
-            return;
-        }
-
-        // Закрываем окно редактирования
-        closeEditAlbumModal();
-
-        // Если окно просмотра было открыто, обновляем его по сохранённому ID
-        const viewModal = document.getElementById('view-album-modal');
-        const isViewModalOpen = viewModal && (viewModal.style.display === 'flex' || viewModal.style.display === 'block');
-
-        if (isViewModalOpen && typeof openAlbumModal === 'function') {
-            await openAlbumModal(savedAlbumId);
-        }
-        
-        // Перезагружаем список всех альбомов / дашборд
-        if (typeof loadAlbums === 'function') loadAlbums();
-        if (typeof loadModelDashboard === 'function') loadModelDashboard();
-
-    } catch (err) {
-        console.error("Ошибка при сохранении:", err);
+        alert("Ошибка сети при удалении альбома.");
     }
 }
 
