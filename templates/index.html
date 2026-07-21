@@ -1590,6 +1590,36 @@ let res = await fetch('/api/user/avatar', {
     }
 }
 
+        async function buyAlbum(albumId, price) {
+    if (!confirm(`Вы уверены, что хотите купить этот альбом за ${price} коинов?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/albums/buy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ album_id: albumId })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("🎉 " + result.message);
+            // Перезагружаем модалку альбома, чтобы сразу показать открывшиеся фото
+            openAlbumModal(albumId);
+            
+            // Если на странице отображается баланс коинов — обнови его
+            if (typeof loadUserData === 'function') loadUserData();
+        } else {
+            alert("Ошибка: " + (result.detail || "Не удалось совершить покупку"));
+        }
+    } catch (err) {
+        console.error("Ошибка покупки:", err);
+        alert("Произошла ошибка при отправке запроса");
+    }
+}
+
         function toggleCommentsBox(contestantId) {
             let box = document.getElementById(`comments-box-${contestantId}`);
             if (box.style.display === "block") {
