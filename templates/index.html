@@ -1401,19 +1401,36 @@ function setupRoleUI(role) {
         async function deleteAlbumPhoto(photoId) {
     if (!confirm("Удалить это фото?")) return;
 
+    // 1. Пытаемся достать albumId из глобальной переменной или скрытого поля
+    const albumIdInput = document.getElementById('edit-album-id');
+    const albumId = currentEditAlbumId || albumIdInput?.value;
+
     try {
-        const response = await fetch(`/api/albums/photos/${photoId}`, { method: 'DELETE' });
+        // 2. Выполняем DELETE-запрос
+        // (убедитесь, совпадает ли путь с вашим бэкендом: `/api/albums/photos/${photoId}` или `/api/albums/${albumId}/photos/${photoId}`)
+        const response = await fetch(`/api/albums/photos/${photoId}`, { 
+            method: 'DELETE' 
+        });
+
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
             return;
         }
 
-        // Обновляем список в открытом окне
-        await openEditAlbumModal(currentEditAlbumId);
+        // 3. Обновляем модалку только если есть валидный albumId
+        if (albumId && albumId !== 'null' && albumId !== 'undefined') {
+            await openEditAlbumModal(albumId);
+        } else {
+            console.warn("Альбом успешно обновлен, но albumId не найден для перезагрузки окна.");
+        }
+
+        // 4. Фоново обновляем дашборд/список альбомов
+        if (typeof loadModelDashboard === 'function') loadModelDashboard();
 
     } catch (err) {
         console.error("Ошибка при удалении:", err);
+        alert("Сетевая ошибка при попытке удалить фото.");
     }
 }
         
