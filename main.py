@@ -880,6 +880,54 @@ async def get_adult_model_photos_public(model_id: int, session_user: Optional[st
         print(f"!!! Ошибка бэкенда при запросе фото: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка сервера БД: {str(e)}")
 
+@app.delete("/api/albums/photos/{photo_id}")
+async def delete_album_photo(
+    photo_id: int, 
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходима авторизация")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    try:
+        # 1. Находим фото и проверяем, принадлежит ли альбом текущему пользователю
+        cursor.execute("""
+            SELECT ap.id, a.model_username, a.username 
+            FROM album_photos ap
+            JOIN albums a ON ap.album_id = a.id
+            WHERE ap.id = ?
+        """, (photo_id,))
+        
+        row = cursor.fetchone()
+        if not row:
+            db.close()
+            raise HTTPException(status_code=404, detail="Фотография не найдена")
+
+        photo_data = dict(row)
+        owner = photo_data.get("model_username") or photo_data.get("username") or ""
+
+        if owner != session_user:
+            db.close()
+            raise HTTPException(status_code=403, detail="Вы не можете удалять фото из чужого альбома")
+
+        # 2. Удаляем фото
+        cursor.execute("DELETE FROM album_photos WHERE id = ?", (photo_id,))
+        db.commit()
+        db.close()
+
+        return {"status": "ok", "message": "Фотография успешно удалена"}
+
+    except HTTPException:
+        db.close()
+        raise
+    except Exception as e:
+        db.close()
+        print(f"[ERROR] Ошибка удаления фото {photo_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/api/admin/adult-photos/{photo_id}")
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
