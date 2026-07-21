@@ -880,9 +880,10 @@ async def get_adult_model_photos_public(model_id: int, session_user: Optional[st
         print(f"!!! Ошибка бэкенда при запросе фото: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка сервера БД: {str(e)}")
 
-@app.delete("/api/albums/photos/{photo_id}")
-async def delete_album_photo(
-    photo_id: int, 
+# 1. Удаление всего альбома (вместе с фото)
+@app.delete("/api/albums/{album_id}")
+async def delete_album(
+    album_id: int, 
     session_user: Optional[str] = Cookie(None)
 ):
     if not session_user:
@@ -893,40 +894,38 @@ async def delete_album_photo(
     cursor = db.cursor()
 
     try:
-        # 1. Получаем фото и имя владельца альбома (без обращения к a.username)
-        cursor.execute("""
-            SELECT ap.id, a.model_username 
-            FROM album_photos ap
-            JOIN albums a ON ap.album_id = a.id
-            WHERE ap.id = ?
-        """, (photo_id,))
+        cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
+        album = cursor.fetchone()
         
-        row = cursor.fetchone()
-        if not row:
+        if not album:
             db.close()
-            raise HTTPException(status_code=404, detail="Фотография не найдена")
+            raise HTTPException(status_code=404, detail="Альбом не найден")
 
-        photo_data = dict(row)
-        owner = photo_data.get("model_username") or ""
-
-        # 2. Проверяем, что фото пытается удалить владелец
-        if owner != session_user:
+        if album["model_username"] != session_user:
             db.close()
-            raise HTTPException(status_code=403, detail="Вы не можете удалять фото из чужого альбома")
+            raise HTTPException(status_code=403, detail="Вы не можете удалить чужой альбом")
 
-        # 3. Удаляем фото
-        cursor.execute("DELETE FROM album_photos WHERE id = ?", (photo_id,))
+        # 1. Удаляем фотографии альбома и сам альбом из таблицы SQLite
+        cursor.execute("DELETE FROM album_photos WHERE album_id = ?", (album_id,))
+        cursor.execute("DELETE FROM albums WHERE id = ?", (album_id,))
+        
+        # 2. Фиксируем изменения
         db.commit()
-        db.close()
+        # 🔥 Закрываем соединение ОБЯЗАТЕЛЬНО перед загрузкой файла, иначе SQLite заблокирует файл
+        db.close() 
 
-        return {"status": "ok", "message": "Фотография успешно удалена"}
+        # 3. Синхронизируем обновлённую локальную базу с Dropbox
+        if 'upload_db_to_dropbox' in globals() and callable(globals()['upload_db_to_dropbox']):
+            upload_db_to_dropbox()
+        elif 'upload_file_to_dropbox' in globals() and callable(globals()['upload_file_to_dropbox']):
+            upload_file_to_dropbox(DB_LOCAL_PATH, DB_DROPBOX_PATH)
+
+        return {"status": "ok", "message": "Альбом успешно удалён"}
 
     except HTTPException:
-        db.close()
         raise
     except Exception as e:
-        db.close()
-        print(f"[ERROR] Ошибка удаления фото {photo_id}: {e}")
+        print(f"Ошибка при удалении альбома: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # 1. Удаление всего альбома (вместе с фото)
