@@ -1606,13 +1606,15 @@ let res = await fetch('/api/user/avatar', {
 
         if (response.ok) {
             alert("🎉 " + result.message);
-            // Перезагружаем модалку альбома, чтобы сразу показать открывшиеся фото
+            // Перезагружаем модалку альбома, чтобы сразу показать фото
             openAlbumModal(albumId);
             
-            // Если на странице отображается баланс коинов — обнови его
+            // Перезагружаем профиль/шапку, чтобы обновить баланс на экране
             if (typeof loadUserData === 'function') loadUserData();
+            if (typeof loadProfile === 'function') loadProfile();
         } else {
-            alert("Ошибка: " + (result.detail || "Не удалось совершить покупку"));
+            // Выводим сообщение о нехватке средств
+            alert(result.detail || "Недостаточно средств на балансе!");
         }
     } catch (err) {
         console.error("Ошибка покупки:", err);
