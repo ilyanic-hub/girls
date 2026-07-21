@@ -2372,7 +2372,7 @@ async def get_album_details(
         is_paid = album.get("is_paid", 0)
         price = album.get("price", 0)
         
-        # 2. Проверка доступа к платному альбому
+        # 2. Проверка владельца и доступа
         is_owner = bool(session_user and session_user == model_username)
         has_purchased = False
         
@@ -2397,6 +2397,7 @@ async def get_album_details(
                 "is_paid": True,
                 "price": price,
                 "has_access": False,
+                "is_owner": is_owner,  # 👈 Добавили флаг владельца
                 "photos": [],
                 "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
             }
@@ -2430,6 +2431,7 @@ async def get_album_details(
             "is_paid": bool(is_paid),
             "price": price,
             "has_access": True,
+            "is_owner": is_owner,  # 👈 Добавили флаг владельца
             "photos": photos
         }
 
