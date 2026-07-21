@@ -1816,11 +1816,11 @@ function renderEditPhotosList(photos) {
 
 // Функция добавления новых фото в открытый на редактирование альбом
 async function uploadNewPhotosToAlbum(inputElement) {
-    // 1. Проверяем, что ID валидный и это число
-    const albumId = Number(currentEditAlbumId);
-    if (!currentEditAlbumId || isNaN(albumId)) {
-        console.error("Ошибка: currentEditAlbumId не установлен или равен null/NaN:", currentEditAlbumId);
-        alert("Не удалось определить ID альбома. Попробуйте обновить страницу.");
+    // Берём ID альбома
+    const albumId = document.getElementById('edit-album-id')?.value || currentEditAlbumId;
+
+    if (!albumId || albumId === 'null') {
+        alert("Ошибка: не найден ID альбома");
         return;
     }
 
@@ -1833,26 +1833,40 @@ async function uploadNewPhotosToAlbum(inputElement) {
     }
 
     try {
+        // 1. Отправляем фото на сервер
         const response = await fetch(`/api/albums/${albumId}/photos`, {
             method: 'POST',
             body: formData
         });
 
         if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            alert("Ошибка загрузки: " + (err.detail || "Не удалось добавить фото"));
+            alert("Не удалось загрузить фото");
             return;
         }
 
+        // 2. Очищаем инпут
         inputElement.value = '';
-        
-        // Вызываем обновление модалки с гарантированно числовым ID
-        await openEditAlbumModal(albumId);
+
+        // 3. Сразу запрашиваем обновленный альбом и перерисовываем список
+        const resAlbum = await fetch(`/api/albums/${albumId}?t=` + Date.now());
+        const albumData = await resAlbum.json();
+
+        // Отрисовываем фото в контейнере модалки
+        const container = document.getElementById('edit-album-photos-container'); // проверь id своего контейнера фото!
+        if (container && albumData.photos) {
+            container.innerHTML = albumData.photos.map(p => `
+                <div class="photo-item" data-id="${p.id}">
+                    <img src="${p.photo_url || p.url}" />
+                    <button type="button" onclick="deleteAlbumPhoto(${p.id})">✕</button>
+                </div>
+            `).join('');
+        }
 
     } catch (err) {
-        console.error("Ошибка при добавлении фото:", err);
+        console.error("Ошибка при загрузке:", err);
     }
 }
+        
 // Функция удаления ВСЕГО альбома
 async function deleteEntireAlbum() {
     if (!currentEditAlbumId) return;
