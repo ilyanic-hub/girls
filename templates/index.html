@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -873,7 +872,7 @@
         
         <h3 style="margin-top: 0; color: var(--text-main); text-align: center;">Редактирование альбома</h3>
         
-        <form id="edit-album-form" onsubmit="saveAlbumChanges(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+        <form id="edit-album-form" onsubmit="return saveAlbumChanges(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
             <input type="hidden" id="edit-album-id">
 
             <div>
@@ -1901,25 +1900,27 @@ function closeEditAlbumModal() {
 
 // Сохранение изменений инфо альбома
 async function saveAlbumChanges(event) {
-    // 1. Обязательно отменяем стандартную отправку формы
-    if (event) event.preventDefault();
+    // 1. Блокируем стандартную отправку формы и переход на главную
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
-    // 2. Берем ID альбома из скрытого инпута <input type="hidden" id="edit-album-id">
+    // 2. Достаем ID альбома из скрытого инпута
     const albumId = document.getElementById('edit-album-id')?.value || currentEditAlbumId;
 
     if (!albumId || albumId === 'null') {
-        alert("Ошибка: Не найден ID альбома. Переоткройте модальное окно.");
-        return;
+        alert("Ошибка: Не найден ID альбома. Переоткройте редактирование.");
+        return false;
     }
 
-    // Собираем значения из полей формы
     const title = document.getElementById('edit-album-title').value;
     const description = document.getElementById('edit-album-desc').value;
     const isPaid = document.getElementById('edit-album-is-paid').checked;
     const price = parseFloat(document.getElementById('edit-album-price').value) || 0;
 
     try {
-        // 3. Отправляем изменения альбома на бэкенд
+        // 3. Отправляем изменения на сервер
         const response = await fetch(`/api/albums/${albumId}`, {
             method: 'PUT',
             headers: {
@@ -1935,30 +1936,31 @@ async function saveAlbumChanges(event) {
 
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить изменения"));
-            return;
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось сохранить альбом"));
+            return false;
         }
 
         // 4. Закрываем модалку редактирования
         const editModal = document.getElementById('edit-album-modal');
-        if (editModal) editModal.style.display = 'none';
+        if (editModal) {
+            editModal.style.display = 'none';
+        }
 
-        // 5. ОБНОВЛЯЕМ КАРТОЧКИ НА СТРАНИЦЕ (чтобы новые фото сразу отобразились!)
+        // 5. Точечно обновляем карточки альбомов (БЕЗ перезагрузки страницы location.reload!)
         if (typeof loadModelAlbums === 'function') {
             await loadModelAlbums();
-        } else if (typeof loadProfileData === 'function') {
-            await loadProfileData();
-        } else if (typeof loadMyProfile === 'function') {
-            await loadMyProfile();
-        } else {
-            // Резервный вариант, если функция загрузки называется по-другому
-            location.reload(); 
+        } else if (typeof loadMyProfileAlbums === 'function') {
+            await loadMyProfileAlbums();
+        } else if (typeof renderAlbums === 'function') {
+            await renderAlbums();
         }
 
     } catch (err) {
         console.error("Ошибка при сохранении альбома:", err);
-        alert("Произошла ошибка при отправке данных");
+        alert("Произошла ошибка при сохранении");
     }
+
+    return false; // Дополнительная страховка от отправки формы
 }
 
 // Удаление отдельного фото
