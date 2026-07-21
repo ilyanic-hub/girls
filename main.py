@@ -720,7 +720,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
             
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
 
-    //======= Покупка фотоальбомов ===========
+    #======= Покупка фотоальбомов ===========
     @app.post("/api/albums/buy")
 async def buy_album(
     data: BuyAlbumSchema,
