@@ -727,7 +727,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         print(f"Ошибка покупки: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
-    #======= Покупка фотоальбомов ===========
+#======= Покупка фотоальбомов ===========
 @app.post("/api/albums/buy")
 async def buy_album(
     data: BuyAlbumSchema,
@@ -751,22 +751,31 @@ async def buy_album(
         album = dict(album)
         price = album.get("price", 0)
 
-        # 2. Проверяем баланс пользователя
-        cursor.execute("SELECT coins FROM users WHERE username = ?", (session_user,))
-        user = cursor.fetchone()
-        if not user:
+        # 2. Безопасно проверяем баланс пользователя (подходит и для 'balance', и для 'coins')
+        cursor.execute("SELECT * FROM users WHERE username = ?", (session_user,))
+        user_row = cursor.fetchone()
+        if not user_row:
             db.close()
             raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-        user_coins = user["coins"] or 0
+        user = dict(user_row)
+        
+        # Автоматически определяем нужную колонку баланса
+        user_balance = user.get("balance") if "balance" in user else user.get("coins", 0)
+        user_balance = user_balance or 0
+        balance_col = "balance" if "balance" in user else "coins"
 
-        if user_coins < price:
+        # 3. Проверяем, хватает ли коинов/средств
+        if user_balance < price:
             db.close()
-            raise HTTPException(status_code=400, detail=f"Недостаточно коинов. Требуется: {price}, у вас: {user_coins}")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Недостаточно средств на балансе! Стоимость: {price}, у вас: {user_balance}"
+            )
 
-        # 3. Списываем коины и регистрируем покупку
-        new_balance = user_coins - price
-        cursor.execute("UPDATE users SET coins = ? WHERE username = ?", (new_balance, session_user))
+        # 4. Списываем средства и сохраняем покупку
+        new_balance = user_balance - price
+        cursor.execute(f"UPDATE users SET {balance_col} = ? WHERE username = ?", (new_balance, session_user))
 
         created_at = datetime.now().isoformat()
         cursor.execute("""
@@ -776,6 +785,10 @@ async def buy_album(
 
         db.commit()
         db.close()
+
+        # Выполняем бэкап, если используется
+        if "upload_db_to_dropbox" in globals():
+            upload_db_to_dropbox()
 
         return {
             "status": "success", 
