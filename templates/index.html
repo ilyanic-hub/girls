@@ -1720,36 +1720,47 @@ function closeEditAlbumModal() {
 }
 
 // Сохранение изменений инфо альбома
-async function saveAlbumChanges(e) {
-    e.preventDefault();
-    const albumId = document.getElementById('edit-album-id').value;
-    
+async function saveAlbumChanges(albumId) {
+    // Берём значения по правильным ID из твоего HTML
+    const titleInput = document.getElementById('edit-album-title') || document.getElementById('edit-album-title-input');
+    const descInput = document.getElementById('edit-album-desc') || document.getElementById('edit-album-desc-input');
+    const priceInput = document.getElementById('edit-album-price');
+    const isPaidCheckbox = document.getElementById('edit-album-is-paid') || document.getElementById('edit-album-paid-checkbox');
+
     const payload = {
-        title: document.getElementById('edit-album-title').value.trim(),
-        description: document.getElementById('edit-album-desc').value.trim(),
-        is_paid: document.getElementById('edit-album-is-paid').checked,
-        price: parseInt(document.getElementById('edit-album-price').value) || 0
+        title: titleInput ? titleInput.value.trim() : '',
+        description: descInput ? descInput.value.trim() : '',
+        is_paid: isPaidCheckbox ? isPaidCheckbox.checked : false,
+        price: priceInput ? parseInt(priceInput.value, 10) || 0 : 0
     };
 
     try {
         const response = await fetch(`/api/albums/${albumId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
-        if (response.ok) {
-            alert("✅ " + result.message);
-            closeEditAlbumModal();
-            // Перезагружаем списки/модалку
-            if (typeof loadAnnouncements === 'function') loadAnnouncements();
-            if (typeof openAlbumModal === 'function') openAlbumModal(albumId);
-        } else {
-            alert("Ошибка: " + (result.detail || "Не удалось сохранить"));
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            alert("Ошибка сохранения: " + (errData.detail || "Не удалось сохранить"));
+            return;
         }
+
+        // Закрываем окно редактирования
+        const editModal = document.getElementById('edit-album-modal');
+        if (editModal) editModal.style.display = 'none';
+
+        // Обновляем открытый альбом
+        if (typeof openAlbumModal === 'function') {
+            await openAlbumModal(albumId);
+        }
+
     } catch (err) {
-        console.error("Ошибка сохранения:", err);
+        console.error("Ошибка сохранения альбома:", err);
+        alert("Произошла ошибка при отправке данных на сервер.");
     }
 }
 
