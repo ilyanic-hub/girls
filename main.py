@@ -317,6 +317,18 @@ def init_db():
     )
     """)
 
+    # Создаем таблицу покупок, если её ещё нет
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS purchases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            item_type TEXT NOT NULL, -- 'album' или 'photo'
+            item_id INTEGER NOT NULL,
+            price INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        )
+    """)
+
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS adult_models (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -492,6 +504,9 @@ class AnnouncementSchema(BaseModel):
     name: str
     description: str
     photo_base64: str  # Сюда прилетит строка Base64
+
+class BuyAlbumSchema(BaseModel):
+    album_id: int
 
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
@@ -704,6 +719,76 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
             upload_db_to_dropbox()
             
         return {"status": "success", "message": "Доступ успешно разблокирован!"}
+
+    //======= Покупка фотоальбомов ===========
+    @app.post("/api/albums/buy")
+async def buy_album(
+    data: BuyAlbumSchema,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    try:
+        # 1. Проверяем альбом
+        cursor.execute("SELECT * FROM albums WHERE id = ?", (data.album_id,))
+        album = cursor.fetchone()
+        if not album:
+            db.close()
+            raise HTTPException(status_code=404, detail="Альбом не найден")
+
+        album = dict(album)
+        price = album.get("price", 0)
+
+        # 2. Проверяем баланс пользователя
+        cursor.execute("SELECT coins FROM users WHERE username = ?", (session_user,))
+        user = cursor.fetchone()
+        if not user:
+            db.close()
+            raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+        user_coins = user["coins"] or 0
+
+        if user_coins < price:
+            db.close()
+            raise HTTPException(status_code=400, detail=f"Недостаточно коинов. Требуется: {price}, у вас: {user_coins}")
+
+        # 3. Списываем коины и регистрируем покупку
+        new_balance = user_coins - price
+        cursor.execute("UPDATE users SET coins = ? WHERE username = ?", (new_balance, session_user))
+
+        created_at = datetime.now().isoformat()
+        cursor.execute("""
+            INSERT INTO purchases (username, item_type, item_id, price, created_at)
+            VALUES (?, 'album', ?, ?, ?)
+        """, (session_user, data.album_id, price, created_at))
+
+        db.commit()
+        db.close()
+
+        # Бэкап в Dropbox (если используется)
+        try:
+            upload_db_to_dropbox()
+        except Exception as e:
+            print(f"[WARN] Ошибка бэкапа: {e}")
+
+        return {
+            "status": "success", 
+            "message": "Альбом успешно куплен!", 
+            "new_balance": new_balance
+        }
+
+    except HTTPException:
+        db.close()
+        raise
+    except Exception as e:
+        db.close()
+        print(f"[ERROR] Ошибка покупки альбома: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
         
     except HTTPException as http_err:
         raise http_err
