@@ -1383,6 +1383,34 @@ function setupRoleUI(role) {
     });
 }
 
+        async function deleteAlbumPhoto(photoId) {
+    if (!confirm("Удалить это фото из альбома?")) return;
+
+    try {
+        const response = await fetch(`/api/albums/photos/${photoId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
+            return;
+        }
+
+        // Перезагружаем данные в модалке редактирования и в самом альбоме
+        if (currentEditAlbumId) {
+            await openEditAlbumModal(currentEditAlbumId);
+            if (typeof openAlbumModal === 'function') {
+                await openAlbumModal(currentEditAlbumId);
+            }
+        }
+
+    } catch (err) {
+        console.error("Ошибка при удалении фото:", err);
+        alert("Произошла ошибка при отправке запроса.");
+    }
+}
+
 function showUserUI(user, buttonsContainer) {
     // 1. Скрываем резервный контейнер, так как кнопка выхода у нас теперь в основном HTML-блоке
     if (buttonsContainer) {
@@ -1416,6 +1444,8 @@ function showUserUI(user, buttonsContainer) {
                 }
             }
         }
+
+        
 
         async function uploadAvatar() {
     const fileInput = document.getElementById('avatar-input');
