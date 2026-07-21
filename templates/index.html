@@ -1958,7 +1958,7 @@ async function deleteAnnouncement(id) {
         // Загрузка объявлений из API бэкенда
         async function loadAnnouncements() {
     try {
-        const response = await fetch('/api/announcements');
+        const response = await fetch('/api/announcements?t=' + Date.now());
         if (!response.ok) return;
 
         const announcements = await response.json();
@@ -2181,6 +2181,20 @@ async function submitNewAlbum(event) {
             if (typeof closeCreateAlbumModal === 'function') {
                 closeCreateAlbumModal();
             }
+
+            // 🚀 АВТО-ОБНОВЛЕНИЕ БЕЗ ПЕРЕЗАГРУЗКИ F5:
+            // 1. Обновляем ленту объявлений (где показываются обложки альбомов)
+            if (typeof loadAnnouncements === 'function') {
+                await loadAnnouncements();
+            }
+            
+            // 2. Если у тебя есть отдельная функция загрузки альбомов в профиле модели
+            if (typeof loadModelAlbums === 'function') {
+                await loadModelAlbums();
+            } else if (typeof loadProfile === 'function') {
+                await loadProfile();
+            }
+
         } else {
             // 🔒 Безопасный разбор ошибок (текст или JSON) при статусах 500/400/403
             let errorText = 'Не удалось загрузить альбом';
