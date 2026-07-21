@@ -1860,14 +1860,13 @@ async function uploadNewPhotosToAlbum(inputElement) {
 
 // Функция удаления ВСЕГО альбома
 // Функция удаления ВСЕГО альбома
+// Функция удаления ВСЕГО альбома
 async function deleteEntireAlbum(e) {
-    // 1. Блокируем перезагрузку формы/переход по ссылке
     if (e) {
         e.preventDefault();
         e.stopPropagation();
     }
 
-    // Достаем ID альбома из переменной или поля формы
     const albumId = currentEditAlbumId || document.getElementById('edit-album-id')?.value;
 
     if (!albumId) {
@@ -1886,11 +1885,18 @@ async function deleteEntireAlbum(e) {
             return;
         }
 
-        // 2. Закрываем модалку
-        closeEditAlbumModal();
+        // БЕЗОПАСНОЕ ЗАКРЫТИЕ: если функции нет, закрываем напрямую через style.display
+        if (typeof closeEditAlbumModal === 'function') {
+            closeEditAlbumModal();
+        } else {
+            const modal = document.getElementById('edit-album-modal');
+            if (modal) modal.style.display = 'none';
+            currentEditAlbumId = null;
+        }
+
         alert("Альбом успешно удалён.");
 
-        // 3. Обновляем список БЕЗ location.reload()
+        // Обновляем дашборд / список альбомов
         if (typeof loadModelDashboard === 'function') {
             await loadModelDashboard();
         } else if (typeof loadAlbums === 'function') {
@@ -1899,7 +1905,7 @@ async function deleteEntireAlbum(e) {
 
     } catch (err) {
         console.error("Ошибка при удалении альбома:", err);
-        alert("Ошибка сети при удалении альбома.");
+        alert("Ошибка выполнения скрипта при удалении альбома.");
     }
 }
 
