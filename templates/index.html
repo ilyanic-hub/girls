@@ -866,6 +866,51 @@
     </div>
 </div>
 
+    <!-- Модальное окно: Редактирование альбома -->
+<div id="edit-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1200;">
+    <div style="background: #ffffff; padding: 25px; border-radius: 16px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <span onclick="closeEditAlbumModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
+        
+        <h3 style="margin-top: 0; color: var(--text-main); text-align: center;">Редактирование альбома</h3>
+        
+        <form id="edit-album-form" onsubmit="saveAlbumChanges(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+            <input type="hidden" id="edit-album-id">
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Название альбома:</label>
+                <input type="text" id="edit-album-title" required style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Описание:</label>
+                <textarea id="edit-album-desc" rows="3" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 5px;">
+                <input type="checkbox" id="edit-album-is-paid" onchange="toggleEditPriceField()" style="width: 18px; height: 18px; cursor: pointer;">
+                <label for="edit-album-is-paid" style="font-weight: 600; cursor: pointer; color: #334155;">Сделать альбом платным</label>
+            </div>
+
+            <div id="edit-price-wrapper" style="display: none;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Стоимость (коинов):</label>
+                <input type="number" id="edit-album-price" min="1" value="50" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+            </div>
+
+            <button type="submit" class="btn" style="background: #3b82f6; color: white; padding: 12px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; margin-top: 10px;">
+                💾 Сохранить изменения
+            </button>
+        </form>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #e2e8f0;">
+
+        <!-- Управление фотографиями альбома -->
+        <h4 style="margin: 0 0 10px 0; color: #334155;">Фотографии в альбоме:</h4>
+        <div id="edit-album-photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px;">
+            <!-- Сюда JS вставит миниатюры с кнопками удаления -->
+        </div>
+    </div>
+</div>
+
     <!-- Модальное окно: Пополнение баланса -->
     <div id="depositModal" class="deposit-modal" onclick="closeDepositModal()">
         <div class="deposit-modal-content" onclick="event.stopPropagation()">
@@ -1622,6 +1667,112 @@ let res = await fetch('/api/user/avatar', {
     }
 }
 
+        // Переключатель поля цены в модалке редактирования
+function toggleEditPriceField() {
+    const isPaid = document.getElementById('edit-album-is-paid').checked;
+    document.getElementById('edit-price-wrapper').style.display = isPaid ? 'block' : 'none';
+}
+
+// Открытие модалки редактирования
+async function openEditAlbumModal(albumId) {
+    try {
+        const response = await fetch(`/api/albums/${albumId}?t=` + Date.now());
+        if (!response.ok) return alert("Не удалось загрузить данные альбома");
+
+        const album = await response.json();
+
+        document.getElementById('edit-album-id').value = album.id;
+        document.getElementById('edit-album-title').value = album.title || '';
+        document.getElementById('edit-album-desc').value = album.description || '';
+        document.getElementById('edit-album-is-paid').checked = !!album.is_paid;
+        document.getElementById('edit-album-price').value = album.price || 0;
+
+        toggleEditPriceField();
+
+        // Отрисовываем сетку фото с кнопками удаления 🗑
+        const photosGrid = document.getElementById('edit-album-photos-grid');
+        photosGrid.innerHTML = '';
+
+        if (album.photos && album.photos.length > 0) {
+            album.photos.forEach(photo => {
+                const imgUrl = photo.photo_url || photo.url || '';
+                photosGrid.innerHTML += `
+                    <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1;">
+                        <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                        <button onclick="deletePhotoFromAlbum(${album.id}, ${photo.id})" 
+                                style="position: absolute; top: 3px; right: 3px; background: rgba(220, 38, 38, 0.85); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center;"
+                                title="Удалить фото">✕</button>
+                    </div>
+                `;
+            });
+        } else {
+            photosGrid.innerHTML = '<p style="font-size: 0.85rem; color: #94a3b8; grid-column: 1/-1;">В альбоме нет фото</p>';
+        }
+
+        document.getElementById('edit-album-modal').style.display = 'flex';
+    } catch (err) {
+        console.error("Ошибка открытия редактирования:", err);
+    }
+}
+
+function closeEditAlbumModal() {
+    document.getElementById('edit-album-modal').style.display = 'none';
+}
+
+// Сохранение изменений инфо альбома
+async function saveAlbumChanges(e) {
+    e.preventDefault();
+    const albumId = document.getElementById('edit-album-id').value;
+    
+    const payload = {
+        title: document.getElementById('edit-album-title').value.trim(),
+        description: document.getElementById('edit-album-desc').value.trim(),
+        is_paid: document.getElementById('edit-album-is-paid').checked,
+        price: parseInt(document.getElementById('edit-album-price').value) || 0
+    };
+
+    try {
+        const response = await fetch(`/api/albums/${albumId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            alert("✅ " + result.message);
+            closeEditAlbumModal();
+            // Перезагружаем списки/модалку
+            if (typeof loadAnnouncements === 'function') loadAnnouncements();
+            if (typeof openAlbumModal === 'function') openAlbumModal(albumId);
+        } else {
+            alert("Ошибка: " + (result.detail || "Не удалось сохранить"));
+        }
+    } catch (err) {
+        console.error("Ошибка сохранения:", err);
+    }
+}
+
+// Удаление отдельного фото
+async function deletePhotoFromAlbum(albumId, photoId) {
+    if (!confirm("Удалить эту фотографию из альбома?")) return;
+
+    try {
+        const response = await fetch(`/api/albums/${albumId}/photos/${photoId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            openEditAlbumModal(albumId); // Перезагружаем окно редактирования
+        } else {
+            const res = await response.json();
+            alert("Ошибка: " + (res.detail || "Не удалось удалить фото"));
+        }
+    } catch (err) {
+        console.error("Ошибка удаления фото:", err);
+    }
+}
+
         function toggleCommentsBox(contestantId) {
             let box = document.getElementById(`comments-box-${contestantId}`);
             if (box.style.display === "block") {
@@ -2345,6 +2496,8 @@ async function openAlbumModal(albumId) {
                     </div>
                 `;
             } 
+
+                
             // 📷 Если доступ есть, но фотографий нет
             else if (!album.photos || album.photos.length === 0) {
                 photosContainer.style.display = 'block';
@@ -2366,6 +2519,14 @@ async function openAlbumModal(albumId) {
                 });
             }
         }
+        // Если текущий пользователь — владелец альбома (has_access и is_owner можно передавать с бэкенда)
+const titleEl = document.getElementById('view-album-title');
+if (titleEl) {
+    titleEl.innerHTML = `
+        ${album.title || 'Альбом'}
+        <button onclick="openEditAlbumModal(${album.id})" style="background: none; border: none; cursor: pointer; font-size: 1.1rem; margin-left: 8px;" title="Редактировать альбом">✏️</button>
+    `;
+}
 
         // 4. Показываем модалку (устанавливаем 'flex', как у тебя в inline-стиле)
         if (modal) {
