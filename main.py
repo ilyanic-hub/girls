@@ -500,6 +500,12 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
+class EditAlbumSchema(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    is_paid: bool = False
+    price: int = 0
+
 class AnnouncementSchema(BaseModel):
     name: str
     description: str
@@ -1163,6 +1169,88 @@ async def delete_announcement(
         print(f"Ошибка бэкапа базы в Dropbox: {e}")
 
     return {"status": "success", "message": "Объявление успешно удалено!"}
+
+# 1. Обновление названия, описания и цены альбома
+@app.put("/api/albums/{album_id}")
+async def update_album(
+    album_id: int,
+    data: EditAlbumSchema,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    # Проверяем, существует ли альбом и принадлежит ли он текущему пользователю
+    cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
+    album = cursor.fetchone()
+    if not album:
+        db.close()
+        raise HTTPException(status_code=404, detail="Альбом не найден")
+
+    album_dict = dict(album)
+    owner = album_dict.get("model_username") or album_dict.get("username")
+    
+    if owner != session_user:
+        db.close()
+        raise HTTPException(status_code=403, detail="Вы можете редактировать только свои альбомы")
+
+    # Обновляем данные альбома
+    cursor.execute("""
+        UPDATE albums 
+        SET title = ?, description = ?, is_paid = ?, price = ?
+        WHERE id = ?
+    """, (data.title, data.description, 1 if data.is_paid else 0, data.price if data.is_paid else 0, album_id))
+
+    db.commit()
+    db.close()
+
+    if "upload_db_to_dropbox" in globals():
+        upload_db_to_dropbox()
+
+    return {"status": "success", "message": "Альбом успешно обновлён!"}
+
+
+# 2. Удаление конкретной фотографии из альбома
+@app.delete("/api/albums/{album_id}/photos/{photo_id}")
+async def delete_album_photo(
+    album_id: int,
+    photo_id: int,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    db.row_factory = sqlite3.Row
+    cursor = db.cursor()
+
+    # Проверка владельца альбома
+    cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
+    album = cursor.fetchone()
+    if not album:
+        db.close()
+        raise HTTPException(status_code=404, detail="Альбом не найден")
+
+    album_dict = dict(album)
+    owner = album_dict.get("model_username") or album_dict.get("username")
+
+    if owner != session_user:
+        db.close()
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+    # Удаляем фото
+    cursor.execute("DELETE FROM album_photos WHERE id = ? AND album_id = ?", (photo_id, album_id))
+    db.commit()
+    db.close()
+
+    if "upload_db_to_dropbox" in globals():
+        upload_db_to_dropbox()
+
+    return {"status": "success", "message": "Фотография удалена из альбома"}
 
 
 @app.get("/", response_class=HTMLResponse)
