@@ -1738,32 +1738,40 @@ async function openEditAlbumModal(albumId) {
 
 // Функция отрисовки миниатюр в модалке редактирования
 function renderEditPhotosList(photos) {
+    // 1. Ищем контейнер для фото (или создаем, если его нет в HTML)
     let container = document.getElementById('edit-album-photos-container');
     
-    // Если контейнера для фото еще нет в модалке, создаем его
     if (!container) {
-        const modalBody = document.querySelector('#edit-album-modal .modal-content') || document.getElementById('edit-album-modal');
         container = document.createElement('div');
         container.id = 'edit-album-photos-container';
-        container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin: 15px 0; max-height: 200px; overflow-y: auto;';
+        container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin: 15px 0; max-height: 200px; overflow-y: auto; padding: 5px; border: 1px solid #e2e8f0; border-radius: 8px;';
         
-        // Вставляем перед кнопкой сохранения
-        const saveBtn = modalBody.querySelector('button');
-        if (saveBtn) modalBody.insertBefore(container, saveBtn);
-        else modalBody.appendChild(container);
+        // Ищем форму внутри модалки или само содержимое модалки
+        const editForm = document.getElementById('edit-album-form') || document.querySelector('#edit-album-modal .modal-content');
+        
+        if (editForm) {
+            // Вставляем просто в конец формы (перед кнопками)
+            editForm.appendChild(container);
+        } else {
+            console.error("Не удалось найти форму или содержимое модального окна");
+            return;
+        }
     }
 
-    if (photos.length === 0) {
-        container.innerHTML = '<p style="color: #64748b; font-size: 13px;">В альбоме нет фото</p>';
+    // 2. Если в альбоме нет фото
+    if (!photos || photos.length === 0) {
+        container.innerHTML = '<p style="color: #64748b; font-size: 13px; margin: 0; text-align: center; grid-column: 1 / -1;">В альбоме нет фото</p>';
         return;
     }
 
+    // 3. Рендерим миниатюры с кнопкой удаления ✕
     container.innerHTML = photos.map(photo => `
-        <div style="position: relative; display: inline-block; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f1f5f9;">
+        <div style="position: relative; display: block; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f1f5f9; border: 1px solid #cbd5e1;">
             <img src="${photo.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">
             <button type="button" 
                     onclick="deleteAlbumPhoto(${photo.id})" 
-                    style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;">
+                    title="Удалить фото"
+                    style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
                 ✕
             </button>
         </div>
