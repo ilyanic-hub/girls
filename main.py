@@ -2535,7 +2535,6 @@ async def get_album_details(
         album_row = cursor.fetchone()
         
         if not album_row:
-            db.close()
             raise HTTPException(status_code=404, detail="Альбом не найден")
             
         album = dict(album_row)
@@ -2560,7 +2559,6 @@ async def get_album_details(
 
         # Если альбом платный, а пользователь НЕ владелец и НЕ покупал его — скрываем фото!
         if is_paid and not is_owner and not has_purchased:
-            db.close()
             return {
                 "id": album["id"],
                 "title": album.get("title", "Альбом"),
@@ -2568,12 +2566,12 @@ async def get_album_details(
                 "is_paid": True,
                 "price": price,
                 "has_access": False,
-                "is_owner": is_owner,  # 👈 Добавили флаг владельца
+                "is_owner": is_owner,
                 "photos": [],
                 "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
             }
 
-        # 3. Если доступ есть (бесплатный, владелец или куплен) — достаем фото
+        # 3. Достаем фото
         photos = []
         try:
             cursor.execute("SELECT * FROM album_photos WHERE album_id = ?", (album_id,))
@@ -2583,6 +2581,7 @@ async def get_album_details(
                 p_dict = dict(p)
                 url = p_dict.get("photo_url") or p_dict.get("url") or p_dict.get("photo") or ""
                 
+                # Нормализуем Dropbox URL
                 if "?dl=0" in url:
                     url = url.replace("?dl=0", "?raw=1")
                 elif "&dl=0" in url:
@@ -2590,11 +2589,14 @@ async def get_album_details(
                 elif "dropbox.com" in url and "raw=1" not in url:
                     url += "&raw=1" if "?" in url else "?raw=1"
                     
-                photos.append({"id": p_dict.get("id"), "photo_url": url})
+                photos.append({
+                    "id": p_dict.get("id"), 
+                    "photo_url": url,
+                    "url": url  # Страховка для фронтенда!
+                })
         except Exception as photo_err:
             print(f"[WARN] Ошибка чтения фотографий альбома: {photo_err}")
 
-        db.close()
         return {
             "id": album["id"],
             "title": album.get("title", "Альбом"),
@@ -2602,14 +2604,19 @@ async def get_album_details(
             "is_paid": bool(is_paid),
             "price": price,
             "has_access": True,
-            "is_owner": is_owner,  # 👈 Добавили флаг владельца
+            "is_owner": is_owner,
             "photos": photos
         }
 
+    except HTTPException as http_ex:
+        # Пробрасываем HTTP исключения дальше без оборачивания в 500
+        raise http_ex
     except Exception as e:
-        db.close()
         print(f"[ERROR] Ошибка в GET /api/albums/{album_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Гарантированное закрытие базы данных без ошибок повторного закрытия
+        db.close()
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
