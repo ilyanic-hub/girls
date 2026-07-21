@@ -893,9 +893,9 @@ async def delete_album_photo(
     cursor = db.cursor()
 
     try:
-        # 1. Находим фото и проверяем, принадлежит ли альбом текущему пользователю
+        # 1. Получаем фото и имя владельца альбома (без обращения к a.username)
         cursor.execute("""
-            SELECT ap.id, a.model_username, a.username 
+            SELECT ap.id, a.model_username 
             FROM album_photos ap
             JOIN albums a ON ap.album_id = a.id
             WHERE ap.id = ?
@@ -907,13 +907,14 @@ async def delete_album_photo(
             raise HTTPException(status_code=404, detail="Фотография не найдена")
 
         photo_data = dict(row)
-        owner = photo_data.get("model_username") or photo_data.get("username") or ""
+        owner = photo_data.get("model_username") or ""
 
+        # 2. Проверяем, что фото пытается удалить владелец
         if owner != session_user:
             db.close()
             raise HTTPException(status_code=403, detail="Вы не можете удалять фото из чужого альбома")
 
-        # 2. Удаляем фото
+        # 3. Удаляем фото
         cursor.execute("DELETE FROM album_photos WHERE id = ?", (photo_id,))
         db.commit()
         db.close()
