@@ -770,12 +770,6 @@ async def buy_album(
         db.commit()
         db.close()
 
-        # Бэкап в Dropbox (если используется)
-        try:
-            upload_db_to_dropbox()
-        except Exception as e:
-            print(f"[WARN] Ошибка бэкапа: {e}")
-
         return {
             "status": "success", 
             "message": "Альбом успешно куплен!", 
