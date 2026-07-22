@@ -1943,8 +1943,8 @@ async function deleteEntireAlbum(e) {
     }
 }
 
-// Удаление отдельного фото
-async function async function deletePhotoFromAlbum(albumId, photoId) {
+        // Удаление отдельного фото
+async function deletePhotoFromAlbum(albumId, photoId) {
     const currentAlbumId = albumId || (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
 
     if (!currentAlbumId || !photoId) {
@@ -1976,23 +1976,6 @@ async function async function deletePhotoFromAlbum(albumId, photoId) {
         console.error("Ошибка удаления фото:", err);
         alert("Произошла ошибка сети при удалении фото.");
     }
-}(albumId, photoId) {
-    if (!confirm("Удалить эту фотографию из альбома?")) return;
-
-    try {
-        const response = await fetch(`/api/albums/${albumId}/photos/${photoId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            openEditAlbumModal(albumId); // Перезагружаем окно редактирования
-        } else {
-            const res = await response.json();
-            alert("Ошибка: " + (res.detail || "Не удалось удалить фото"));
-        }
-    } catch (err) {
-        console.error("Ошибка удаления фото:", err);
-    }
 }
 
         function toggleCommentsBox(contestantId) {
@@ -2004,6 +1987,8 @@ async function async function deletePhotoFromAlbum(albumId, photoId) {
                 loadComments(contestantId);
             }
         }
+
+        
 
         async function loadComments(contestantId) {
             try {
