@@ -1514,26 +1514,30 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
     age = payload.get("age")
     status = payload.get("status")
     file_base64 = payload.get("file_base64")
+    # ✅ 1. Достаем параметр is_paid из пришедшего JSON
+    is_paid = payload.get("is_paid", 0) 
     
     try:
         if file_base64 and file_base64.strip():
-            # 1. Сюда нужно подставить твою функцию сохранения фото.
-            # Например, если у тебя есть функция upload_to_imgur(file_base64), используй её.
-            # Пока запишем сохранение самого base64 или вызов твоей функции:
-            photo_url = file_base64  # Меняешь на вызов своей функции загрузки, если нужно
+            photo_url = file_base64  # или твой вызов функции сохранения фото (Dropbox / Imgur)
             
+            # ✅ 2. Исправили имя таблицы на adult_models и добавили is_paid=?
             cursor.execute(
-                "UPDATE adult_model_photos SET name=?, age=?, status=?, photo_url=? WHERE id=?",
-                (name, age, status, photo_url, model_id)
+                "UPDATE adult_models SET name=?, age=?, status=?, photo_url=?, is_paid=? WHERE id=?",
+                (name, age, status, photo_url, is_paid, model_id)
             )
         else:
-            # Если файл не передали, обновляем только текстовые поля, не трогая старую аватарку
+            # ✅ 3. Если фото не меняли, обновляем текстовые поля И статус оплаты is_paid
             cursor.execute(
-                "UPDATE adult_models SET name=?, age=?, status=? WHERE id=?",
-                (name, age, status, model_id)
+                "UPDATE adult_models SET name=?, age=?, status=?, is_paid=? WHERE id=?",
+                (name, age, status, is_paid, model_id)
             )
         
         db.commit()
+        # Выгружаем обновленную БД в Dropbox, если у тебя настроен бэкап
+        if "upload_db_to_dropbox" in globals():
+            upload_db_to_dropbox()
+
         return {"status": "success", "message": "Данные модели успешно обновлены"}
         
     except Exception as e:
