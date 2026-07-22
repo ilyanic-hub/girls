@@ -2261,6 +2261,76 @@ async function deleteAnnouncement(id) {
         alert("Произошла ошибка сети.");
     }
 }
+
+        // Переключение видимости поля ввода цены в зависимости от чекбокса
+function toggleEditPriceField() {
+    const isPaidCheckbox = document.getElementById('edit-album-is-paid');
+    const priceWrapper = document.getElementById('edit-price-wrapper');
+    
+    if (isPaidCheckbox && priceWrapper) {
+        priceWrapper.style.display = isPaidCheckbox.checked ? 'block' : 'none';
+    }
+}
+
+// Функция сохранения изменений альбома при отправке формы
+async function saveAlbumChanges(event) {
+    if (event) event.preventDefault();
+
+    const albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
+    if (!albumId) {
+        alert("Не найден ID альбома.");
+        return;
+    }
+
+    const titleInput = document.getElementById('edit-album-title');
+    const descInput = document.getElementById('edit-album-desc');
+    const isPaidInput = document.getElementById('edit-album-is-paid');
+    const priceInput = document.getElementById('edit-album-price');
+
+    const payload = {
+        title: titleInput ? titleInput.value : '',
+        description: descInput ? descInput.value : '',
+        is_paid: isPaidInput ? isPaidInput.checked : false,
+        price: priceInput ? Number(priceInput.value) : 0
+    };
+
+    const token = localStorage.getItem('token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+        const response = await fetch(`/api/albums/${albumId}`, {
+            method: 'PUT',
+            headers: headers,
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка сохранения: " + (err.detail || "Не удалось обновить альбом"));
+            return;
+        }
+
+        alert("Альбом успешно обновлен!");
+
+        // Закрываем модалку
+        if (typeof closeEditAlbumModal === 'function') {
+            closeEditAlbumModal();
+        } else {
+            const modal = document.getElementById('edit-album-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Обновляем дашборд модели
+        if (typeof loadModelDashboard === 'function') {
+            await loadModelDashboard();
+        }
+
+    } catch (err) {
+        console.error("Ошибка при сохранении альбома:", err);
+        alert("Произошла ошибка сети при сохранении.");
+    }
+}
     </script>
     <script>
         function startTimer() {
