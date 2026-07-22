@@ -586,13 +586,15 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
         raise HTTPException(status_code=401, detail="Не авторизован")
     
     cursor = db.cursor()
-    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
+    # ✅ Добавляем is_admin и role в выборку
+    cursor.execute("SELECT id, username, is_admin, role FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     
     if not user:
         raise HTTPException(status_code=401, detail="Пользователь не найден")
     
-    return user
+    # Конвертируем в dict для удобной работы на фронтенде и в других эндпоинтах
+    return dict(user)
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
