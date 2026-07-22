@@ -2291,9 +2291,22 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 
 
 #==============Кабинет модели===============
+#==============Кабинет модели===============
 @app.get("/api/model/profile")
-async def get_model_profile(session_user: str = Depends(get_current_user)):
-    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+async def get_model_profile(session_user = Depends(get_current_user)):
+    # Универсальное извлечение username независимо от того, чем является session_user
+    username_str = None
+    if isinstance(session_user, dict):
+        username_str = session_user.get("username")
+    elif hasattr(session_user, "username"):
+        username_str = session_user.username
+    elif isinstance(session_user, (list, tuple)) and len(session_user) > 1:
+        username_str = session_user[1]
+    elif isinstance(session_user, str):
+        username_str = session_user
+    
+    if not username_str:
+        raise HTTPException(status_code=401, detail="Не удалось определить пользователя из сессии")
     
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
