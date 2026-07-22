@@ -1432,6 +1432,48 @@ function setupRoleUI(role) {
     });
 }
 
+window.deleteAlbumPhoto = async function(photoId) {
+    console.log("Клик по удалению фото, ID:", photoId); // <--- Это сообщение ОБЯЗАТЕЛЬНО должно появиться в консоли
+
+    if (!photoId) {
+        alert("Не передан ID фотографии.");
+        return;
+    }
+
+    if (!confirm("Удалить это фото?")) return;
+
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+        const response = await fetch(`/api/admin/adult-photos/${photoId}`, { 
+            method: 'DELETE',
+            headers: headers
+        });
+
+        console.log("Ответ сервера на удаление:", response.status);
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
+            return;
+        }
+
+        const albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
+        
+        if (albumId && typeof openEditAlbumModal === 'function') {
+            await openEditAlbumModal(albumId);
+        } else {
+            location.reload();
+        }
+
+    } catch (err) {
+        console.error("Ошибка при удалении:", err);
+        alert("Произошла ошибка сети при удалении фото.");
+    }
+}
+
 async function deleteAlbumPhoto(photoId) {
     if (!photoId) {
         alert("Не передан ID фотографии.");
