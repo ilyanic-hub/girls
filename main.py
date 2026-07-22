@@ -1046,28 +1046,15 @@ async def add_photos_to_album(
         raise HTTPException(status_code=500, detail=str(e))
         
 
-@app.delete("/api/admin/adult-photos/{photo_id}")
-async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
-    print(f">>> Пытаемся удалить фото с ID: {photo_id}") # <--- Посмотрим в терминал сервера
+@app.get("/api/admin/adult-models/{model_id}/photos")
+async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     try:
-        cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (photo_id,))
-        db.commit()
-        
-        print(f">>> Удалено строк в БД: {cursor.rowcount}") # <--- Посмотрим, нашло ли вообще строку
-        print(photos)
-        
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Фото не найдено в базе данных")
-            
-        return {"status": "success", "message": "Фото удалено из альбома"}
-        
-    except HTTPException as he:
-        raise he
+        cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
     except Exception as e:
-        db.rollback()
-        print(f"!!! Ошибка при удалении фото из БД: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
         
 
 import traceback
