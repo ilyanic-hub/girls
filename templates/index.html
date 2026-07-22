@@ -1944,7 +1944,39 @@ async function deleteEntireAlbum(e) {
 }
 
 // Удаление отдельного фото
-async function deletePhotoFromAlbum(albumId, photoId) {
+async function async function deletePhotoFromAlbum(albumId, photoId) {
+    const currentAlbumId = albumId || (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
+
+    if (!currentAlbumId || !photoId) {
+        alert("Не удалось определить ID альбома или фотографии.");
+        return;
+    }
+
+    if (!confirm("Удалить эту фотографию из альбома?")) return;
+
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+        const response = await fetch(`/api/albums/${currentAlbumId}/photos/${photoId}`, {
+            method: 'DELETE',
+            headers: headers
+        });
+
+        if (response.ok) {
+            if (typeof openEditAlbumModal === 'function') {
+                openEditAlbumModal(currentAlbumId);
+            }
+        } else {
+            const res = await response.json().catch(() => ({}));
+            alert("Ошибка: " + (res.detail || "Не удалось удалить фото"));
+        }
+    } catch (err) {
+        console.error("Ошибка удаления фото:", err);
+        alert("Произошла ошибка сети при удалении фото.");
+    }
+}(albumId, photoId) {
     if (!confirm("Удалить эту фотографию из альбома?")) return;
 
     try {
