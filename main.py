@@ -1050,11 +1050,22 @@ async def add_photos_to_album(
 async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
     try:
+        # Выполняем удаление
         cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (photo_id,))
         db.commit()
+        
+        # Проверяем, была ли реально удалена хоть одна строка
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Фото не найдено в базе данных")
+            
         return {"status": "success", "message": "Фото удалено из альбома"}
+        
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        return {"status": "error", "message": f"Ошибка удаления: {str(e)}"}
+        db.rollback() # Откатываем транзакцию в случае сбоя
+        print(f"!!! Ошибка при удалении фото из БД: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
 
 import traceback
 
