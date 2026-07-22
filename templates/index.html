@@ -1433,7 +1433,7 @@ function setupRoleUI(role) {
 }
 
 window.deleteAlbumPhoto = async function(photoId) {
-    console.log("Клик по удалению фото, ID:", photoId); // <--- Это сообщение ОБЯЗАТЕЛЬНО должно появиться в консоли
+    console.log("Клик по удалению фото, ID:", photoId);
 
     if (!photoId) {
         alert("Не передан ID фотографии.");
@@ -1460,11 +1460,19 @@ window.deleteAlbumPhoto = async function(photoId) {
             return;
         }
 
-        const albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
-        
+        // Пытаемся найти ID альбома всеми возможными способами
+        let albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null);
+        if (!albumId) {
+            const inputVal = document.getElementById('edit-album-id')?.value;
+            if (inputVal) albumId = inputVal;
+        }
+
+        console.log("Найденный ID альбома для обновления:", albumId);
+
         if (albumId && typeof openEditAlbumModal === 'function') {
             await openEditAlbumModal(albumId);
         } else {
+            // Если ID альбома не нашелся, просто перезагружаем страницу, чтобы фото исчезло из сетки
             location.reload();
         }
 
@@ -1473,7 +1481,6 @@ window.deleteAlbumPhoto = async function(photoId) {
         alert("Произошла ошибка сети при удалении фото.");
     }
 }
-
 async function deleteAlbumPhoto(photoId) {
     if (!photoId) {
         alert("Не передан ID фотографии.");
