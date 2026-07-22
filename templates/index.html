@@ -2348,23 +2348,16 @@ async function loadAnnouncements() {
 
         const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
-        // Уменьшаем отступы в контейнере, чтобы карточки стояли плотнее (если используется grid)
         container.style.gap = "12px"; 
-        
-        // ВАЖНО: Если у тебя сетка (CSS grid) прописана в CSS, возможно, нужно будет
-        // поменять grid-template-columns в файле стилей на что-то вроде: 
-        // grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 
         announcements.forEach(item => {
             const photo = item.photo_url || defaultSvg;
             const name = item.name || 'Модель';
             const username = item.username ? `@${item.username}` : '';
-            // Обрезаем слишком длинное описание для компактности
             const desc = item.description ? (item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description) : '';
 
             const card = document.createElement('div');
             
-            // CSS карточки: убрали min-height, уменьшили padding, добавили cursor и hover-эффект
             card.style.cssText = `
                 background: white; 
                 border-radius: 12px; 
@@ -2377,7 +2370,6 @@ async function loadAnnouncements() {
                 transition: transform 0.2s, box-shadow 0.2s;
             `;
             
-            // Добавляем эффект при наведении
             card.onmouseover = () => {
                 card.style.transform = 'translateY(-2px)';
                 card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
@@ -2387,15 +2379,9 @@ async function loadAnnouncements() {
                 card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
             };
 
-            // Вешаем клик на всю карточку. 
-            // ЗАМЕНИ openModelProfile на свою функцию открытия анкеты, если она называется иначе!
+            // Чистый вызов модального окна без лишних хвостов
             card.onclick = () => {
-    openModelModal(item);
-};
-                } else {
-                    console.log("Клик по модели ID: " + item.id);
-                    // window.location.href = `/model/${item.id}`; // Или ссылка
-                }
+                openModelModal(item);
             };
             
             card.innerHTML = `
