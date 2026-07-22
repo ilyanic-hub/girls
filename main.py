@@ -1055,6 +1055,7 @@ async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
         db.commit()
         
         print(f">>> Удалено строк в БД: {cursor.rowcount}") # <--- Посмотрим, нашло ли вообще строку
+        print(photos)
         
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Фото не найдено в базе данных")
@@ -1067,6 +1068,7 @@ async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
         db.rollback()
         print(f"!!! Ошибка при удалении фото из БД: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка БД: {str(e)}")
+        
 
 import traceback
 
