@@ -2332,7 +2332,8 @@ async function deleteAnnouncement(id) {
         // Загрузка объявлений из API бэкенда
 async function loadAnnouncements() {
     try {
-        const response = await fetch('/api/announcements?t=' + Date.now());
+        const timestamp = Date.now();
+        const response = await fetch('/api/announcements?t=' + timestamp);
         if (!response.ok) return;
 
         const announcements = await response.json();
@@ -2348,56 +2349,41 @@ async function loadAnnouncements() {
 
         const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
-        container.style.gap = "12px"; 
+        container.style.gap = "12px";
 
         announcements.forEach(item => {
             const photo = item.photo_url || defaultSvg;
             const name = item.name || 'Модель';
-            const username = item.username ? `@${item.username}` : '';
+            const username = item.username ? '@' + item.username : '';
             const desc = item.description ? (item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description) : '';
 
             const card = document.createElement('div');
             
-            card.style.cssText = `
-                background: white; 
-                border-radius: 12px; 
-                border: 1px solid #e2e8f0; 
-                padding: 12px; 
-                box-shadow: 0 2px 8px rgba(0,0,0,0.02); 
-                display: flex; 
-                align-items: center; 
-                cursor: pointer;
-                transition: transform 0.2s, box-shadow 0.2s;
-            `;
+            card.style.cssText = 'background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;';
             
-            card.onmouseover = () => {
-                card.style.transform = 'translateY(-2px)';
-                card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+            card.onmouseover = function() {
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
             };
-            card.onmouseout = () => {
-                card.style.transform = 'translateY(0)';
-                card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
+            card.onmouseout = function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
             };
 
-            // Чистый вызов модального окна без лишних хвостов
-            card.onclick = () => {
+            card.onclick = function() {
                 openModelModal(item);
             };
             
-            card.innerHTML = `
-                <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
-                    <img src="${photo}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #f1f5f9;" alt="${name}">
-                    <div style="flex: 1; min-width: 0;">
-                        <h3 style="margin: 0 0 2px 0; font-size: 1rem; color: #0f172a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${name} <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">${username}</span>
-                        </h3>
-                        <p style="margin: 0; color: #475569; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${desc}</p>
-                    </div>
-                    <div style="color: #cbd5e0; margin-left: auto;">
-                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
-                    </div>
-                </div>
-            `;
+            card.innerHTML = '<div style="display: flex; gap: 12px; align-items: center; width: 100%;">' +
+                '<img src="' + photo + '" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #f1f5f9;" alt="' + name + '">' +
+                '<div style="flex: 1; min-width: 0;">' +
+                    '<h3 style="margin: 0 0 2px 0; font-size: 1rem; color: #0f172a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
+                        name + ' <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">' + username + '</span>' +
+                    '</h3>' +
+                    '<p style="margin: 0; color: #475569; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + desc + '</p>' +
+                '</div>' +
+                '<div style="color: #cbd5e0; margin-left: auto;">▶</div>' +
+            '</div>';
 
             container.appendChild(card);
         });
