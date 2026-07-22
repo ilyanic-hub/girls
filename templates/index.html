@@ -1089,6 +1089,17 @@
 
             // Стандартная логика интерфейса (имя, баланс)
             showUserUI(user, buttonsContainer);
+
+            // 🌟 ВОЗВРАЩАЕМ КНОПКУ АДМИНКИ
+    const adminLink = document.getElementById('admin-link');
+    if (adminLink) {
+        // Проверяем и старый флаг is_admin, и новую текстовую роль
+        if (user.is_admin === 1 || user.role === 'admin') {
+            adminLink.style.display = 'inline'; // или 'block', если по верстке нужно так
+        } else {
+            adminLink.style.display = 'none';
+        }
+    }
             
             // Сначала включаем блок шапки (вместе с ним временно появится и кабинет)
             if (userBlock) userBlock.style.display = 'flex';
