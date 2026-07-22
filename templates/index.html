@@ -2306,7 +2306,8 @@ async function deleteAnnouncement(id) {
     }
 }
         // Загрузка объявлений из API бэкенда
-        async function loadAnnouncements() {
+        // Загрузка объявлений из API бэкенда
+async function loadAnnouncements() {
     try {
         const response = await fetch('/api/announcements?t=' + Date.now());
         if (!response.ok) return;
@@ -2324,53 +2325,68 @@ async function deleteAnnouncement(id) {
 
         const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
+        // Уменьшаем отступы в контейнере, чтобы карточки стояли плотнее (если используется grid)
+        container.style.gap = "12px"; 
+        
+        // ВАЖНО: Если у тебя сетка (CSS grid) прописана в CSS, возможно, нужно будет
+        // поменять grid-template-columns в файле стилей на что-то вроде: 
+        // grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+
         announcements.forEach(item => {
             const photo = item.photo_url || defaultSvg;
             const name = item.name || 'Модель';
             const username = item.username ? `@${item.username}` : '';
-            const desc = item.description || '';
-
-            // Блок с обложками альбомов
-            let albumsHtml = '';
-            if (item.albums && item.albums.length > 0) {
-                albumsHtml = `
-                    <div style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                            📸 Альбомы модели (${item.albums.length})
-                        </div>
-                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin;">
-                            ${item.albums.map(alb => {
-                                const coverImg = alb.cover_url || defaultSvg;
-                                return `
-                                    <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 75px; cursor: pointer; text-align: center; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
-                                        <div style="width: 75px; height: 75px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
-                                            <img src="${coverImg}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
-                                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
-                                        </div>
-                                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
+            // Обрезаем слишком длинное описание для компактности
+            const desc = item.description ? (item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description) : '';
 
             const card = document.createElement('div');
-            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;";
+            
+            // CSS карточки: убрали min-height, уменьшили padding, добавили cursor и hover-эффект
+            card.style.cssText = `
+                background: white; 
+                border-radius: 12px; 
+                border: 1px solid #e2e8f0; 
+                padding: 12px; 
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02); 
+                display: flex; 
+                align-items: center; 
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+            `;
+            
+            // Добавляем эффект при наведении
+            card.onmouseover = () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+            };
+            card.onmouseout = () => {
+                card.style.transform = 'translateY(0)';
+                card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
+            };
+
+            // Вешаем клик на всю карточку. 
+            // ЗАМЕНИ openModelProfile на свою функцию открытия анкеты, если она называется иначе!
+            card.onclick = () => {
+                if (typeof openModelProfile === 'function') {
+                    openModelProfile(item.id);
+                } else {
+                    console.log("Клик по модели ID: " + item.id);
+                    // window.location.href = `/model/${item.id}`; // Или ссылка
+                }
+            };
             
             card.innerHTML = `
-                <div>
-                    <div style="display: flex; gap: 14px; align-items: flex-start;">
-                        <img src="${photo}" style="width: 85px; height: 85px; border-radius: 12px; object-fit: cover; flex-shrink: 0;" alt="${name}">
-                        <div style="flex: 1; min-width: 0;">
-                            <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; font-weight: 700;">
-                                ${name} <span style="font-size: 0.85rem; color: #64748b; font-weight: normal;">${username}</span>
-                            </h3>
-                            <p style="margin: 0; color: #334155; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${desc}</p>
-                        </div>
+                <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                    <img src="${photo}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #f1f5f9;" alt="${name}">
+                    <div style="flex: 1; min-width: 0;">
+                        <h3 style="margin: 0 0 2px 0; font-size: 1rem; color: #0f172a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${name} <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">${username}</span>
+                        </h3>
+                        <p style="margin: 0; color: #475569; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${desc}</p>
                     </div>
-                    ${albumsHtml}
+                    <div style="color: #cbd5e0; margin-left: auto;">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
                 </div>
             `;
 
