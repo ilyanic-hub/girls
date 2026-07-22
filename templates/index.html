@@ -2389,8 +2389,8 @@ async function loadAnnouncements() {
             // Вешаем клик на всю карточку. 
             // ЗАМЕНИ openModelProfile на свою функцию открытия анкеты, если она называется иначе!
             card.onclick = () => {
-                if (typeof openModelProfile === 'function') {
-                    openModelProfile(item.id);
+    openModelModal(item);
+};
                 } else {
                     console.log("Клик по модели ID: " + item.id);
                     // window.location.href = `/model/${item.id}`; // Или ссылка
