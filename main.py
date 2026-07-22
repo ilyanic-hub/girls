@@ -6,7 +6,6 @@ import dropbox
 import time
 import httpx
 import re
-import httpx
 import json
 import base64
 import uuid
@@ -34,7 +33,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
-from pydantic import BaseModel
 
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
