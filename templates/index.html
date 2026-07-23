@@ -2364,6 +2364,16 @@ async function deleteAnnouncement(id) {
         function switchTab(tabName, event) {
     if (event) event.preventDefault();
     
+    // 1. Прячем форму авторизации и возвращаем шапку главной страницы
+    const authPage = document.getElementById('auth-page');
+    const mainPage = document.getElementById('main-page');
+    const topHeader = document.getElementById('top-header');
+
+    if (authPage) authPage.style.display = 'none';
+    if (mainPage) mainPage.style.display = 'flex';
+    if (topHeader) topHeader.style.display = 'flex';
+    document.body.classList.remove('auth-open');
+
     // Если передали просто 'gallery', превращаем в 'tab-gallery' для поиска ID
     let targetId = tabName;
     if (tabName === 'gallery') targetId = 'tab-gallery';
