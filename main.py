@@ -2291,9 +2291,11 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 
 
 #==============Кабинет модели===============
+#==============Кабинет модели===============
 @app.get("/api/model/profile")
 async def get_model_profile(session_user: str = Depends(get_current_user)):
-    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
+    # session_user — это уже готовая строка с юзернеймом
+    username_str = session_user if isinstance(session_user, str) else str(session_user)
     
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
