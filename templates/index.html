@@ -1433,29 +1433,6 @@ function setupRoleUI(role) {
 }
 
 window.deleteAlbumPhoto = async function(photoId) {
-    if (!photoId) return;
-    if (!confirm("Удалить это фото?")) return;
-
-    try {
-        // Путь без /admin/
-        const response = await fetch(`/api/albums/photos/${photoId}`, { 
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
-            return;
-        }
-
-        // Перезагружаем модалку или страницу
-        location.reload();
-
-    } catch (err) {
-        console.error("Ошибка сети:", err);
-    }
-}
-async function deleteAlbumPhoto(photoId) {
     if (!photoId) {
         alert("Не передан ID фотографии.");
         return;
@@ -1463,12 +1440,14 @@ async function deleteAlbumPhoto(photoId) {
 
     if (!confirm("Удалить это фото?")) return;
 
+    // Подготовка токена, если он используется в приложении
     const token = localStorage.getItem('token');
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     try {
-        const response = await fetch(`/api/admin/adult-photos/${photoId}`, { 
+        // Используем правильный путь без /admin/
+        const response = await fetch(`/api/albums/photos/${photoId}`, { 
             method: 'DELETE',
             headers: headers
         });
@@ -1479,7 +1458,7 @@ async function deleteAlbumPhoto(photoId) {
             return;
         }
 
-        // Успешно удалено! Перезагружаем модалку редактирования альбома
+        // Пытаемся плавно обновить модалку редактирования альбома, если открыта она
         const albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
         
         if (albumId && typeof openEditAlbumModal === 'function') {
@@ -1489,7 +1468,7 @@ async function deleteAlbumPhoto(photoId) {
         }
 
     } catch (err) {
-        console.error("Ошибка при удалении:", err);
+        console.error("Ошибка сети при удалении:", err);
         alert("Произошла ошибка сети при удалении фото.");
     }
 }
