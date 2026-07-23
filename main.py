@@ -6,6 +6,7 @@ import dropbox
 import time
 import httpx
 import re
+import httpx
 import json
 import base64
 import uuid
@@ -13,14 +14,13 @@ import asyncio
 import shutil
 import secrets
 import logging
-from sqlalchemy.orm import Session
 from dropbox.exceptions import ApiError  # 🌟 Добавь эту строчку!
 
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form, status
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form, Status
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -33,6 +33,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
+from pydantic import BaseModel
 
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
@@ -315,18 +316,6 @@ def init_db():
     )
     """)
 
-    # Создаем таблицу покупок, если её ещё нет
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS purchases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            item_type TEXT NOT NULL, -- 'album' или 'photo'
-            item_id INTEGER NOT NULL,
-            price INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL
-        )
-    """)
-
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS adult_models (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -396,15 +385,6 @@ def init_db():
     else:
         cursor.execute("INSERT INTO users (username, password, balance, is_admin) VALUES ('admin', ?, 500.0, 1)", (admin_password_hash,))
 
-    # === Миграция для таблицы album_photos (добавляем is_preview, если таблица уже существовала) ===
-    try:
-        cursor.execute("ALTER TABLE album_photos ADD COLUMN is_preview INTEGER DEFAULT 0")
-        db.commit()
-        print("Колонка is_preview успешно добавлена в существующую таблицу album_photos.")
-    except sqlite3.OperationalError:
-        # Если колонка уже создана или таблицы еще нет — SQLite выдаст ошибку, просто идем дальше
-        pass
-
     # Таблица альбомов
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS albums (
@@ -418,13 +398,12 @@ def init_db():
     )
     """)
     
-    # Таблица фотографий в альбомах (Обновленная версия)
+    # Таблица фотографий в альбомах
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS album_photos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         album_id INTEGER NOT NULL,
         photo_url TEXT NOT NULL,
-        is_preview INTEGER DEFAULT 0, -- 🌟 0 = приватное фото, 1 = бесплатное превью
         FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE
     )
     """)
@@ -498,19 +477,10 @@ class BuyModelRequest(BaseModel):
 class PhotoLinkSchema(BaseModel):
     photo_url: str
 
-class EditAlbumSchema(BaseModel):
-    title: str
-    description: Optional[str] = ""
-    is_paid: bool = False
-    price: int = 0
-
 class AnnouncementSchema(BaseModel):
     name: str
     description: str
     photo_base64: str  # Сюда прилетит строка Base64
-
-class BuyAlbumSchema(BaseModel):
-    album_id: int
 
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
@@ -586,15 +556,13 @@ def get_current_user(session_user: Optional[str] = Cookie(None), db=Depends(get_
         raise HTTPException(status_code=401, detail="Не авторизован")
     
     cursor = db.cursor()
-    # ✅ Добавляем is_admin и role в выборку
-    cursor.execute("SELECT id, username, is_admin, role FROM users WHERE username = ?", (session_user,))
+    cursor.execute("SELECT id, username FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
     
     if not user:
         raise HTTPException(status_code=401, detail="Пользователь не найден")
     
-    # Конвертируем в dict для удобной работы на фронтенде и в других эндпоинтах
-    return dict(user)
+    return user
 
 
 # ================= ЭНДПОИНТ ЗАГРУЗКИ АВАТАРА =================
@@ -733,83 +701,6 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         print(f"Ошибка покупки: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
-#======= Покупка фотоальбомов ===========
-@app.post("/api/albums/buy")
-async def buy_album(
-    data: BuyAlbumSchema,
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-
-    try:
-        # 1. Проверяем альбом
-        cursor.execute("SELECT * FROM albums WHERE id = ?", (data.album_id,))
-        album = cursor.fetchone()
-        if not album:
-            db.close()
-            raise HTTPException(status_code=404, detail="Альбом не найден")
-
-        album = dict(album)
-        price = album.get("price", 0)
-
-        # 2. Безопасно проверяем баланс пользователя (подходит и для 'balance', и для 'coins')
-        cursor.execute("SELECT * FROM users WHERE username = ?", (session_user,))
-        user_row = cursor.fetchone()
-        if not user_row:
-            db.close()
-            raise HTTPException(status_code=404, detail="Пользователь не найден")
-
-        user = dict(user_row)
-        
-        # Автоматически определяем нужную колонку баланса
-        user_balance = user.get("balance") if "balance" in user else user.get("coins", 0)
-        user_balance = user_balance or 0
-        balance_col = "balance" if "balance" in user else "coins"
-
-        # 3. Проверяем, хватает ли коинов/средств
-        if user_balance < price:
-            db.close()
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Недостаточно средств на балансе! Стоимость: {price}, у вас: {user_balance}"
-            )
-
-        # 4. Списываем средства и сохраняем покупку
-        new_balance = user_balance - price
-        cursor.execute(f"UPDATE users SET {balance_col} = ? WHERE username = ?", (new_balance, session_user))
-
-        created_at = datetime.now().isoformat()
-        cursor.execute("""
-            INSERT INTO purchases (username, item_type, item_id, price, created_at)
-            VALUES (?, 'album', ?, ?, ?)
-        """, (session_user, data.album_id, price, created_at))
-
-        db.commit()
-        db.close()
-
-        # Выполняем бэкап, если используется
-        if "upload_db_to_dropbox" in globals():
-            upload_db_to_dropbox()
-
-        return {
-            "status": "success", 
-            "message": "Альбом успешно куплен!", 
-            "new_balance": new_balance
-        }
-
-    except HTTPException:
-        db.close()
-        raise
-    except Exception as e:
-        db.close()
-        print(f"[ERROR] Ошибка покупки альбома: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/api/admin/get--list")
 async def get_adult_models_list_for_admin(db=Depends(get_db)):
     try:
@@ -880,182 +771,15 @@ async def get_adult_model_photos_public(model_id: int, session_user: Optional[st
         print(f"!!! Ошибка бэкенда при запросе фото: {e}")
         raise HTTPException(status_code=500, detail=f"Ошибка сервера БД: {str(e)}")
 
-# 1. Удаление всего альбома (вместе с фото из Dropbox и записями из БД)
-@app.delete("/api/albums/{album_id}")
-async def delete_album(
-    album_id: int, 
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходима авторизация")
-
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
+@app.delete("/api/admin/adult-photos/{photo_id}")
+async def delete_adult_photo(photo_id: int, db=Depends(get_db)):
     cursor = db.cursor()
-
     try:
-        # Проверяем существование альбома и права
-        cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
-        album = cursor.fetchone()
-        
-        if not album:
-            db.close()
-            raise HTTPException(status_code=404, detail="Альбом не найден")
-
-        if album["model_username"] != session_user:
-            db.close()
-            raise HTTPException(status_code=403, detail="Вы не можете удалить чужой альбом")
-
-        # -------------------------------------------------------------
-        # 1. Удаляем файлы с Dropbox
-        # -------------------------------------------------------------
-        dbx = get_dropbox_client()
-        if dbx:
-            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album_id,))
-            photos = cursor.fetchall()
-
-            for photo in photos:
-                url = photo["photo_url"]
-                
-                # Если записан прямой путь /albums/username/uuid.jpg
-                if url.startswith("/albums/"):
-                    try:
-                        dbx.files_delete_v2(url)
-                    except Exception as err:
-                        print(f"Не удалось удалить файл {url} из Dropbox: {err}")
-                
-                # Если записана публичная ссылка shared link
-                elif "dropbox.com" in url:
-                    try:
-                        link_meta = dbx.sharing_get_shared_link_metadata(url)
-                        if link_meta and hasattr(link_meta, 'path_lower'):
-                            dbx.files_delete_v2(link_meta.path_lower)
-                    except Exception as err:
-                        print(f"Не удалось удалить файл по ссылке {url} из Dropbox: {err}")
-
-        # -------------------------------------------------------------
-        # 2. Удаляем записи из таблицы SQLite
-        # -------------------------------------------------------------
-        cursor.execute("DELETE FROM album_photos WHERE album_id = ?", (album_id,))
-        cursor.execute("DELETE FROM albums WHERE id = ?", (album_id,))
-        
+        cursor.execute("DELETE FROM adult_model_photos WHERE id = ?", (photo_id,))
         db.commit()
-        # 🔥 Закрываем коннект ДО вызова загрузки файла в Dropbox
-        db.close()
-
-        # -------------------------------------------------------------
-        # 3. Выгружаем обновлённую базу SQLite на Dropbox
-        # -------------------------------------------------------------
-        try:
-            upload_db_to_dropbox()
-        except Exception as sync_err:
-            print(f"Dropbox DB sync error: {sync_err}")
-
-        return {"status": "ok", "message": "Альбом и файлы успешно удалены"}
-
-    except HTTPException:
-        raise
+        return {"status": "success", "message": "Фото удалено из альбома"}
     except Exception as e:
-        if 'db' in locals():
-            try:
-                db.close()
-            except Exception:
-                pass
-        print(f"Ошибка при удалении альбома: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 2. Добавление новых фото в альбом
-# 2. Добавление новых фото в альбом
-@app.post("/api/albums/{album_id}/photos")
-async def add_photos_to_album(
-    album_id: int,
-    photos: List[UploadFile] = File(...),
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходима авторизация")
-
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-
-    try:
-        # Проверяем владельца
-        cursor.execute("SELECT model_username FROM albums WHERE id = ?", (album_id,))
-        album = cursor.fetchone()
-        
-        if not album or album["model_username"] != session_user:
-            db.close()
-            raise HTTPException(status_code=403, detail="Доступ запрещён")
-
-        dbx = get_dropbox_client()  # твой клиент Dropbox
-        uploaded_urls = []
-
-        for photo_file in photos:
-            if not photo_file.filename:
-                continue
-
-            ext = os.path.splitext(photo_file.filename)[1] or ".jpg"
-            filename = f"album_{album_id}_{uuid.uuid4().hex}{ext}"
-            dropbox_path = f"/albums/{filename}"
-
-            # Считываем байты файла
-            file_bytes = await photo_file.read()
-
-            # Загружаем в Dropbox
-            dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
-
-            # Безопасный способ получения ссылки raw=1
-            try:
-                shared_link = dbx.sharing_create_shared_link_with_settings(dropbox_path)
-                url = shared_link.url
-            except Exception:
-                # Если ссылка уже существует, достаем ее
-                links = dbx.sharing_list_shared_links(path=dropbox_path).links
-                url = links[0].url if links else ""
-
-            # Приводим к raw=1
-            if url:
-                photo_url = url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
-                if "?raw=1" not in photo_url and "&raw=1" not in photo_url:
-                    photo_url += "?raw=1" if "?" not in photo_url else "&raw=1"
-            else:
-                photo_url = ""
-
-            cursor.execute(
-                "INSERT INTO album_photos (album_id, photo_url) VALUES (?, ?)",
-                (album_id, photo_url)
-            )
-            uploaded_urls.append(photo_url)
-
-        db.commit()
-        db.close()
-
-        # Возвращаем успехи и список загруженных фото
-        return {
-            "status": "ok", 
-            "message": "Фотографии добавлены", 
-            "photos": uploaded_urls
-        }
-
-    except Exception as e:
-        db.rollback()  # Откатываем транзакцию при ошибке!
-        db.close()
-        print(f"[ERROR in add_photos_to_album]: {e}")  # Посмотри в консоль сервера!
-        raise HTTPException(status_code=500, detail=str(e))
-        
-
-@app.get("/api/admin/adult-models/{model_id}/photos")
-async def get_adult_model_photos(model_id: int, db=Depends(get_db)):
-    cursor = db.cursor()
-    try:
-        cursor.execute("SELECT id, photo_url FROM adult_model_photos WHERE model_id = ? ORDER BY id DESC", (model_id,))
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
-    except Exception as e:
-        return {"status": "error", "message": f"Ошибка БД: {str(e)}"}
-        
+        return {"status": "error", "message": f"Ошибка удаления: {str(e)}"}
 
 import traceback
 
@@ -1171,126 +895,34 @@ async def create_announcement(
 
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
-# Эндпоинт для получения списка всех объявлений с их альбомами
 @app.get("/api/announcements")
-@app.get("/api/announcements/")
 async def get_announcements():
     db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
+    db.row_factory = sqlite3.Row  # чтобы возвращать данные в виде удобных словарей
     cursor = db.cursor()
     
-    try:
-        cursor.execute("""
-            SELECT a.id, a.name, a.description, a.photo_url, a.created_at, a.user_id, u.username
-            FROM announcements a
-            LEFT JOIN users u ON a.user_id = u.id
-            ORDER BY a.id DESC
-        """)
-        rows = cursor.fetchall()
-
-        announcements = []
-        for row in rows:
-            username = row["username"] or ""
-            albums = []
-            
-            if username:
-                try:
-                    cursor.execute("SELECT * FROM albums WHERE model_username = ?", (username,))
-                    album_rows = cursor.fetchall()
-                    
-                    for alb in album_rows:
-                        album_dict = dict(alb)
-                        cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
-                        
-                        # Если явной обложки нет, берём ПЕРВОЕ фото из альбома
-                        if not cover:
-                            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? LIMIT 1", (album_dict["id"],))
-                            first_photo = cursor.fetchone()
-                            if first_photo:
-                                cover = first_photo["photo_url"] or ""
-
-                        # Превращаем Dropbox-ссылку в прямую для картинки
-                        if cover:
-                            if "?dl=0" in cover:
-                                cover = cover.replace("?dl=0", "?raw=1")
-                            elif "&dl=0" in cover:
-                                cover = cover.replace("&dl=0", "&raw=1")
-                            elif "dropbox.com" in cover and not ("raw=1" in cover or "dl=1" in cover):
-                                cover += "&raw=1" if "?" in cover else "?raw=1"
-                                
-                        album_dict["cover_url"] = cover
-                        albums.append(album_dict)
-                except Exception as album_err:
-                    print(f"[WARN] Ошибка чтения альбомов для {username}: {album_err}")
-
-            announcements.append({
-                "id": row["id"],
-                "name": row["name"],
-                "description": row["description"],
-                "photo_url": row["photo_url"],
-                "created_at": row["created_at"],
-                "username": username,
-                "albums": albums
-            })
-            
-        db.close()
-        return announcements
-
-    except Exception as e:
-        db.close()
-        print(f"[ERROR] Ошибка в /api/announcements: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# Эндпоинт для получения ОДНОГО объявления по ID (например, при переходе на карточку)
-@app.get("/api/announcements/{announcement_id}")
-async def get_single_announcement(announcement_id: int):
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-    
+    # Объединяем таблицы, чтобы получить имя пользователя модели (username)
     cursor.execute("""
         SELECT a.id, a.name, a.description, a.photo_url, a.created_at, u.username
         FROM announcements a
         JOIN users u ON a.user_id = u.id
-        WHERE a.id = ?
-    """, (announcement_id,))
-    row = cursor.fetchone()
-    
-    if not row:
-        db.close()
-        raise HTTPException(status_code=404, detail="Объявление не найдено")
-
-    username = row["username"]
-    
-    # Достаем альбомы модели
-    cursor.execute("""
-        SELECT id, title, description, is_paid, price, cover_url 
-        FROM albums 
-        WHERE model_username = ?
-    """, (username,))
-    album_rows = cursor.fetchall()
+        ORDER BY a.id DESC
+    """)
+    rows = cursor.fetchall()
     db.close()
 
-    albums = []
-    for alb in album_rows:
-        album_dict = dict(alb)
-        cover = album_dict.get("cover_url") or ""
-        if "?dl=0" in cover:
-            album_dict["cover_url"] = cover.replace("?dl=0", "?raw=1")
-        elif "&dl=0" in cover:
-            album_dict["cover_url"] = cover.replace("&dl=0", "&raw=1")
-        albums.append(album_dict)
-
-    return {
-        "id": row["id"],
-        "name": row["name"],
-        "description": row["description"],
-        "photo_url": row["photo_url"],
-        "created_at": row["created_at"],
-        "username": username,
-        "albums": albums
-    }
+    announcements = []
+    for row in rows:
+        announcements.append({
+            "id": row["id"],
+            "name": row["name"],
+            "description": row["description"],
+            "photo_url": row["photo_url"],
+            "created_at": row["created_at"],
+            "username": row["username"]
+        })
+        
+    return announcements
 
 @app.delete("/api/announcements/{announcement_id}")
 async def delete_announcement(
@@ -1336,88 +968,6 @@ async def delete_announcement(
         print(f"Ошибка бэкапа базы в Dropbox: {e}")
 
     return {"status": "success", "message": "Объявление успешно удалено!"}
-
-# 1. Обновление названия, описания и цены альбома
-@app.put("/api/albums/{album_id}")
-async def update_album(
-    album_id: int,
-    data: EditAlbumSchema,
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-
-    # Проверяем, существует ли альбом и принадлежит ли он текущему пользователю
-    cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
-    album = cursor.fetchone()
-    if not album:
-        db.close()
-        raise HTTPException(status_code=404, detail="Альбом не найден")
-
-    album_dict = dict(album)
-    owner = album_dict.get("model_username") or album_dict.get("username")
-    
-    if owner != session_user:
-        db.close()
-        raise HTTPException(status_code=403, detail="Вы можете редактировать только свои альбомы")
-
-    # Обновляем данные альбома
-    cursor.execute("""
-        UPDATE albums 
-        SET title = ?, description = ?, is_paid = ?, price = ?
-        WHERE id = ?
-    """, (data.title, data.description, 1 if data.is_paid else 0, data.price if data.is_paid else 0, album_id))
-
-    db.commit()
-    db.close()
-
-    if "upload_db_to_dropbox" in globals():
-        upload_db_to_dropbox()
-
-    return {"status": "success", "message": "Альбом успешно обновлён!"}
-
-
-# 2. Удаление конкретной фотографии из альбома
-@app.delete("/api/albums/{album_id}/photos/{photo_id}")
-async def delete_album_photo(
-    album_id: int,
-    photo_id: int,
-    session_user: Optional[str] = Cookie(None)
-):
-    if not session_user:
-        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
-
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-
-    # Проверка владельца альбома
-    cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
-    album = cursor.fetchone()
-    if not album:
-        db.close()
-        raise HTTPException(status_code=404, detail="Альбом не найден")
-
-    album_dict = dict(album)
-    owner = album_dict.get("model_username") or album_dict.get("username")
-
-    if owner != session_user:
-        db.close()
-        raise HTTPException(status_code=403, detail="Доступ запрещён")
-
-    # Удаляем фото
-    cursor.execute("DELETE FROM album_photos WHERE id = ? AND album_id = ?", (photo_id, album_id))
-    db.commit()
-    db.close()
-
-    if "upload_db_to_dropbox" in globals():
-        upload_db_to_dropbox()
-
-    return {"status": "success", "message": "Фотография удалена из альбома"}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1515,30 +1065,26 @@ async def edit_adult_model(model_id: int, payload: dict, db=Depends(get_db)):
     age = payload.get("age")
     status = payload.get("status")
     file_base64 = payload.get("file_base64")
-    # ✅ 1. Достаем параметр is_paid из пришедшего JSON
-    is_paid = payload.get("is_paid", 0) 
     
     try:
         if file_base64 and file_base64.strip():
-            photo_url = file_base64  # или твой вызов функции сохранения фото (Dropbox / Imgur)
+            # 1. Сюда нужно подставить твою функцию сохранения фото.
+            # Например, если у тебя есть функция upload_to_imgur(file_base64), используй её.
+            # Пока запишем сохранение самого base64 или вызов твоей функции:
+            photo_url = file_base64  # Меняешь на вызов своей функции загрузки, если нужно
             
-            # ✅ 2. Исправили имя таблицы на adult_models и добавили is_paid=?
             cursor.execute(
-                "UPDATE adult_models SET name=?, age=?, status=?, photo_url=?, is_paid=? WHERE id=?",
-                (name, age, status, photo_url, is_paid, model_id)
+                "UPDATE adult_model_photos SET name=?, age=?, status=?, photo_url=? WHERE id=?",
+                (name, age, status, photo_url, model_id)
             )
         else:
-            # ✅ 3. Если фото не меняли, обновляем текстовые поля И статус оплаты is_paid
+            # Если файл не передали, обновляем только текстовые поля, не трогая старую аватарку
             cursor.execute(
-                "UPDATE adult_models SET name=?, age=?, status=?, is_paid=? WHERE id=?",
-                (name, age, status, is_paid, model_id)
+                "UPDATE adult_models SET name=?, age=?, status=? WHERE id=?",
+                (name, age, status, model_id)
             )
         
         db.commit()
-        # Выгружаем обновленную БД в Dropbox, если у тебя настроен бэкап
-        if "upload_db_to_dropbox" in globals():
-            upload_db_to_dropbox()
-
         return {"status": "success", "message": "Данные модели успешно обновлены"}
         
     except Exception as e:
@@ -1740,22 +1286,6 @@ async def check_tg_status(code: str, response: Response):
     except Exception as e:
         logging.error(f"Ошибка в tg-status: {e}")
         return {"status": "pending"}
-
-@app.get("/api/s/debug")
-def debug_albums():
-    db = sqlite3.connect(DB_LOCAL_PATH)
-    # Используем Row, чтобы увидеть человеческие ключи
-    db.row_factory = sqlite3.Row
-    cursor = db.cursor()
-    
-    cursor.execute("SELECT * FROM albums")
-    albums = [dict(row) for row in cursor.fetchall()]
-    
-    cursor.execute("SELECT * FROM album_photos")
-    photos = [dict(row) for row in cursor.fetchall()]
-    
-    db.close()
-    return {"albums_count": len(albums), "albums": albums, "photos": photos}
     
 @app.get("/api/me")
 async def get_current_user_api(session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
@@ -2292,22 +1822,9 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 
 
 #==============Кабинет модели===============
-#==============Кабинет модели===============
 @app.get("/api/model/profile")
-async def get_model_profile(session_user = Depends(get_current_user)):
-    # Универсальное извлечение username независимо от того, чем является session_user
-    username_str = None
-    if isinstance(session_user, dict):
-        username_str = session_user.get("username")
-    elif hasattr(session_user, "username"):
-        username_str = session_user.username
-    elif isinstance(session_user, (list, tuple)) and len(session_user) > 1:
-        username_str = session_user[1]
-    elif isinstance(session_user, str):
-        username_str = session_user
-    
-    if not username_str:
-        raise HTTPException(status_code=401, detail="Не удалось определить пользователя из сессии")
+async def get_model_profile(session_user: str = Depends(get_current_user)):
+    username_str = session_user["username"] if isinstance(session_user, sqlite3.Row) else session_user[1]
     
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
@@ -2325,31 +1842,11 @@ async def get_model_profile(session_user = Depends(get_current_user)):
     cursor.execute("SELECT * FROM albums WHERE model_username = ? ORDER BY created_at DESC", (username_str,))
     albums = [dict(row) for row in cursor.fetchall()]
     
-    # Для каждого альбома находим обложку и список фото
+    # Для каждого альбома подтягиваем фотографии
     for album in albums:
-        # Сначала ищем явную обложку (is_preview = 1)
-        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND is_preview = 1 LIMIT 1", (album["id"],))
-        preview_row = cursor.fetchone()
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
+        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
         
-        cover_url = None
-        if preview_row and preview_row["photo_url"].startswith("http"):
-            cover_url = preview_row["photo_url"]
-        else:
-            # Если по какой-то причине is_preview не задан, берем любую первую публичную ссылку (http...)
-            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND photo_url LIKE 'http%' LIMIT 1", (album["id"],))
-            first_public = cursor.fetchone()
-            if first_public:
-                cover_url = first_public["photo_url"]
-
-        # Выпрямляем ссылку Dropbox для отображения в <img>
-        if cover_url:
-            if "?dl=0" in cover_url:
-                cover_url = cover_url.replace("?dl=0", "?raw=1")
-            elif "&dl=0" in cover_url:
-                cover_url = cover_url.replace("&dl=0", "&raw=1")
-
-        album["cover_url"] = cover_url
-
     db.close()
     return {
         "profile": dict(user_data),
@@ -2400,39 +1897,33 @@ async def update_model_avatar(
 async def create_album(
     title: str = Form(...),
     description: str = Form(None),
-    is_paid: int = Form(0),
+    is_paid: int = Form(0),  # 0 = бесплатный, 1 = платный
     price: int = Form(0),
     files: List[UploadFile] = File(...),
-    session_user = Depends(get_current_user)  # 🌟 Просто убрали ": Any"
+    session_user: str = Depends(get_current_user)
 ):
-    # 🌟 ИЗВЛЕКАЕМ СТРОКУ: Вытаскиваем текстовое имя пользователя из объекта sqlite3.Row
-    # В зависимости от настроек get_db, это делается либо по ключу, либо по индексу
-    if hasattr(session_user, "keys") or isinstance(session_user, dict):
-        username_str = session_user["username"]
-    else:
-        username_str = session_user[1] # Если это обычный кортеж (id, username)
-
     # 1. Проверяем роль пользователя в БД
     db = sqlite3.connect(DB_LOCAL_PATH)
+    # Чтобы получать результаты в виде словарей (удобно для user_row["role"])
+    db.row_factory = sqlite3.Row 
     cursor = db.cursor()
     
-    # 🌟 Передаем чистую строку username_str вместо объекта сессии
-    cursor.execute("SELECT role FROM users WHERE username = ?", (username_str,))
+    cursor.execute("SELECT role FROM users WHERE username = ?", (session_user,))
     user_row = cursor.fetchone()
     
-    if not user_row or user_row[0] != 'model':
+    if not user_row or user_row["role"] != 'model':
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать альбомы")
-        
+    
     dbx = get_dropbox_client()
     if not dbx:
         db.close()
         raise HTTPException(status_code=500, detail="Dropbox клиент не готов")
 
-    # 2. Создаем запись альбома в БД (тоже используем username_str)
+    # 2. Создаем запись альбома в БД
     cursor.execute(
         "INSERT INTO albums (model_username, title, description, is_paid, price) VALUES (?, ?, ?, ?, ?)",
-        (username_str, title, description, is_paid, price)
+        (session_user, title, description, is_paid, price)
     )
     album_id = cursor.lastrowid
     
@@ -2442,16 +1933,20 @@ async def create_album(
         unique_filename = f"{uuid.uuid4()}{file_extension}"
         
         # Путь сохранения внутри Dropbox
-        dropbox_path = f"/albums/{username_str}/{unique_filename}"
+        dropbox_path = f"/albums/{session_user}/{unique_filename}"
         
         try:
+            # Читаем содержимое файла в память
             file_bytes = await file.read()
+            
+            # Загружаем файл в Dropbox
             dbx.files_upload(file_bytes, dropbox_path, mode=dropbox.files.WriteMode.overwrite)
             
-            # Первое фото в цикле (индекс 0) автоматически становится превью-обложкой
+            # Определяем, является ли фото превью (первое фото всегда бесплатное для обложки)
             is_preview = 1 if idx == 0 else 0
             
-            # Если альбом БЕСПЛАТНЫЙ или это ПРЕВЬЮ-фото — генерируем публичную ссылку
+            # 🌟 ЛОГИКА ЗАЩИТЫ: 
+            # Если альбом бесплатный ИЛИ это первое фото-превью — делаем ссылку публичной
             if is_paid == 0 or is_preview == 1:
                 try:
                     shared_link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
@@ -2465,10 +1960,13 @@ async def create_album(
                 
                 final_photo_url = raw_url.replace("?dl=0", "?raw=1")
             else:
-                # 🔒 Для скрытых платных фото ссылку НЕ публикуем, пишем внутренний путь Dropbox
+                # 🔒 Для платных скрытых фото НЕ создаем публичную ссылку Dropbox.
+                # Вместо этого сохраняем внутренний путь к файлу в Dropbox.
+                # Отдавать этот файл мы будем через специальный эндпоинт /api/albums/photo/{id}
                 final_photo_url = dropbox_path
             
-            # Сохраняем в БД с учетом новой колонки is_preview
+            # Сохраняем данные в таблицу. 
+            # 💡 Важно: Убедись, что в твоей таблице `album_photos` есть колонка `is_preview`
             cursor.execute(
                 "INSERT INTO album_photos (album_id, photo_url, is_preview) VALUES (?, ?, ?)",
                 (album_id, final_photo_url, is_preview)
@@ -2477,21 +1975,13 @@ async def create_album(
         except Exception as upload_error:
             db.rollback()
             db.close()
-            
-            # 🌟 Это напечатает точную строку и причину падения в терминале Python
-            import traceback
-            print("\n!!! КРИТИЧЕСКАЯ ОШИБКА НА БЭКЕНДЕ !!!")
-            traceback.print_exc()
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-            
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Внутренняя ошибка сервера: {str(upload_error)}"
-            )
+            print(f"Ошибка загрузки файла в Dropbox: {upload_error}")
+            raise HTTPException(status_code=500, detail="Ошибка при отправке фотографий в облако")
             
     db.commit()
     db.close()
     
+    # Синхронизируем саму БД с Dropbox
     try:
         upload_db_to_dropbox()
     except Exception as e:
@@ -2509,117 +1999,74 @@ async def get_public_model_albums(username: str):
     albums = [dict(row) for row in cursor.fetchall()]
     
     for album in albums:
-        cursor.execute("SELECT photo_url, is_preview FROM album_photos WHERE album_id = ?", (album["id"],))
-        photos_rows = cursor.fetchall()
-        
-        processed_photos = []
-        cover_url = None
-        
-        for r in photos_rows:
-            url = r["photo_url"]
-            if url and ("dropbox.com" in url):
-                if "?dl=0" in url:
-                    url = url.replace("?dl=0", "?raw=1")
-                elif "&dl=0" in url:
-                    url = url.replace("&dl=0", "&raw=1")
-            processed_photos.append(url)
-            
-            if r["is_preview"] == 1:
-                cover_url = url
-                
-        album["photos"] = processed_photos
-        album["cover_url"] = cover_url if cover_url else (processed_photos[0] if processed_photos else None)
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
+        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
         
     db.close()
     return albums
 
-@app.get("/api/albums/{album_id}")
-async def get_album_details(
-    album_id: int, 
-    session_user: Optional[str] = Cookie(None)
-):
-    # Если залетает некорректный ID из фронтенда
-    if not album_id:
-        raise HTTPException(status_code=400, detail="Некорректный ID альбома")
+@app.get("/api/balance")
+async def get_balance(request: Request, db=Depends(get_db)):
+    user_ip = request.client.host
+    cursor = db.cursor()
+    cursor.execute("SELECT balance FROM user_balances WHERE user_ip = ?", (user_ip,))
+    row = cursor.fetchone()
+    
+    if not row:
+        cursor.execute("INSERT INTO user_balances (user_ip, balance) VALUES (?, 0)", (user_ip,))
+        db.commit()
+        return {"balance": 0}
+        
+    return {"balance": row["balance"]}
 
+@app.post("/api/adult-models/buy")
+async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="🔒 Доступ ограничен. Пожалуйста, войдите в аккаунт.")
+    
+    cursor = db.cursor()
+    
+    # 1. Проверяем баланс пользователя (работаем с колонкой balance!)
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    
+    # Сравниваем с балансом
+    if user["balance"] < 50:
+        raise HTTPException(status_code=400, detail="💰 Недостаточно средств! Пополните баланс.")
+    
+    # 2. Проверяем, не куплена ли модель уже
+    cursor.execute(
+        "SELECT id FROM user_purchases WHERE username = ? AND model_id = ?", 
+        (session_user, data.model_id)
+    )
+    already_bought = cursor.fetchone()
+    if already_bought:
+        return {"status": "success", "message": "Доступ уже был куплен ранее"}
+    
     try:
-        with sqlite3.connect(DB_LOCAL_PATH, timeout=10.0) as db:
-            db.row_factory = sqlite3.Row
-            cursor = db.cursor()
+        # 3. Списываем 50 коинов со счета balance
+        cursor.execute("UPDATE users SET balance = balance - 50 WHERE username = ?", (session_user,))
+        
+        # 4. Записываем покупку в таблицу user_purchases
+        cursor.execute(
+            "INSERT INTO user_purchases (username, model_id) VALUES (?, ?)", 
+            (session_user, data.model_id)
+        )
+        
+        db.commit()
+        
+        # Синхронизация с Dropbox, если функция подключена
+        if "upload_db_to_dropbox" in globals():
+            upload_db_to_dropbox()
             
-            # 1. Данные альбома
-            cursor.execute("SELECT * FROM albums WHERE id = ?", (album_id,))
-            album_row = cursor.fetchone()
-            
-            if not album_row:
-                raise HTTPException(status_code=404, detail="Альбом не найден")
-                
-            album = dict(album_row)
-            model_username = album.get("model_username") or album.get("username") or ""
-            is_paid = album.get("is_paid", 0)
-            price = album.get("price", 0)
-            
-            # 2. Проверка доступа
-            is_owner = bool(session_user and session_user == model_username)
-            has_purchased = False
-            
-            if session_user and is_paid and not is_owner:
-                cursor.execute("""
-                    SELECT id FROM purchases 
-                    WHERE username = ? AND item_type = 'album' AND item_id = ?
-                """, (session_user, album_id))
-                if cursor.fetchone():
-                    has_purchased = True
-
-            if is_paid and not is_owner and not has_purchased:
-                return {
-                    "id": album["id"],
-                    "title": album.get("title", "Альбом"),
-                    "description": album.get("description", ""),
-                    "is_paid": True,
-                    "price": price,
-                    "has_access": False,
-                    "is_owner": is_owner,
-                    "photos": [],
-                    "message": "Этот альбом платный. Пожалуйста, приобретите доступ."
-                }
-
-            # 3. Фотографии
-            cursor.execute("SELECT id, photo_url FROM album_photos WHERE album_id = ?", (album_id,))
-            photo_rows = cursor.fetchall()
-            
-            photos = []
-            for p in photo_rows:
-                raw_url = p["photo_url"] or ""
-                
-                # Быстрая замена без множества условий
-                if "dropbox.com" in raw_url:
-                    raw_url = raw_url.replace("?dl=0", "?raw=1").replace("&dl=0", "&raw=1")
-                    if "?raw=1" not in raw_url and "&raw=1" not in raw_url:
-                        raw_url += "&raw=1" if "?" in raw_url else "?raw=1"
-                
-                photos.append({
-                    "id": p["id"],
-                    "photo_url": raw_url,
-                    "url": raw_url
-                })
-
-            return {
-                "id": album["id"],
-                "title": album.get("title", "Альбом"),
-                "description": album.get("description", ""),
-                "is_paid": bool(is_paid),
-                "price": price,
-                "has_access": True,
-                "is_owner": is_owner,
-                "photos": photos
-            }
-
-    except HTTPException as http_ex:
-        raise http_ex
+        return {"status": "success", "message": "🎉 Доступ успешно разблокирован!"}
+        
     except Exception as e:
-        print(f"[CRITICAL ERROR] GET /api/albums/{album_id}: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка сервера при чтении альбома")
+        db.rollback()
+        print(f"Ошибка транзакции покупки: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка на сервере при проведении оплаты: {str(e)}")
 
 
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
