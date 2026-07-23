@@ -1305,8 +1305,11 @@ if (avatarImg) {
             
             if (authPage) authPage.style.display = 'flex';
             if (mainPage) mainPage.style.display = 'none';
-            if (topHeader) topHeader.style.display = 'none'; // 👈 Прячем её при открытии логина/регистрации
-
+            if (topHeader) {
+                topHeader.style.display = 'none';
+                topHeader.style.setProperty('display', 'none', 'important'); // перебивает любые стили CSS
+            }
+            
             const roleContainer = document.getElementById('role-selection-container');
 
             if (mode === 'register') {
