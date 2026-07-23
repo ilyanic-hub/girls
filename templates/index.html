@@ -2404,7 +2404,7 @@ async function deleteAnnouncement(id) {
     }
 }
         // Загрузка объявлений из API бэкенда
-        async function loadAnnouncements() {
+async function loadAnnouncements() {
     try {
         const response = await fetch('/api/announcements?t=' + Date.now());
         if (!response.ok) return;
@@ -2427,36 +2427,29 @@ async function deleteAnnouncement(id) {
             const name = item.name || 'Модель';
             const username = item.username ? `@${item.username}` : '';
             const desc = item.description || '';
-
-            // Блок с обложками альбомов
-            let albumsHtml = '';
-            if (item.albums && item.albums.length > 0) {
-                albumsHtml = `
-                    <div style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
-                        <div style="font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                            📸 Альбомы модели (${item.albums.length})
-                        </div>
-                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin;">
-                            ${item.albums.map(alb => {
-                                const coverImg = alb.cover_url || defaultSvg;
-                                return `
-                                    <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 75px; cursor: pointer; text-align: center; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
-                                        <div style="width: 75px; height: 75px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
-                                            <img src="${coverImg}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
-                                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
-                                        </div>
-                                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-            }
+            
+            const modelId = item.model_id || item.id;
 
             const card = document.createElement('div');
-            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;";
+            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;";
             
+            // При клике на карточку открываем модальное окно и передаем туда данные модели (включая её альбомы)
+            card.onclick = () => {
+                if (typeof openProfileModal === 'function') {
+                    openProfileModal(modelId, item); // Передаем объект item, чтобы модалка сразу отрисовала альбомы внутри себя
+                }
+            };
+
+            card.onmouseover = () => {
+                card.style.transform = 'translateY(-3px)';
+                card.style.boxShadow = '0 8px 20px rgba(0,0,0,0.06)';
+            };
+            card.onmouseout = () => {
+                card.style.transform = 'translateY(0)';
+                card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.03)';
+            };
+            
+            // Больше никакого HTML для альбомов в ленте — карточка чистая и аккуратная
             card.innerHTML = `
                 <div>
                     <div style="display: flex; gap: 14px; align-items: flex-start;">
@@ -2468,7 +2461,9 @@ async function deleteAnnouncement(id) {
                             <p style="margin: 0; color: #334155; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${desc}</p>
                         </div>
                     </div>
-                    ${albumsHtml}
+                </div>
+                <div style="margin-top: 15px; text-align: right; font-size: 0.8rem; color: var(--accent); font-weight: 600;">
+                    Смотреть анкету и альбомы ➡️
                 </div>
             `;
 
