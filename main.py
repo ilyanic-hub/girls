@@ -2293,22 +2293,32 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 #==============Кабинет модели===============
 #==============Кабинет модели===============
 #==============Кабинет модели===============
+#==============Кабинет модели===============
 @app.get("/api/model/profile")
-async def get_model_profile(session_user: str = Depends(get_current_user)):
-    username_str = session_user if isinstance(session_user, str) else str(session_user)
+async def get_model_profile(session_user: dict = Depends(get_current_user)):
+    # session_user — это уже готовый словарь: {"id": ..., "username": "...", "is_admin": ..., "role": "..."}
+    
+    # Проверяем роль прямо из сессии
+    if session_user.get("role") != 'model':
+        raise HTTPException(status_code=403, detail="Доступно только для моделей")
+        
+    username_str = session_user["username"]
     
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # Получаем данные модели
-    cursor.execute("SELECT username, role, balance, avatar FROM users WHERE username = ?", (username_str,))
-    user_data = cursor.fetchone()
+    # Получаем актуальный баланс и аватарку из базы (если они меняются)
+    cursor.execute("SELECT balance, avatar FROM users WHERE username = ?", (username_str,))
+    user_extra = cursor.fetchone()
     
-    if not user_data or user_data["role"] != 'model':
-        db.close()
-        raise HTTPException(status_code=403, detail="Доступно только для моделей")
-        
+    profile_data = {
+        "username": username_str,
+        "role": session_user["role"],
+        "balance": user_extra["balance"] if user_extra else 0,
+        "avatar": user_extra["avatar"] if user_extra else None
+    }
+    
     # Получаем её альбомы
     cursor.execute("SELECT * FROM albums WHERE model_username = ? ORDER BY created_at DESC", (username_str,))
     albums = [dict(row) for row in cursor.fetchall()]
@@ -2320,9 +2330,10 @@ async def get_model_profile(session_user: str = Depends(get_current_user)):
         
     db.close()
     return {
-        "profile": dict(user_data),
+        "profile": profile_data,
         "albums": albums
     }
+    
 @app.post("/api/model/update-avatar")
 async def update_model_avatar(
     file: UploadFile = File(...),
