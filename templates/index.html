@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -991,28 +992,6 @@
         </div>
     </div>
 
-    <!-- Модальное окно анкеты модели -->
-<div id="model-modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.75); z-index: 9999; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; backdrop-filter: blur(4px);">
-    <div id="model-modal-content" style="background: white; border-radius: 20px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.2); animation: modalFadeIn 0.2s ease-out;">
-        
-        <!-- Кнопка закрытия -->
-        <button onclick="closeModelModal()" style="position: absolute; top: 16px; right: 16px; background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 20px; cursor: pointer; color: #64748b; display: flex; align-items: center; justify-content: center; transition: 0.2s;">&times;</button>
-        
-        <!-- Сюда будет генерироваться контент -->
-        <div id="model-modal-body" style="padding: 24px;"></div>
-        
-    </div>
-</div>
-
-<style>
-    @keyframes modalFadeIn {
-        from { opacity: 0; transform: translateY(10px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    #model-modal-content::-webkit-scrollbar { width: 6px; }
-    #model-modal-content::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 6px; }
-</style>
-
     <script>
         let authMode = 'login'; 
         let selectedAmount = 0;
@@ -1043,7 +1022,6 @@
                 } catch (error) { console.error("Ошибка при проверке баланса:", error); }
             }, 4000);
         }
-
 
        async function checkAuth() {
     // Функция для поиска и скрытия/показа кнопки Кабинет по её тексту
@@ -1432,7 +1410,7 @@ function setupRoleUI(role) {
     });
 }
 
-async function deleteAlbumPhoto(event, photoId) {
+        async function deleteAlbumPhoto(event, photoId) {
     // Останавливаем стандартную отправку формы или переход по ссылке!
     if (event) {
         event.preventDefault();
@@ -1796,6 +1774,28 @@ async function openEditAlbumModal(albumId) {
     }
 }
 
+// Отрисовка списка фотографий в вашей сетке #edit-album-photos-grid
+function renderEditPhotosList(photos) {
+    const grid = document.getElementById('edit-album-photos-grid');
+    if (!grid) return;
+
+    if (!photos || photos.length === 0) {
+        grid.innerHTML = '<p style="color: #64748b; font-size: 13px; grid-column: 1 / -1; margin: 10px 0; text-align: center;">В альбоме нет фотографий</p>';
+        return;
+    }
+
+    grid.innerHTML = photos.map(photo => `
+        <div style="position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #f1f5f9; border: 1px solid #cbd5e1;">
+            <img src="${photo.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">
+            <button type="button" 
+                    onclick="deleteAlbumPhoto(${photo.id})" 
+                    title="Удалить фото"
+                    style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
+                ✕
+            </button>
+        </div>
+    `).join('');
+}
 
 // Функция отрисовки миниатюр в модалке редактирования
 function renderEditPhotosList(photos) {
@@ -1921,38 +1921,23 @@ async function deleteEntireAlbum(e) {
     }
 }
 
-        // Удаление отдельного фото
+// Удаление отдельного фото
 async function deletePhotoFromAlbum(albumId, photoId) {
-    const currentAlbumId = albumId || (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
-
-    if (!currentAlbumId || !photoId) {
-        alert("Не удалось определить ID альбома или фотографии.");
-        return;
-    }
-
     if (!confirm("Удалить эту фотографию из альбома?")) return;
 
-    const token = localStorage.getItem('token');
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
     try {
-        const response = await fetch(`/api/albums/${currentAlbumId}/photos/${photoId}`, {
-            method: 'DELETE',
-            headers: headers
+        const response = await fetch(`/api/albums/${albumId}/photos/${photoId}`, {
+            method: 'DELETE'
         });
 
         if (response.ok) {
-            if (typeof openEditAlbumModal === 'function') {
-                openEditAlbumModal(currentAlbumId);
-            }
+            openEditAlbumModal(albumId); // Перезагружаем окно редактирования
         } else {
-            const res = await response.json().catch(() => ({}));
+            const res = await response.json();
             alert("Ошибка: " + (res.detail || "Не удалось удалить фото"));
         }
     } catch (err) {
         console.error("Ошибка удаления фото:", err);
-        alert("Произошла ошибка сети при удалении фото.");
     }
 }
 
@@ -1965,8 +1950,6 @@ async function deletePhotoFromAlbum(albumId, photoId) {
                 loadComments(contestantId);
             }
         }
-
-        
 
         async function loadComments(contestantId) {
             try {
@@ -2256,76 +2239,6 @@ async function deleteAnnouncement(id) {
         alert("Произошла ошибка сети.");
     }
 }
-
-        // Переключение видимости поля ввода цены в зависимости от чекбокса
-function toggleEditPriceField() {
-    const isPaidCheckbox = document.getElementById('edit-album-is-paid');
-    const priceWrapper = document.getElementById('edit-price-wrapper');
-    
-    if (isPaidCheckbox && priceWrapper) {
-        priceWrapper.style.display = isPaidCheckbox.checked ? 'block' : 'none';
-    }
-}
-
-// Функция сохранения изменений альбома при отправке формы
-async function saveAlbumChanges(event) {
-    if (event) event.preventDefault();
-
-    const albumId = (typeof currentEditAlbumId !== 'undefined' ? currentEditAlbumId : null) || document.getElementById('edit-album-id')?.value;
-    if (!albumId) {
-        alert("Не найден ID альбома.");
-        return;
-    }
-
-    const titleInput = document.getElementById('edit-album-title');
-    const descInput = document.getElementById('edit-album-desc');
-    const isPaidInput = document.getElementById('edit-album-is-paid');
-    const priceInput = document.getElementById('edit-album-price');
-
-    const payload = {
-        title: titleInput ? titleInput.value : '',
-        description: descInput ? descInput.value : '',
-        is_paid: isPaidInput ? isPaidInput.checked : false,
-        price: priceInput ? Number(priceInput.value) : 0
-    };
-
-    const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    try {
-        const response = await fetch(`/api/albums/${albumId}`, {
-            method: 'PUT',
-            headers: headers,
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            alert("Ошибка сохранения: " + (err.detail || "Не удалось обновить альбом"));
-            return;
-        }
-
-        alert("Альбом успешно обновлен!");
-
-        // Закрываем модалку
-        if (typeof closeEditAlbumModal === 'function') {
-            closeEditAlbumModal();
-        } else {
-            const modal = document.getElementById('edit-album-modal');
-            if (modal) modal.style.display = 'none';
-        }
-
-        // Обновляем дашборд модели
-        if (typeof loadModelDashboard === 'function') {
-            await loadModelDashboard();
-        }
-
-    } catch (err) {
-        console.error("Ошибка при сохранении альбома:", err);
-        alert("Произошла ошибка сети при сохранении.");
-    }
-}
     </script>
     <script>
         function startTimer() {
@@ -2394,11 +2307,9 @@ async function saveAlbumChanges(event) {
     }
 }
         // Загрузка объявлений из API бэкенда
-        // Загрузка объявлений из API бэкенда
-async function loadAnnouncements() {
+        async function loadAnnouncements() {
     try {
-        const timestamp = Date.now();
-        const response = await fetch('/api/announcements?t=' + timestamp);
+        const response = await fetch('/api/announcements?t=' + Date.now());
         if (!response.ok) return;
 
         const announcements = await response.json();
@@ -2414,41 +2325,55 @@ async function loadAnnouncements() {
 
         const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
-        container.style.gap = "12px";
-
         announcements.forEach(item => {
             const photo = item.photo_url || defaultSvg;
             const name = item.name || 'Модель';
-            const username = item.username ? '@' + item.username : '';
-            const desc = item.description ? (item.description.length > 60 ? item.description.substring(0, 60) + '...' : item.description) : '';
+            const username = item.username ? `@${item.username}` : '';
+            const desc = item.description || '';
+
+            // Блок с обложками альбомов
+            let albumsHtml = '';
+            if (item.albums && item.albums.length > 0) {
+                albumsHtml = `
+                    <div style="margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                            📸 Альбомы модели (${item.albums.length})
+                        </div>
+                        <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin;">
+                            ${item.albums.map(alb => {
+                                const coverImg = alb.cover_url || defaultSvg;
+                                return `
+                                    <div onclick="openAlbumModal(${alb.id})" style="flex: 0 0 75px; cursor: pointer; text-align: center; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+                                        <div style="width: 75px; height: 75px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
+                                            <img src="${coverImg}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
+                                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
 
             const card = document.createElement('div');
+            card.style.cssText = "background: white; border-radius: 16px; border: 1px solid #e2e8f0; padding: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; flex-direction: column; justify-content: space-between;";
             
-            card.style.cssText = 'background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; align-items: center; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;';
-            
-            card.onmouseover = function() {
-                this.style.transform = 'translateY(-2px)';
-                this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
-            };
-            card.onmouseout = function() {
-                this.style.transform = 'translateY(0)';
-                this.style.boxShadow = '0 2px 8px rgba(0,0,0,0.02)';
-            };
-
-            card.onclick = function() {
-                openModelModal(item);
-            };
-            
-            card.innerHTML = '<div style="display: flex; gap: 12px; align-items: center; width: 100%;">' +
-                '<img src="' + photo + '" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid #f1f5f9;" alt="' + name + '">' +
-                '<div style="flex: 1; min-width: 0;">' +
-                    '<h3 style="margin: 0 0 2px 0; font-size: 1rem; color: #0f172a; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' +
-                        name + ' <span style="font-size: 0.8rem; color: #64748b; font-weight: normal;">' + username + '</span>' +
-                    '</h3>' +
-                    '<p style="margin: 0; color: #475569; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + desc + '</p>' +
-                '</div>' +
-                '<div style="color: #cbd5e0; margin-left: auto;">▶</div>' +
-            '</div>';
+            card.innerHTML = `
+                <div>
+                    <div style="display: flex; gap: 14px; align-items: flex-start;">
+                        <img src="${photo}" style="width: 85px; height: 85px; border-radius: 12px; object-fit: cover; flex-shrink: 0;" alt="${name}">
+                        <div style="flex: 1; min-width: 0;">
+                            <h3 style="margin: 0 0 4px 0; font-size: 1.1rem; color: #0f172a; font-weight: 700;">
+                                ${name} <span style="font-size: 0.85rem; color: #64748b; font-weight: normal;">${username}</span>
+                            </h3>
+                            <p style="margin: 0; color: #334155; font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; line-height: 1.4;">${desc}</p>
+                        </div>
+                    </div>
+                    ${albumsHtml}
+                </div>
+            `;
 
             container.appendChild(card);
         });
@@ -2457,83 +2382,6 @@ async function loadAnnouncements() {
         console.error("Ошибка вывода объявлений:", err);
     }
 }
-
-        function openModelModal(item) {
-    const modal = document.getElementById('model-modal-overlay');
-    const body = document.getElementById('model-modal-body');
-    if (!modal || !body) return;
-
-    const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
-    const photo = item.photo_url || defaultSvg;
-    const name = item.name || 'Модель';
-    const username = item.username ? `@${item.username}` : '';
-    const desc = item.description || 'Нет описания';
-
-    // 1. Генерируем сетку альбомов
-    let albumsHtml = '<p style="color: #94a3b8; font-size: 0.9rem; text-align: center; padding: 20px 0;">Альбомов пока нет</p>';
-    if (item.albums && item.albums.length > 0) {
-        albumsHtml = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; margin-top: 12px;">
-                ${item.albums.map(alb => {
-                    const coverImg = alb.cover_url || defaultSvg;
-                    // Оставляем твой старый onclick, который ведет в галерею альбома
-                    return `
-                        <div onclick="openAlbumModal(${alb.id})" style="cursor: pointer; text-align: center; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                            <div style="width: 100%; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; position: relative;">
-                                <img src="${coverImg}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
-                                ${alb.is_paid ? `<span style="position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.65rem; padding: 2px 6px; border-radius: 6px; font-weight: bold; backdrop-filter: blur(2px);">🔒</span>` : ''}
-                            </div>
-                            <div style="font-size: 0.8rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 6px; font-weight: 600;">${alb.title || 'Альбом'}</div>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        `;
-    }
-
-    // 2. Вставляем всё в тело модалки
-    body.innerHTML = `
-        <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 20px; padding-right: 20px;">
-            <img src="${photo}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #f1f5f9;">
-            <div>
-                <h2 style="margin: 0 0 4px 0; font-size: 1.4rem; color: #0f172a;">${name}</h2>
-                ${username ? `<span style="font-size: 0.85rem; color: #64748b; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; font-weight: 500;">${username}</span>` : ''}
-            </div>
-        </div>
-        
-        ${desc ? `
-        <div style="background: #f8fafc; padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e2e8f0;">
-            <p style="margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">${desc}</p>
-        </div>` : ''}
-        
-        <div>
-            <h3 style="margin: 0; font-size: 1.1rem; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                📸 Альбомы <span style="background: #e2e8f0; color: #475569; font-size: 0.8rem; padding: 2px 8px; border-radius: 10px;">${item.albums ? item.albums.length : 0}</span>
-            </h3>
-            ${albumsHtml}
-        </div>
-    `;
-
-    // Показываем окно и блокируем прокрутку основной страницы
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden'; 
-}
-
-function closeModelModal() {
-    const modal = document.getElementById('model-modal-overlay');
-    if (modal) {
-        modal.style.display = 'none';
-        document.body.style.overflow = ''; // Возвращаем прокрутку сайту
-    }
-}
-
-// Закрытие окна при клике на темный фон вне карточки
-window.addEventListener('click', (e) => {
-    const modal = document.getElementById('model-modal-overlay');
-    if (e.target === modal) {
-        closeModelModal();
-    }
-});
 
         function openChatWithModel(username) {
             alert(`Функция чата в разработке. Скоро вы сможете написать напрямую пользователю @${username}!`);
