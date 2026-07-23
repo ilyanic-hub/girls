@@ -1569,6 +1569,9 @@ let res = await fetch('/api/user/avatar', {
                 const mainPage = document.getElementById('main-page');
                 if (mainPage) mainPage.style.display = 'flex';
 
+                const topHeader = document.getElementById('top-header');
+                if (topHeader) topHeader.style.display = 'flex'; // 👈 Возвращаем шапку обратно
+
                 // 4. Загружаем карточки конкурсанток
                 if (typeof loadContestants === 'function') {
                     loadContestants();
