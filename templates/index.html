@@ -2672,19 +2672,19 @@ async function loadModelDashboard() {
     const cover = album.cover_url || defaultSvg;
 
     grid.innerHTML += `
-        <div onclick="openAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
-                <div>
-                    <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
-                    <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
-                </div>
-            </div>
-            <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
-                Смотреть &rarr;
+    <div data-album-id="${album.id}" onclick="openAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
+            <div>
+                <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
+                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
             </div>
         </div>
-    `;
+        <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
+            Смотреть &rarr;
+        </div>
+    </div>
+`;
 });
         } else {
             console.error("🚨 Ошибка: На HTML-странице не найден блок ни с id='model-albums-list', ни с id='model-albums-grid'!");
