@@ -1963,7 +1963,10 @@ async function saveAlbumChanges(event) {
         const editModal = document.getElementById('edit-album-modal');
         if (editModal) editModal.style.display = 'none';
 
-        console.log("🔍 Отправка прошла успешно, ищем карточку для ID:", albumId);
+        // 3. Просто перезагружаем список альбомов в личном кабинете
+        if (typeof loadModelDashboard === 'function') {
+            loadModelDashboard();
+        }
 
         // 3. Запрашиваем свежие данные альбома
         const freshRes = await fetch(`/api/albums/${albumId}?t=` + Date.now());
