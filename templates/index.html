@@ -1761,53 +1761,57 @@ function toggleEditPriceField() {
     }
 }
 
-// 1. Открытие модалки редактирования
+// Открытие модалки редактирования
 async function openEditAlbumModal(albumId) {
     try {
-        currentEditAlbumId = albumId; // Сохраняем ID текущего альбома глобально
+        currentEditAlbumId = albumId;
+
         const response = await fetch(`/api/albums/${albumId}?t=` + Date.now());
         if (!response.ok) return alert("Не удалось загрузить данные альбома");
         
         const album = await response.json();
-        
+
         // Заполняем форму
         document.getElementById('edit-album-id').value = album.id;
         document.getElementById('edit-album-title').value = album.title || '';
         document.getElementById('edit-album-desc').value = album.description || '';
         
         const isPaidInput = document.getElementById('edit-album-is-paid');
-        if (isPaidInput) isPaidInput.checked = !!album.is_paid;
+        isPaidInput.checked = !!album.is_paid;
         
         const priceInput = document.getElementById('edit-album-price');
-        if (priceInput) priceInput.value = album.price || 50;
-        
-        if (typeof toggleEditPriceField === 'function') {
-            toggleEditPriceField();
-        }
-        
-        // Рендерим фото (передаем и сам albumId, чтобы внутри был доступ к нему)
-        renderEditPhotosList(album.photos || [], album.id);
-        
+        priceInput.value = album.price || 50;
+
+        toggleEditPriceField();
+
+        // Рендерим фото
+        renderEditPhotosList(album.photos || []);
+
         // Показываем модалку
         const editModal = document.getElementById('edit-album-modal');
         if (editModal) editModal.style.display = 'flex';
+
     } catch (err) {
         console.error("Ошибка открытия окна:", err);
     }
 }
 
-// 2. Единая и надежная функция отрисовки миниатюр
-function renderEditPhotosList(photos, albumId) {
-    // Автоматически ищем или создаем контейнер для фотографий
-    let container = document.getElementById('edit-album-photos-grid') || document.getElementById('edit-album-photos-container');
+
+// Функция отрисовки миниатюр в модалке редактирования
+function renderEditPhotosList(photos) {
+    // 1. Ищем контейнер для фото (или создаем, если его нет в HTML)
+    let container = document.getElementById('edit-album-photos-container');
     
     if (!container) {
         container = document.createElement('div');
         container.id = 'edit-album-photos-container';
         container.style.cssText = 'display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; margin: 15px 0; max-height: 200px; overflow-y: auto; padding: 5px; border: 1px solid #e2e8f0; border-radius: 8px;';
         
+        // Ищем форму внутри модалки или само содержимое модалки
         const editForm = document.getElementById('edit-album-form') || document.querySelector('#edit-album-modal .modal-content');
+        
         if (editForm) {
+            // Вставляем просто в конец формы (перед кнопками)
             editForm.appendChild(container);
         } else {
             console.error("Не удалось найти форму или содержимое модального окна");
@@ -1815,18 +1819,18 @@ function renderEditPhotosList(photos, albumId) {
         }
     }
 
-    // Если в альбоме нет фотографий
+    // 2. Если в альбоме нет фото
     if (!photos || photos.length === 0) {
         container.innerHTML = '<p style="color: #64748b; font-size: 13px; margin: 0; text-align: center; grid-column: 1 / -1;">В альбоме нет фото</p>';
         return;
     }
 
-    // Рендерим сетку. ВАЖНО: передаем в deleteAlbumPhoto ОБА параметра -> albumId и photo.id
+    // 3. Рендерим миниатюры с кнопкой удаления ✕
     container.innerHTML = photos.map(photo => `
         <div style="position: relative; display: block; aspect-ratio: 1; border-radius: 6px; overflow: hidden; background: #f1f5f9; border: 1px solid #cbd5e1;">
             <img src="${photo.photo_url}" style="width: 100%; height: 100%; object-fit: cover;">
             <button type="button" 
-                    onclick="deleteAlbumPhoto(${albumId}, ${photo.id})" 
+                    onclick="deleteAlbumPhoto(${photo.id})" 
                     title="Удалить фото"
                     style="position: absolute; top: 4px; right: 4px; background: rgba(239, 68, 68, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; font-weight: bold; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">
                 ✕
