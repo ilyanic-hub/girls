@@ -667,7 +667,7 @@
 
         <!-- Основная страница (ПО УМОЛЧАНИЮ СКРЫТА: JS переключит её после логина) -->
         <div id="main-page" style="display: flex; flex-direction: column; width: 100%;">
-            <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 20px;">
+            <header id="top-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-radius: 12px; margin-bottom: 20px;">
                 <div class="bonus-container" style="text-align: center; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: #fff5f6; border-radius: 10px; border: 1px solid #ff4757;">
                     <div>
                         <span style="color: #ff4757; font-size: 0.85rem; display: block; font-weight: bold;">До конца раунда:</span>
@@ -1301,9 +1301,11 @@ if (avatarImg) {
         function openAuthModal(mode) {
             const authPage = document.getElementById('auth-page');
             const mainPage = document.getElementById('main-page');
+            const topHeader = document.getElementById('top-header'); // 👈 Находим шапку
             
             if (authPage) authPage.style.display = 'flex';
             if (mainPage) mainPage.style.display = 'none';
+            if (topHeader) topHeader.style.display = 'none'; // 👈 Прячем её при открытии логина/регистрации
 
             const roleContainer = document.getElementById('role-selection-container');
 
