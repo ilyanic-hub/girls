@@ -1963,32 +1963,36 @@ async function saveAlbumChanges(event) {
         const editModal = document.getElementById('edit-album-modal');
         if (editModal) editModal.style.display = 'none';
 
+        console.log("🔍 Отправка прошла успешно, ищем карточку для ID:", albumId);
+
         // 3. Запрашиваем свежие данные альбома
         const freshRes = await fetch(`/api/albums/${albumId}?t=` + Date.now());
+        console.log("🔍 Статус ответа свежих данных:", freshRes.status);
+        
         if (freshRes.ok) {
             const freshAlbum = await freshRes.json();
+            console.log("🔍 Полученные свежие данные альбома:", freshAlbum);
             
             // Находим карточку этого альбома на странице
             const albumCard = document.querySelector(`[data-album-id="${albumId}"]`);
-            if (albumCard) {
-                // Обновляем название
-                const titleEl = albumCard.querySelector('h4') || albumCard.querySelector('.album-title');
-                if (titleEl) titleEl.textContent = freshAlbum.title;
+            console.log("🔍 Найденная карточка на странице:", albumCard);
 
-                // Обновляем текст статуса (платный/бесплатный)
+            if (albumCard) {
+                const titleEl = albumCard.querySelector('h4');
+                if (titleEl) {
+                    titleEl.textContent = freshAlbum.title;
+                    console.log("🔍 Название в карточке обновлено на:", freshAlbum.title);
+                }
+
                 const priceEl = albumCard.querySelector('p');
                 if (priceEl) {
                     priceEl.innerHTML = freshAlbum.is_paid 
                         ? `🔒 Платный (${freshAlbum.price} коинов)` 
                         : '🔓 Бесплатный';
+                    console.log("🔍 Статус/цена в карточке обновлены");
                 }
-
-                // Если есть обложка — обновляем картинку
-                const imgEl = albumCard.querySelector('img');
-                if (imgEl && freshAlbum.photos && freshAlbum.photos.length > 0) {
-                    const lastPhoto = freshAlbum.photos[freshAlbum.photos.length - 1];
-                    imgEl.src = lastPhoto.photo_url || lastPhoto.url;
-                }
+            } else {
+                console.warn("⚠️ Карточка с [data-album-id='" + albumId + "'] не найдена в DOM!");
             }
         }
 
