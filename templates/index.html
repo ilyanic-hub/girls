@@ -1974,9 +1974,8 @@ async function saveAlbumChanges(event) {
         
         if (freshRes.ok) {
             const freshAlbum = await freshRes.json();
-            console.log("🔍 Полученные свежие данные альбома:", freshAlbum);
             
-            // 1. Обновляем карточку в списке
+            // 1. Обновляем карточку в общем списке
             const albumCard = document.querySelector(`[data-album-id="${albumId}"]`);
             if (albumCard) {
                 const titleEl = albumCard.querySelector('h4');
@@ -1990,14 +1989,11 @@ async function saveAlbumChanges(event) {
                 }
             }
 
-            // 2. 🌟 ОБНОВЛЯЕМ МОДАЛКУ ПРОСМОТРА (заголовок и описание на экране)
-            const viewTitleEl = document.getElementById('view-album-title'); // проверь ID заголовка в модалке просмотра
-            if (viewTitleEl) viewTitleEl.textContent = freshAlbum.title;
-
-            const viewDescEl = document.getElementById('view-album-desc'); // проверь ID описания в модалке просмотра
-            if (viewDescEl) viewDescEl.textContent = freshAlbum.description;
+            // 2. 🌟 ПЕРЕРИСОВЫВАЕМ МОДАЛКУ ЦЕЛИКОМ (чтобы и текст обновился, и кнопка «Изменить» осталась на месте)
+            if (typeof openAlbumModal === 'function') {
+                openAlbumModal(albumId);
+            }
         }
-
     } catch (err) {
         console.error("Ошибка при сохранении альбома:", err);
         alert("Произошла ошибка при отправке данных");
