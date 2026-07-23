@@ -1432,25 +1432,33 @@ function setupRoleUI(role) {
     });
 }
 
-async function deleteAlbumPhoto(photoId) {
-    const hiddenIdInput = document.getElementById('edit-album-id');
-    const albumId = hiddenIdInput?.value || currentEditAlbumId;
+async function deleteAlbumPhoto(event, photoId) {
+    // Останавливаем стандартную отправку формы или переход по ссылке!
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
 
-    if (!albumId) return;
+    if (!confirm("Удалить это фото?")) return;
+
+    const albumIdInput = document.getElementById('edit-album-id');
+    const albumId = currentEditAlbumId || albumIdInput?.value;
 
     try {
-        const response = await fetch(`/api/albums/photos/${photoId}`, {
-            method: 'DELETE'
+        const response = await fetch(`/api/albums/photos/${photoId}`, { 
+            method: 'DELETE' 
         });
 
         if (!response.ok) {
-            alert("Не удалось удалить фото");
+            const err = await response.json().catch(() => ({}));
+            alert("Ошибка удаления: " + (err.detail || "Не удалось удалить"));
             return;
         }
 
-        // Обновляем окно с проверенным ID
-        currentEditAlbumId = albumId;
-        await openEditAlbumModal(albumId);
+        // Обновляем окно редактирования
+        if (albumId && albumId !== 'null' && albumId !== 'undefined') {
+            await openEditAlbumModal(albumId);
+        }
 
     } catch (err) {
         console.error("Ошибка при удалении:", err);
