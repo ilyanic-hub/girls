@@ -2167,6 +2167,70 @@ async function deletePhotoFromAlbum(albumId, photoId) {
             }
         }
 
+        // Функция открытия анкеты и альбомов модели по клику на карточку объявления
+function openModelDetailsModal(item) {
+    // Проверяем, есть ли уже модальное окно для деталей, если нет — создадим его на лету
+    let modal = document.getElementById('model-details-modal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'model-details-modal';
+        modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;";
+        document.body.appendChild(modal);
+    }
+
+    const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/></svg>";
+    const photo = item.photo_url || defaultSvg;
+    const name = item.name || 'Модель';
+    const username = item.username ? `@${item.username}` : '';
+    const desc = item.description || 'Нет описания';
+
+    // Рендерим альбомы внутри модального окна
+    let albumsHtml = '<p style="color: #64748b; font-size: 0.9rem;">У этой модели пока нет альбомов.</p>';
+    if (item.albums && item.albums.length > 0) {
+        albumsHtml = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px;">
+                ${item.albums.map(alb => `
+                    <div onclick="openAlbumModal(${alb.id})" style="cursor: pointer; text-align: center;">
+                        <div style="width: 100%; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
+                            <img src="${alb.cover_url || defaultSvg}" style="width: 100%; height: 100%; object-fit: cover;">
+                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
+                        </div>
+                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // Наполняем модальное окно содержимым
+    modal.innerHTML = `
+        <div style="background: white; width: 100%; max-width: 500px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; max-height: 90vh; overflow-y: auto;">
+            <button onclick="document.getElementById('model-details-modal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; color: #64748b;">✕</button>
+            
+            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 20px;">
+                <img src="${photo}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover;">
+                <div>
+                    <h2 style="margin: 0 0 5px 0; font-size: 1.2rem; color: #0f172a;">${name}</h2>
+                    <span style="font-size: 0.9rem; color: #64748b;">${username}</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 5px 0; font-size: 0.95rem; color: #334155;">Описание / Объявление:</h4>
+                <p style="margin: 0; color: #475569; font-size: 0.9rem; line-height: 1.4; white-space: pre-wrap;">${desc}</p>
+            </div>
+
+            <div>
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95rem; color: #334155;">Альбомы (${item.albums ? item.albums.length : 0}):</h4>
+                ${albumsHtml}
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
         
 
         // --- ФУНКЦИИ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
@@ -2435,9 +2499,8 @@ async function loadAnnouncements() {
             
             // При клике на карточку открываем модальное окно и передаем туда данные модели (включая её альбомы)
             card.onclick = () => {
-                if (typeof openProfileModal === 'function') {
-                    openProfileModal(modelId, item); // Передаем объект item, чтобы модалка сразу отрисовала альбомы внутри себя
-                }
+    openModelDetailsModal(item);
+};
             };
 
             card.onmouseover = () => {
