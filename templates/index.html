@@ -1963,18 +1963,27 @@ async function saveAlbumChanges(event) {
         const editModal = document.getElementById('edit-album-modal');
         if (editModal) editModal.style.display = 'none';
 
-        // 3. Запрашиваем свежие данные альбома (с новыми фото из Dropbox)
+        // 3. Запрашиваем свежие данные альбома
         const freshRes = await fetch(`/api/albums/${albumId}?t=` + Date.now());
         if (freshRes.ok) {
             const freshAlbum = await freshRes.json();
             
-            // Находим карточку этого альбома на странице и обновляем её названия/фото
+            // Находим карточку этого альбома на странице
             const albumCard = document.querySelector(`[data-album-id="${albumId}"]`);
             if (albumCard) {
-                const titleEl = albumCard.querySelector('.album-title');
+                // Обновляем название
+                const titleEl = albumCard.querySelector('h4') || albumCard.querySelector('.album-title');
                 if (titleEl) titleEl.textContent = freshAlbum.title;
 
-                // Если в карточке есть превью фото — обновляем картинку
+                // Обновляем текст статуса (платный/бесплатный)
+                const priceEl = albumCard.querySelector('p');
+                if (priceEl) {
+                    priceEl.innerHTML = freshAlbum.is_paid 
+                        ? `🔒 Платный (${freshAlbum.price} коинов)` 
+                        : '🔓 Бесплатный';
+                }
+
+                // Если есть обложка — обновляем картинку
                 const imgEl = albumCard.querySelector('img');
                 if (imgEl && freshAlbum.photos && freshAlbum.photos.length > 0) {
                     const lastPhoto = freshAlbum.photos[freshAlbum.photos.length - 1];
