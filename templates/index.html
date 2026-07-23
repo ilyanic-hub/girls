@@ -1976,27 +1976,26 @@ async function saveAlbumChanges(event) {
             const freshAlbum = await freshRes.json();
             console.log("🔍 Полученные свежие данные альбома:", freshAlbum);
             
-            // Находим карточку этого альбома на странице
+            // 1. Обновляем карточку в списке
             const albumCard = document.querySelector(`[data-album-id="${albumId}"]`);
-            console.log("🔍 Найденная карточка на странице:", albumCard);
-
             if (albumCard) {
                 const titleEl = albumCard.querySelector('h4');
-                if (titleEl) {
-                    titleEl.textContent = freshAlbum.title;
-                    console.log("🔍 Название в карточке обновлено на:", freshAlbum.title);
-                }
+                if (titleEl) titleEl.textContent = freshAlbum.title;
 
                 const priceEl = albumCard.querySelector('p');
                 if (priceEl) {
                     priceEl.innerHTML = freshAlbum.is_paid 
                         ? `🔒 Платный (${freshAlbum.price} коинов)` 
                         : '🔓 Бесплатный';
-                    console.log("🔍 Статус/цена в карточке обновлены");
                 }
-            } else {
-                console.warn("⚠️ Карточка с [data-album-id='" + albumId + "'] не найдена в DOM!");
             }
+
+            // 2. 🌟 ОБНОВЛЯЕМ МОДАЛКУ ПРОСМОТРА (заголовок и описание на экране)
+            const viewTitleEl = document.getElementById('view-album-title'); // проверь ID заголовка в модалке просмотра
+            if (viewTitleEl) viewTitleEl.textContent = freshAlbum.title;
+
+            const viewDescEl = document.getElementById('view-album-desc'); // проверь ID описания в модалке просмотра
+            if (viewDescEl) viewDescEl.textContent = freshAlbum.description;
         }
 
     } catch (err) {
