@@ -2292,9 +2292,9 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 
 #==============Кабинет модели===============
 #==============Кабинет модели===============
+#==============Кабинет модели===============
 @app.get("/api/model/profile")
 async def get_model_profile(session_user: str = Depends(get_current_user)):
-    # session_user — это уже готовая строка с юзернеймом
     username_str = session_user if isinstance(session_user, str) else str(session_user)
     
     db = sqlite3.connect(DB_LOCAL_PATH)
@@ -2313,37 +2313,16 @@ async def get_model_profile(session_user: str = Depends(get_current_user)):
     cursor.execute("SELECT * FROM albums WHERE model_username = ? ORDER BY created_at DESC", (username_str,))
     albums = [dict(row) for row in cursor.fetchall()]
     
-    # Для каждого альбома находим обложку и список фото
+    # Для каждого альбома подтягиваем фотографии
     for album in albums:
-        # Сначала ищем явную обложку (is_preview = 1)
-        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND is_preview = 1 LIMIT 1", (album["id"],))
-        preview_row = cursor.fetchone()
+        cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ?", (album["id"],))
+        album["photos"] = [r["photo_url"] for r in cursor.fetchall()]
         
-        cover_url = None
-        if preview_row and preview_row["photo_url"].startswith("http"):
-            cover_url = preview_row["photo_url"]
-        else:
-            # Если по какой-то причине is_preview не задан, берем любую первую публичную ссылку (http...)
-            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? AND photo_url LIKE 'http%' LIMIT 1", (album["id"],))
-            first_public = cursor.fetchone()
-            if first_public:
-                cover_url = first_public["photo_url"]
-
-        # Выпрямляем ссылку Dropbox для отображения в <img>
-        if cover_url:
-            if "?dl=0" in cover_url:
-                cover_url = cover_url.replace("?dl=0", "?raw=1")
-            elif "&dl=0" in cover_url:
-                cover_url = cover_url.replace("&dl=0", "&raw=1")
-
-        album["cover_url"] = cover_url
-
     db.close()
     return {
         "profile": dict(user_data),
         "albums": albums
     }
-
 @app.post("/api/model/update-avatar")
 async def update_model_avatar(
     file: UploadFile = File(...),
