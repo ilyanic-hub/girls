@@ -1410,13 +1410,7 @@ function setupRoleUI(role) {
     });
 }
 
-        async function deleteAlbumPhoto(event, photoId) {
-    // Останавливаем стандартную отправку формы или переход по ссылке!
-    if (event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-
+        async function deleteAlbumPhoto(photoId) {
     if (!confirm("Удалить это фото?")) return;
 
     const albumIdInput = document.getElementById('edit-album-id');
