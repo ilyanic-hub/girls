@@ -5,6 +5,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Загружаем ключи из переменных окружения (в .env файле или на сервере)
+DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
+DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+
 # Инициализируем Dropbox с новыми ключами
 dbx = dropbox.Dropbox(
     app_key=os.getenv("DROPBOX_APP_KEY"),
