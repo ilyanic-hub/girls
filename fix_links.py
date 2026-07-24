@@ -1,25 +1,22 @@
 import sqlite3
 import os
 import dropbox
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Загружаем переменные из .env файла
-load_dotenv()
+# Явно указываем путь к .env файлу прямо рядом со скриптом
+env_path = Path(__file__).parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
-# Считываем ключи
+# Загружаем ключи
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 
-# Проверяем, нашел ли скрипт ключи
-print("APP_KEY:", "Загружен" if DROPBOX_APP_KEY else "ПУСТОЙ!")
-print("APP_SECRET:", "Загружен" if DROPBOX_APP_SECRET else "ПУСТОЙ!")
-print("REFRESH_TOKEN:", "Загружен" if DROPBOX_REFRESH_TOKEN else "ПУСТОЙ!")
+# Проверим прямо в консоли, подгрузились ли ключи
+print("APP_KEY:", "OK" if DROPBOX_APP_KEY else "ПУСТО")
+print("REFRESH_TOKEN:", "OK" if DROPBOX_REFRESH_TOKEN else "ПУСТО")
 
-if not DROPBOX_APP_KEY or not DROPBOX_REFRESH_TOKEN:
-    raise ValueError("Ошибка: Одно или несколько полей в .env не заполнены или файл .env не найден!")
-
-# Инициализируем Dropbox
 dbx = dropbox.Dropbox(
     app_key=DROPBOX_APP_KEY,
     app_secret=DROPBOX_APP_SECRET,
