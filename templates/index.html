@@ -3006,16 +3006,16 @@ async function openAlbumModal(albumId) {
         const photosContainer = document.getElementById('view-album-photos');
 
         // 2. Заполняем заголовок и описание
-if (titleEl) {
-    let titleHTML = album.title || 'Альбом';
-    
-    // Показываем карандаш, если пользователь владелец (или если is_owner не пришел — для теста всем авторизованным)
-    if (album.is_owner || album.is_owner === undefined) {
-        titleHTML += ` <button onclick="openEditAlbumModal(${album.id})" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 1rem; padding: 2px 6px; margin-left: 8px;" title="Редактировать альбом">✏️ Изменить</button>`;
-    }
-    
-    titleEl.innerHTML = titleHTML;
-}
+        if (titleEl) {
+            let titleHTML = album.title || 'Альбом';
+            
+            // Показываем карандаш, если пользователь владелец (или если is_owner не пришел — для теста всем авторизованным)
+            if (album.is_owner || album.is_owner === undefined) {
+                titleHTML += ` <button onclick="openEditAlbumModal(${album.id})" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 1rem; padding: 2px 6px; margin-left: 8px;" title="Редактировать альбом">✏️ Изменить</button>`;
+            }
+            
+            titleEl.innerHTML = titleHTML;
+        }
 
         if (descEl) descEl.innerText = album.description || '';
 
@@ -3042,17 +3042,21 @@ if (titleEl) {
                 photosContainer.style.display = 'block';
                 photosContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">В этом альбоме пока нет фотографий.</p>';
             } 
-            // 🖼️ Если доступ есть и есть фото — отрисовываем сетку
+            // 🖼️ Если доступ есть и есть фото — отрисовываем сетку с лайтбоксом
             else {
                 photosContainer.style.display = 'grid';
                 photosContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(130px, 1fr))';
                 photosContainer.style.gap = '12px';
 
-                album.photos.forEach(photo => {
+                // Собираем массив всех URL фотографий альбома для листания в лайтбоксе
+                const photosList = album.photos.map(photo => photo.photo_url || photo.url || '');
+                const photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
+
+                album.photos.forEach((photo, index) => {
                     const imgUrl = photo.photo_url || photo.url || '';
                     photosContainer.innerHTML += `
                         <div style="aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #f1f5f9; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="window.open('${imgUrl}', '_blank')">
+                            <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="openLightbox(${photosJson}, ${index})">
                         </div>
                     `;
                 });
