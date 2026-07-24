@@ -13,6 +13,8 @@ import asyncio
 import shutil
 import secrets
 import logging
+import dropbox
+
 from sqlalchemy.orm import Session
 from dropbox.exceptions import ApiError  # 🌟 Добавь эту строчку!
 
@@ -33,7 +35,9 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
 logging.basicConfig(level=logging.INFO)
@@ -98,12 +102,14 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # ================= НАСТРОЙКА DROPBOX =================
-DROPBOX_REFRESH_TOKEN = "_WgJ5t--cYkAAAAAAAAAAZ5DdohYivqI_AUgdnlIh-iMtRK4CL3UYdgBoFB2HUG0"
-DROPBOX_APP_KEY = "oou4gf2ktj2y51j"
-DROPBOX_APP_SECRET = "dunglx7xl3el8pa"
+# Загружаем ключи из переменных окружения (в .env файле или на сервере)
+APP_KEY = os.getenv("DROPBOX_APP_KEY")
+APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 
-PLISIO_API_TOKEN = "u1JWmqyQBwnA6kuvp1PbOl5UKvt4a2i9oIk5CzD5GfiyThtj9RcYPsg2nroOgzsu"
-
+# Загружаем токен Plisio из переменных окружения
+PLISIO_API_TOKEN = os.getenv("PLISIO_API_TOKEN")
+        
 # Получаем абсолютный путь к папке, в которой лежит сам запускаемый скрипт
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -147,6 +153,24 @@ def download_db_from_dropbox():
         print("Файл базы данных еще не создан в Dropbox. Создаем новую локальную базу.")
     except Exception as e:
         print(f"Не удалось скачать базу (другая ошибка): {e}")
+
+def upload_db_to_dropbox():
+    try:
+        # Создаем клиент, который сам умеет обновлять токен вечно
+        dbx = dropbox.Dropbox(
+            app_key=APP_KEY,
+            app_secret=APP_SECRET,
+            oauth2_refresh_token=REFRESH_TOKEN
+        )
+        
+        # Загружаем файл бэкенда
+        local_path = os.getenv("DB_LOCAL_PATH", "database.db")
+        with open(local_path, "rb") as f:
+            dbx.files_upload(f.read(), "/database_backup.db", mode=dropbox.files.WriteMode.overwrite)
+            
+        print("[INFO] Бэкенд успешно улетел в Dropbox!")
+    except Exception as e:
+        print(f"[ERROR] Ошибка бэкенда Dropbox: {e}")
 
 def upload_db_to_dropbox():
     dbx = get_dropbox_client()
