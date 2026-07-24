@@ -2220,6 +2220,7 @@ async function deletePhotoFromAlbum(albumId, photoId) {
         }
 
         // Функция открытия модального окна альбома со списком всех фото внутри него
+// Функция открытия альбома
 function openAlbumPhotosModal(album) {
     let modal = document.getElementById('album-photos-modal');
     
@@ -2232,14 +2233,22 @@ function openAlbumPhotosModal(album) {
 
     const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/></svg>";
     
-    // Собираем массив всех фоток альбома
+    // Ищем массив фотографий в любых возможных свойствах ответа бэкенда
+    let rawPhotos = album.photos || album.images || album.pictures || album.items || [];
+    
     let photosList = [];
-    if (album.photos && album.photos.length > 0) {
-        photosList = album.photos.map(p => p.url || p);
+    if (Array.isArray(rawPhotos) && rawPhotos.length > 0) {
+        photosList = rawPhotos.map(p => (typeof p === 'string' ? p : (p.url || p.photo_url || defaultSvg)));
     } else if (album.cover_url) {
         photosList = [album.cover_url];
     } else {
         photosList = [defaultSvg];
+    }
+
+    // Если в альбоме всего 1 фото (или только обложка), сразу открываем её в полноэкранном лайтбоксе без лишнего окна сетки
+    if (photosList.length === 1) {
+        openLightbox(photosList, 0);
+        return;
     }
 
     let photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
