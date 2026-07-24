@@ -2219,6 +2219,53 @@ async function deletePhotoFromAlbum(albumId, photoId) {
             }
         }
 
+        // Функция открытия модального окна альбома со списком всех фото внутри него
+function openAlbumPhotosModal(album) {
+    let modal = document.getElementById('album-photos-modal');
+    
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'album-photos-modal';
+        modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1050; padding: 20px; box-sizing: border-box;";
+        document.body.appendChild(modal);
+    }
+
+    const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/></svg>";
+    
+    // Собираем массив всех фоток альбома
+    let photosList = [];
+    if (album.photos && album.photos.length > 0) {
+        photosList = album.photos.map(p => p.url || p);
+    } else if (album.cover_url) {
+        photosList = [album.cover_url];
+    } else {
+        photosList = [defaultSvg];
+    }
+
+    let photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
+
+    // Рендерим сетку фотографий внутри альбома
+    let gridHtml = photosList.map((photoUrl, index) => `
+        <div onclick="openLightbox(${photosJson}, ${index})" style="cursor: pointer; width: 100%; height: 110px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+            <img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div style="background: white; width: 100%; max-width: 600px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; max-height: 90vh; display: flex; flex-direction: column;">
+            <button onclick="document.getElementById('album-photos-modal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; color: #64748b; z-index: 10;">✕</button>
+            
+            <h3 style="margin: 0 0 15px 0; font-size: 1.2rem; color: #0f172a; padding-right: 30px;">${album.title || 'Альбом'}</h3>
+            
+            <div style="overflow-y: auto; max-height: 70vh; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding-right: 5px;">
+                ${gridHtml}
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
         // Функция открытия анкеты и альбомов модели по клику на карточку объявления
 function openModelDetailsModal(item) {
     // Проверяем, есть ли уже модальное окно для деталей, если нет — создадим его на лету
@@ -2237,19 +2284,17 @@ function openModelDetailsModal(item) {
     const username = item.username ? `@${item.username}` : '';
     const desc = item.description || 'Нет описания';
 
-    // Рендерим альбомы внутри модального окна
+    // Рендерим альбомы внутри модального окна модели
     let albumsHtml = '<p style="color: #64748b; font-size: 0.9rem;">У этой модели пока нет альбомов.</p>';
     if (item.albums && item.albums.length > 0) {
         albumsHtml = `
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px;">
-                ${item.albums.map((alb, albIndex) => {
-                    // Собираем массив картинок этого альбома (если их несколько, или хотя бы обложку)
-                    // Если у альбома есть массив фотографий (например alb.photos), используем его, иначе передаем обложку
-                    let photosList = alb.photos && alb.photos.length > 0 ? alb.photos : [alb.cover_url || defaultSvg];
-                    let photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
+                ${item.albums.map((alb) => {
+                    // Превращаем объект альбома в строку безопасности для передачи в onclick
+                    let albumDataJson = JSON.stringify(alb).replace(/"/g, '&quot;');
 
                     return `
-                        <div onclick="openLightbox(${photosJson}, 0)" style="cursor: pointer; text-align: center;">
+                        <div onclick="openAlbumPhotosModal(${albumDataJson})" style="cursor: pointer; text-align: center;">
                             <div style="width: 100%; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
                                 <img src="${alb.cover_url || defaultSvg}" style="width: 100%; height: 100%; object-fit: cover;">
                                 ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
