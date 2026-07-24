@@ -2,28 +2,42 @@ import sqlite3
 import os
 import dropbox
 from pathlib import Path
-from dotenv import load_dotenv
 
-# Явно указываем путь к .env файлу прямо рядом со скриптом
-env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
+# Проверяем, установлена ли библиотека python-dotenv
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent / '.env'
+    load_dotenv(dotenv_path=env_path)
+    print("Пакет dotenv успешно загружен.")
+except ImportError:
+    print("ВНИМАНИЕ: Пакет python-dotenv не установлен! Выполни: pip install python-dotenv")
 
 # Загружаем ключи
 DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
 DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
 DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 
-# Проверим прямо в консоли, подгрузились ли ключи
-print("APP_KEY:", "OK" if DROPBOX_APP_KEY else "ПУСТО")
-print("REFRESH_TOKEN:", "OK" if DROPBOX_REFRESH_TOKEN else "ПУСТО")
+# Выводим в терминал состояние ключей (скроет секреты, но покажет, есть ли они вообще)
+print("----------------------------------------")
+print("DROPBOX_APP_KEY читается:", "ДА (длина " + str(len(DROPBOX_APP_KEY)) + ")" if DROPBOX_APP_KEY else "НЕТ (пусто!)")
+print("DROPBOX_APP_SECRET читается:", "ДА (длина " + str(len(DROPBOX_APP_SECRET)) + ")" if DROPBOX_APP_SECRET else "НЕТ (пусто!)")
+print("DROPBOX_REFRESH_TOKEN читается:", "ДА (длина " + str(len(DROPBOX_REFRESH_TOKEN)) + ")" if DROPBOX_REFRESH_TOKEN else "НЕТ (пусто!)")
+print("----------------------------------------")
 
+if not DROPBOX_APP_KEY or not DROPBOX_REFRESH_TOKEN:
+    print("\nКлючи не обнаружены! Проверь содержимое файла .env — там должны быть строки вроде:")
+    print("DROPBOX_APP_KEY=твой_ключ")
+    print("DROPBOX_APP_SECRET=твой_секрет")
+    print("DROPBOX_REFRESH_TOKEN=твой_токен")
+    exit(1)
+
+# Инициализируем Dropbox
 dbx = dropbox.Dropbox(
     app_key=DROPBOX_APP_KEY,
     app_secret=DROPBOX_APP_SECRET,
     oauth2_refresh_token=DROPBOX_REFRESH_TOKEN
 )
 
-# Подключаемся к базе данных (проверь, точно ли база называется database.db)
 db = sqlite3.connect("database.db")
 cursor = db.cursor()
 
@@ -32,7 +46,7 @@ def fix_table(table_name, url_column="photo_url"):
     try:
         cursor.execute(f"SELECT id, {url_column} FROM {table_name}")
     except sqlite3.OperationalError as e:
-        print(f"Пропускаем таблицу {table_name}, так как её нет или она отличается: {e}")
+        print(f"Пропускаем таблицу {table_name}: {e}")
         return
 
     rows = cursor.fetchall()
@@ -66,7 +80,6 @@ def fix_table(table_name, url_column="photo_url"):
     db.commit()
     print(f"Обновлено записей в {table_name}: {updated_count}\n")
 
-# Запускаем исправление для таблиц
 fix_table("album_photos")
 fix_table("adult_model_photos")
 
