@@ -2047,9 +2047,9 @@ async function saveAlbumChanges(event) {
                 }
             }
 
-            // 2. 🌟 ПЕРЕРИСОВЫВАЕМ МОДАЛКУ ЦЕЛИКОМ (чтобы и текст обновился, и кнопка «Изменить» осталась на месте)
-            if (typeof  === 'function') {
-                (albumId);
+            // 🌟 ПЕРЕРИСОВЫВАЕМ МОДАЛКУ ПРОСМОТРА ЦЕЛИКОМ
+            if (typeof openAlbumModal === 'function') {
+                openAlbumModal(albumId);
             }
         }
     } catch (err) {
@@ -2219,86 +2219,7 @@ async function deletePhotoFromAlbum(albumId, photoId) {
             }
         }
 
-        // Функция открытия модального окна альбома со списком всех фото внутри него
-// Функция открытия альбома с подгрузкой фото с сервера, если их нет в объекте
-async function openAlbumPhotosModal(album) {
-    let modal = document.getElementById('album-photos-modal');
-    
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'album-photos-modal';
-        modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1050; padding: 20px; box-sizing: border-box;";
-        document.body.appendChild(modal);
-    }
 
-    const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/></svg>";
-    
-    // Показываем модалку с лоадером или заголовком пока грузим фото
-    modal.innerHTML = `
-        <div style="background: white; width: 100%; max-width: 600px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; text-align: center;">
-            <button onclick="document.getElementById('album-photos-modal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; color: #64748b;">✕</button>
-            <h3 style="margin: 0 0 15px 0; font-size: 1.2rem; color: #0f172a;">${album.title || 'Альбом'}</h3>
-            <p style="color: #64748b; padding: 20px 0;">Загрузка фотографий...</p>
-        </div>
-    `;
-    modal.style.display = 'flex';
-
-    let photosList = [];
-
-    try {
-        // Проверяем, есть ли фотографии сразу в объекте
-        let rawPhotos = album.photos || album.images || album.pictures || album.items;
-        
-        if (Array.isArray(rawPhotos) && rawPhotos.length > 0) {
-            photosList = rawPhotos.map(p => (typeof p === 'string' ? p : (p.url || p.photo_url || defaultSvg)));
-        } else if (album.id) {
-            // Если в объекте фоток нет, запрашиваем их с бэкенда по ID альбома
-            // (Замени '/api/albums/' на реальный путь твоего API, если он отличается)
-            const response = await fetch(`/api/albums/${album.id}?t=` + Date.now());
-            if (response.ok) {
-                const albumData = await response.json();
-                let fetchedPhotos = albumData.photos || albumData.images || albumData.items || [];
-                photosList = fetchedPhotos.map(p => (typeof p === 'string' ? p : (p.url || p.photo_url || defaultSvg)));
-            }
-        }
-    } catch (e) {
-        console.error("Ошибка при загрузке фото альбома:", e);
-    }
-
-    // Если фото так и не нашлось, берем хотя бы обложку
-    if (photosList.length === 0) {
-        photosList = [album.cover_url || defaultSvg];
-    }
-
-    // Если фото всего одно, открываем лайтбокс напрямую
-    if (photosList.length === 1) {
-        modal.style.display = 'none';
-        openLightbox(photosList, 0);
-        return;
-    }
-
-    let photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
-
-    // Рендерим сетку фотографий
-    let gridHtml = photosList.map((photoUrl, index) => `
-        <div onclick="openLightbox(${photosJson}, ${index})" style="cursor: pointer; width: 100%; height: 110px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; transition: transform 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
-            <img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='${defaultSvg}'">
-        </div>
-    `).join('');
-
-    // Обновляем содержимое модального окна сеткой фото
-    modal.innerHTML = `
-        <div style="background: white; width: 100%; max-width: 600px; border-radius: 20px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); position: relative; max-height: 90vh; display: flex; flex-direction: column;">
-            <button onclick="document.getElementById('album-photos-modal').style.display='none'" style="position: absolute; top: 15px; right: 15px; background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-weight: bold; color: #64748b; z-index: 10;">✕</button>
-            
-            <h3 style="margin: 0 0 15px 0; font-size: 1.2rem; color: #0f172a; padding-right: 30px;">${album.title || 'Альбом'}</h3>
-            
-            <div style="overflow-y: auto; max-height: 70vh; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; padding-right: 5px;">
-                ${gridHtml}
-            </div>
-        </div>
-    `;
-}
 
         // Функция открытия анкеты и альбомов модели по клику на карточку объявления
 function openModelDetailsModal(item) {
