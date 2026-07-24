@@ -103,9 +103,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ================= НАСТРОЙКА DROPBOX =================
 # Загружаем ключи из переменных окружения (в .env файле или на сервере)
-APP_KEY = os.getenv("DROPBOX_APP_KEY")
-APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
-REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
+DROPBOX_APP_KEY = os.getenv("DROPBOX_APP_KEY")
+DROPBOX_APP_SECRET = os.getenv("DROPBOX_APP_SECRET")
+DROPBOX_REFRESH_TOKEN = os.getenv("DROPBOX_REFRESH_TOKEN")
 
 # Загружаем токен Plisio из переменных окружения
 PLISIO_API_TOKEN = os.getenv("PLISIO_API_TOKEN")
