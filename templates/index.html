@@ -2242,15 +2242,22 @@ function openModelDetailsModal(item) {
     if (item.albums && item.albums.length > 0) {
         albumsHtml = `
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px;">
-                ${item.albums.map(alb => `
-                    <div onclick="openAlbumModal(${alb.id})" style="cursor: pointer; text-align: center;">
-                        <div style="width: 100%; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
-                            <img src="${alb.cover_url || defaultSvg}" style="width: 100%; height: 100%; object-fit: cover;">
-                            ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
+                ${item.albums.map((alb, albIndex) => {
+                    // Собираем массив картинок этого альбома (если их несколько, или хотя бы обложку)
+                    // Если у альбома есть массив фотографий (например alb.photos), используем его, иначе передаем обложку
+                    let photosList = alb.photos && alb.photos.length > 0 ? alb.photos : [alb.cover_url || defaultSvg];
+                    let photosJson = JSON.stringify(photosList).replace(/"/g, '&quot;');
+
+                    return `
+                        <div onclick="openLightbox(${photosJson}, 0)" style="cursor: pointer; text-align: center;">
+                            <div style="width: 100%; height: 90px; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; background: #f8fafc; position: relative;">
+                                <img src="${alb.cover_url || defaultSvg}" style="width: 100%; height: 100%; object-fit: cover;">
+                                ${alb.is_paid ? `<span style="position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; font-size: 0.6rem; padding: 1px 4px; border-radius: 4px;">🔒</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
                         </div>
-                        <div style="font-size: 0.75rem; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 4px; font-weight: 500;">${alb.title || 'Альбом'}</div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
             </div>
         `;
     }
