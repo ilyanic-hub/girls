@@ -835,14 +835,7 @@
                 Баланс: <span id="model-dash-balance">0</span> коинов
             </div>
 
-            <!-- 📢 Блок объявления модели в профиле -->
-            <div style="background: #f7fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="font-size: 0.85rem; font-weight: bold; color: #4a5568;">📢 Моё объявление:</span>
-                    <button onclick="openEditAnnouncementModal()" style="background: none; border: none; color: #3182ce; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 600;">✏️ Изменить</button>
-                </div>
-                <p id="model-dash-announcement" style="margin: 0; font-size: 0.85rem; color: #718096; line-height: 1.4; word-break: break-word;">Объявление пока не заполнено...</p>
-            </div>
+           
         </div>
 
         <!-- ПРАВАЯ КОЛОНКА С ВКЛАДКАМИ -->
@@ -2907,10 +2900,31 @@ async function loadModelDashboard() {
         const data = await response.json();
         
         // Безопасно заполняем профиль (если элементов нет, код не упадет)
-        try {
-            const nameEl = document.getElementById('model-dash-name');
-            const avatarEl = document.getElementById('model-dash-avatar');
-            const balanceEl = document.getElementById('model-dash-balance');
+        // Безопасно заполняем профиль и объявление
+try {
+    const nameEl = document.getElementById('model-dash-name');
+    const avatarEl = document.getElementById('model-dash-avatar');
+    const balanceEl = document.getElementById('model-dash-balance');
+    const announcementInput = document.getElementById('dashboard-announcement-input'); // Поле ввода во вкладке
+    const announcementPreview = document.getElementById('model-dash-announcement'); // Старый текст (если остался слева)
+    
+    if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
+    if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
+    if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
+    
+    // 📢 Самое главное: подставляем текст объявления в textarea на вкладке «Мое объявление»
+    const userAnnouncement = (data.profile && data.profile.announcement) ? data.profile.announcement : "";
+    
+    if (announcementInput) {
+        announcementInput.value = userAnnouncement;
+    }
+    if (announcementPreview) {
+        announcementPreview.innerText = userAnnouncement || "Объявление пока не заполнено...";
+    }
+
+} catch (profileErr) {
+    console.warn("Ошибка заполнения данных профиля:", profileErr);
+}
             
             // 📢 Наш новый элемент: поле ввода объявления во вкладке
             const announcementInput = document.getElementById('dashboard-announcement-input');
