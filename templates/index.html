@@ -1771,13 +1771,21 @@ let res = await fetch('/api/user/avatar', {
         const result = await response.json();
 
         if (response.ok) {
-            alert("🎉 " + result.message);
-            // Перезагружаем модалку альбома, чтобы сразу показать фото
-            (albumId);
+            alert("🎉 " + (result.message || "Альбом успешно куплен!"));
             
-            // Перезагружаем профиль/шапку, чтобы обновить баланс на экране
+            // 🔄 Исправлено: вызываем функцию открытия/перезагрузки модалки альбома
+            // (Замени 'openEditAlbumModal' на ту функцию, которая у тебя открывает просмотр альбома для покупателя)
+            if (typeof openEditAlbumModal === 'function') {
+                openEditAlbumModal(albumId);
+            } else if (typeof openAlbumModal === 'function') {
+                openAlbumModal(albumId);
+            }
+            
+            // 💰 Обновляем баланс и данные на экране без перезагрузки
             if (typeof loadUserData === 'function') loadUserData();
             if (typeof loadProfile === 'function') loadProfile();
+            if (typeof loadModelDashboard === 'function') loadModelDashboard();
+            if (typeof loadAnnouncements === 'function') loadAnnouncements();
         } else {
             // Выводим сообщение о нехватке средств
             alert(result.detail || "Недостаточно средств на балансе!");
