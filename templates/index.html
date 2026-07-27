@@ -2904,26 +2904,37 @@ async function loadModelDashboard() {
         
         const data = await response.json();
         
-        // Безопасно заполняем профиль и объявление
+        // Безопасно заполняем профиль и список объявлений
         try {
             const nameEl = document.getElementById('model-dash-name');
             const avatarEl = document.getElementById('model-dash-avatar');
             const balanceEl = document.getElementById('model-dash-balance');
-            const announcementInput = document.getElementById('dashboard-announcement-input'); // Поле ввода во вкладке
-            const announcementPreview = document.getElementById('model-dash-announcement'); // Старый текст (если остался слева)
+            const announcementsListContainer = document.getElementById('model-announcements-list'); // Контейнер для списка объявлений
             
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
             if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
-            // 📢 Подставляем сохраненный текст объявления в textarea на вкладке «Мое объявление»
-            const userAnnouncement = (data.profile && data.profile.announcement) ? data.profile.announcement : "";
-            
-            if (announcementInput) {
-                announcementInput.value = userAnnouncement;
-            }
-            if (announcementPreview) {
-                announcementPreview.innerText = userAnnouncement || "Объявление пока не заполнено...";
+            // 📢 Рендерим список объявлений модели во вкладке
+            if (announcementsListContainer && data.profile && data.profile.announcements) {
+                announcementsListContainer.innerHTML = '';
+                
+                if (data.profile.announcements.length === 0) {
+                    announcementsListContainer.innerHTML = '<p style="color: #718096; text-align: center; font-size: 0.9rem; grid-column: 1/-1;">У вас пока нет активных объявлений.</p>';
+                } else {
+                    data.profile.announcements.forEach(item => {
+                        announcementsListContainer.innerHTML += `
+                            <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div>
+                                    <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1rem;">${item.name || 'Объявление'}</h4>
+                                    <p style="margin: 0; color: #718096; font-size: 0.85rem; line-height: 1.4;">${item.description}</p>
+                                    <span style="font-size: 0.75rem; color: #a0aec0; display: inline-block; margin-top: 5px;">📅 ${item.created_at || ''}</span>
+                                </div>
+                                <button onclick="deleteAnnouncement(${item.id})" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Удалить</button>
+                            </div>
+                        `;
+                    });
+                }
             }
 
         } catch (profileErr) {
