@@ -2948,28 +2948,41 @@ async function loadModelDashboard() {
             const balanceEl = document.getElementById('model-dash-balance');
             const announcementsListContainer = document.getElementById('model-announcements-list'); 
             
-            // Ищем именно тег img с вашим id, либо любой другой аватар
-            // 3. Обновляем аватарку (с поддержкой переключения между картинкой и дефолтной иконкой)
+            if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
+            if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
+            
+            // 3. Обновляем аватарку в шапке и в личном кабинете
+            let avatarUrl = data.profile?.avatar || data.profile?.photo_url;
+            if (avatarUrl) {
+                localStorage.setItem('user_avatar', avatarUrl);
+            } else {
+                avatarUrl = localStorage.getItem('user_avatar');
+            }
+
+            // Обновление шапки сайта
+            const headerAvatar = document.getElementById('user-avatar-container');
+            if (headerAvatar) {
+                if (headerAvatar.tagName === 'IMG' && avatarUrl) {
+                    headerAvatar.src = avatarUrl;
+                } else if (avatarUrl) {
+                    const innerImg = headerAvatar.querySelector('img');
+                    if (innerImg) innerImg.src = avatarUrl;
+                }
+            }
+
+            // Обновление большой аватарки в личной карточке профиля
             const avatarImgEl = document.getElementById('user-avatar-img');
             const avatarDefaultEl = document.getElementById('user-avatar-default');
             
-            // Берём аватар с бэкенда или из localStorage как страховку
-            let avatarUrl = data.profile?.avatar || data.profile?.photo_url || localStorage.getItem('user_avatar');
-
-            if (avatarUrl) {
-                localStorage.setItem('user_avatar', avatarUrl);
-                
-                if (avatarImgEl) {
+            if (avatarImgEl && avatarDefaultEl) {
+                if (avatarUrl) {
                     avatarImgEl.src = avatarUrl;
                     avatarImgEl.style.display = 'block'; // Показываем картинку
-                }
-                if (avatarDefaultEl) {
                     avatarDefaultEl.style.display = 'none'; // Скрываем дефолтную иконку
+                } else {
+                    avatarImgEl.style.display = 'none';
+                    avatarDefaultEl.style.display = 'flex';
                 }
-            } else {
-                // Если аватара нет совсем
-                if (avatarImgEl) avatarImgEl.style.display = 'none';
-                if (avatarDefaultEl) avatarDefaultEl.style.display = 'block';
             }
             
             // 📢 Рендерим список объявлений модели во вкладке
