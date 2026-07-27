@@ -2892,6 +2892,7 @@ async function submitNewAlbum(event) {
         // Функция инициализации личного кабинета модели
 // Функция инициализации личного кабинета модели
 // Функция инициализации личного кабинета модели
+// Функция инициализации личного кабинета модели
 async function loadModelDashboard() {
     try {
         const response = await fetch('/api/model/profile');
@@ -2899,50 +2900,31 @@ async function loadModelDashboard() {
         
         const data = await response.json();
         
-        // Безопасно заполняем профиль (если элементов нет, код не упадет)
         // Безопасно заполняем профиль и объявление
-try {
-    const nameEl = document.getElementById('model-dash-name');
-    const avatarEl = document.getElementById('model-dash-avatar');
-    const balanceEl = document.getElementById('model-dash-balance');
-    const announcementInput = document.getElementById('dashboard-announcement-input'); // Поле ввода во вкладке
-    const announcementPreview = document.getElementById('model-dash-announcement'); // Старый текст (если остался слева)
-    
-    if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
-    if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
-    if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
-    
-    // 📢 Самое главное: подставляем текст объявления в textarea на вкладке «Мое объявление»
-    const userAnnouncement = (data.profile && data.profile.announcement) ? data.profile.announcement : "";
-    
-    if (announcementInput) {
-        announcementInput.value = userAnnouncement;
-    }
-    if (announcementPreview) {
-        announcementPreview.innerText = userAnnouncement || "Объявление пока не заполнено...";
-    }
-
-} catch (profileErr) {
-    console.warn("Ошибка заполнения данных профиля:", profileErr);
-}
-            
-            // 📢 Наш новый элемент: поле ввода объявления во вкладке
-            const announcementInput = document.getElementById('dashboard-announcement-input');
+        try {
+            const nameEl = document.getElementById('model-dash-name');
+            const avatarEl = document.getElementById('model-dash-avatar');
+            const balanceEl = document.getElementById('model-dash-balance');
+            const announcementInput = document.getElementById('dashboard-announcement-input'); // Поле ввода во вкладке
+            const announcementPreview = document.getElementById('model-dash-announcement'); // Старый текст (если остался слева)
             
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
             if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
-            // 📢 Подставляем сохраненный текст объявления в textarea при открытии кабинета
-            if (announcementInput && data.profile) {
-                announcementInput.value = data.profile.announcement || "";
-            }
+            // 📢 Подставляем сохраненный текст объявления в textarea на вкладке «Мое объявление»
+            const userAnnouncement = (data.profile && data.profile.announcement) ? data.profile.announcement : "";
             
+            if (announcementInput) {
+                announcementInput.value = userAnnouncement;
+            }
+            if (announcementPreview) {
+                announcementPreview.innerText = userAnnouncement || "Объявление пока не заполнено...";
+            }
+
         } catch (profileErr) {
             console.warn("Некоторые элементы профиля не найдены на странице, но продолжаем загрузку альбомов:", profileErr);
         }
-        
-        // ... дальше идет ваш код загрузки альбомов ...
         
         // Ищем контейнер для альбомов (проверяем оба частых варианта id)
         let grid = document.getElementById('model-albums-list') || document.getElementById('model-albums-grid');
@@ -2961,21 +2943,21 @@ try {
                 let rawPhoto = (album.photos && album.photos.length > 0) ? album.photos[0] : '';
                 let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
 
-    grid.innerHTML += `
-    <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
-            <div>
-                <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
-                <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
-            </div>
-        </div>
-        <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
-            Смотреть &rarr;
-        </div>
-    </div>
-`;
-});
+                grid.innerHTML += `
+                <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
+                        <div>
+                            <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
+                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
+                        </div>
+                    </div>
+                    <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
+                        Смотреть &rarr;
+                    </div>
+                </div>
+                `;
+            });
         } else {
             console.error("🚨 Ошибка: На HTML-странице не найден блок ни с id='model-albums-list', ни с id='model-albums-grid'!");
         }
