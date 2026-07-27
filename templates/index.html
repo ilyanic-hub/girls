@@ -2998,7 +2998,7 @@ async function loadModelDashboard() {
                                     <p style="margin: 0; color: #718096; font-size: 0.85rem; line-height: 1.4;">${item.description}</p>
                                     <span style="font-size: 0.75rem; color: #a0aec0; display: inline-block; margin-top: 5px;">📅 ${item.created_at || ''}</span>
                                 </div>
-                                <button onclick="deleteAnnouncement(event, ${item.id})" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-left: 10px;">Удалить</button>
+                                <button onclick="deleteAnnouncement(${item.id})" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-left: 10px;">Удалить</button>
                             </div>
                         `;
                     });
