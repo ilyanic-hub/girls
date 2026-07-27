@@ -505,7 +505,7 @@ async function openModelAlbum(modelId, modelName, isPaid) {
         btn.innerText = "Обработка...";
     }
 
-    fetch('/api/adult-models/buy', {
+    fetch('/api/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model_id: currentSelectedModelId })
