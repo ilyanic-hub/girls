@@ -949,6 +949,36 @@
     </div>
 </div>
 
+    <!-- Модальное окно: Управление объявлением -->
+<div id="announcementModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1200;">
+    <div style="background: #ffffff; padding: 25px; border-radius: 16px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+        <span onclick="closeAnnouncementModal()" style="position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #a0aec0; font-weight: bold;">&times;</span>
+        
+        <h2 style="margin-top: 0; color: var(--text-main); text-align: center; font-size: 1.3rem;">📸 Создать объявление</h2>
+        
+        <form id="announcementForm" onsubmit="submitAnnouncement(event)" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Заголовок объявления:</label>
+                <input type="text" id="announce-name" required placeholder="Например: Новая фотосессия" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box;">
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Текст объявления:</label>
+                <textarea id="announce-desc" rows="4" required placeholder="Напишите текст вашего объявления..." style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box; resize: vertical;"></textarea>
+            </div>
+
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: #475569;">Фото:</label>
+                <input type="file" id="announce-photo" accept="image/*" required style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 4px; box-sizing: border-box; background: #f8fafc;">
+            </div>
+
+            <button type="submit" class="btn" style="padding: 10px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin-top: 10px;">
+                Сохранить объявление
+            </button>
+        </form>
+    </div>
+</div>
+
     <!-- Модальное окно: Редактирование альбома -->
 <div id="edit-album-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1200;">
     <div style="background: #ffffff; padding: 25px; border-radius: 16px; width: 90%; max-width: 550px; max-height: 85vh; overflow-y: auto; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
@@ -2923,14 +2953,17 @@ async function loadModelDashboard() {
                     announcementsListContainer.innerHTML = '<p style="color: #718096; text-align: center; font-size: 0.9rem; grid-column: 1/-1;">У вас пока нет активных объявлений.</p>';
                 } else {
                     data.profile.announcements.forEach(item => {
+                        // Безопасно сериализуем объект для передачи в функцию редактирования
+                        const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
+                        
                         announcementsListContainer.innerHTML += `
                             <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                                <div>
+                                <div style="cursor: pointer; flex-grow: 1;" onclick="openEditAnnouncementModal(${itemJson})">
                                     <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1rem;">${item.name || 'Объявление'}</h4>
                                     <p style="margin: 0; color: #718096; font-size: 0.85rem; line-height: 1.4;">${item.description}</p>
                                     <span style="font-size: 0.75rem; color: #a0aec0; display: inline-block; margin-top: 5px;">📅 ${item.created_at || ''}</span>
                                 </div>
-                                <button onclick="deleteAnnouncement(${item.id})" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold;">Удалить</button>
+                                <button onclick="deleteAnnouncement(event, ${item.id})" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-left: 10px;">Удалить</button>
                             </div>
                         `;
                     });
