@@ -2361,15 +2361,25 @@ function openModelDetailsModal(item) {
         
 
         // --- ФУНКЦИИ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
-function openAnnouncementModal() {
-    const modal = document.getElementById('announcementModal');
+// Открытие модального окна создания нового объявления
+function openCreateAnnouncementModal() {
+    // Если у вас есть модальное окно для создания/редактирования, вызовите его здесь.
+    // Пример, если используется общее модальное окно:
+    const modal = document.getElementById('announcement-modal'); // замените на ID вашего модального окна
     if (modal) {
-        modal.style.display = 'flex';
+        // Очищаем форму перед созданием
+        const form = document.getElementById('announcement-form');
+        if (form) form.reset();
+        
+        // Убираем ID, если поле скрыто (чтобы сервер понял, что это создание, а не обновление)
+        const idField = document.getElementById('announcement-id');
+        if (idField) idField.value = '';
+
+        modal.style.display = 'block'; // или 'flex' в зависимости от вашей верстки
     } else {
-        console.error("Элемент announcementModal не найден на странице");
+        console.warn("Модальное окно объявления не найдено в HTML!");
     }
 }
-
 function closeAnnouncementModal() {
     const modal = document.getElementById('announcementModal');
     if (modal) {
