@@ -511,40 +511,33 @@ async function openModelAlbum(modelId, modelName, isPaid) {
         body: JSON.stringify({ model_id: currentSelectedModelId })
     })
     .then(async res => {
-        // Если бэкенд выбросил HTTPException (400, 401, 500)
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            // Берем сообщение из detail и прокидываем в catch
             throw new Error(errData.detail || `Ошибка сервера (статус ${res.status})`);
         }
         return res.json();
     })
     .then(data => {
-        // Сюда попадаем ТОЛЬКО при успехе (статус 200 OK)
         alert(data.message || "Доступ успешно разблокирован!");
         
         if (typeof localPurchasedModels !== 'undefined') {
             localPurchasedModels.push(currentSelectedModelId);
         }
         
-        // Закрываем модалку (убедись, что функция closeBuyModal() объявлена выше)
         if (typeof closeBuyModal === 'function') {
             closeBuyModal();
         } else {
             document.getElementById('buyModal').style.display = 'none';
         }
         
-        // Загружаем фотки
         loadPhotosFromServer(currentSelectedModelId, currentSelectedModelName);
         
-        // Обновляем баланс в шапке
         if (typeof checkAuth === 'function') {
             checkAuth();
         }
     })
     .catch(err => {
         console.error("Ошибка при покупке:", err);
-        // ИСПРАВЛЕНО: выводим err.message. Больше никакого undefined!
         alert(err.message);
     })
     .finally(() => {
@@ -555,16 +548,13 @@ async function openModelAlbum(modelId, modelName, isPaid) {
     });
 }
 
-    // Логика увеличения картинки и закрытия модалки по клику на фон
 document.addEventListener('click', function(event) {
     const fullModal = document.getElementById('fullScreenModal');
     const fullImg = document.getElementById('fullScreenImage');
     
-    // Если кликнули по самой картинке во весь экран — переключаем зум
     if (event.target === fullImg) {
         fullImg.classList.toggle('zoomed');
     } 
-    // Если кликнули по темному фону вокруг картинки — закрываем и сбрасываем зум
     else if (event.target === fullModal) {
         fullModal.style.display = 'none';
         if (fullImg) fullImg.classList.remove('zoomed');
