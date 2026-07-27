@@ -816,36 +816,48 @@
             </div>
 
             <!-- КОНТЕНТ: ЛИЧНЫЙ КАБИНЕТ МОДЕЛИ -->
-            <div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
-                <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
-                    
-                    <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
-                        <div style="position: relative; display: inline-block;">
-                            <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
-                            <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
-                                📷
-                                <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
-                            </label>
-                        </div>
-                        <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
-                        <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
-                        <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold;">
-                            Баланс: <span id="model-dash-balance">0</span> коинов
-                        </div>
-                    </div>
-
-                    <div style="flex: 2; min-width: 350px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
-                            <button onclick="openCreateAlbumModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0;">
-                                ➕ Новый альбом
-                            </button>
-                        </div>
-                        <div id="model-albums-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
-                        </div>
-                    </div>
-                </div>
+<div id="model-dashboard" style="display: none; max-width: 900px; margin: 30px auto; padding: 20px; font-family: sans-serif;">
+    <div style="display: flex; gap: 30px; background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); flex-wrap: wrap;">
+        
+        <!-- ЛЕВАЯ КОЛОНКА (Профиль, аватар, баланс и объявление) -->
+        <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
+            <div style="position: relative; display: inline-block;">
+                <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
+                <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
+                    📷
+                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
+                </label>
             </div>
+            <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
+            <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
+            
+            <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold; margin-bottom: 15px;">
+                Баланс: <span id="model-dash-balance">0</span> коинов
+            </div>
+
+            <!-- 📢 Блок объявления модели в профиле -->
+            <div style="background: #f7fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 0.85rem; font-weight: bold; color: #4a5568;">📢 Моё объявление:</span>
+                    <button onclick="openEditAnnouncementModal()" style="background: none; border: none; color: #3182ce; font-size: 0.8rem; cursor: pointer; padding: 0; font-weight: 600;">✏️ Изменить</button>
+                </div>
+                <p id="model-dash-announcement" style="margin: 0; font-size: 0.85rem; color: #718096; line-height: 1.4; word-break: break-word;">Объявление пока не заполнено...</p>
+            </div>
+        </div>
+
+        <!-- ПРАВАЯ КОЛОНКА (Альбомы) -->
+        <div style="flex: 2; min-width: 350px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; color: #2d3748;">Мои Альбомы</h3>
+                <button onclick="openCreateAlbumModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0;">
+                    ➕ Новый альбом
+                </button>
+            </div>
+            <div id="model-albums-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;">
+            </div>
+        </div>
+    </div>
+</div>
 
             <!-- ПОДВАЛ -->
             <footer style="text-align: center; margin-top: auto; padding: 30px 20px; color: var(--text-muted); font-size: 0.9rem; border-top: 1px solid #e2e8f0; background: #ffffff;">
