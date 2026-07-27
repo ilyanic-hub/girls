@@ -2948,7 +2948,19 @@ async function loadModelDashboard() {
             const announcementsListContainer = document.getElementById('model-announcements-list'); // Контейнер для списка объявлений
             
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
-            if (avatarEl && data.profile && data.profile.avatar) avatarEl.src = data.profile.avatar;
+            
+            // 👇 Надежная загрузка аватарки с резервной копией в localStorage
+            if (avatarEl) {
+                let avatarUrl = data.profile?.avatar || data.profile?.photo_url;
+                if (avatarUrl) {
+                    avatarEl.src = avatarUrl;
+                    localStorage.setItem('user_avatar', avatarUrl);
+                } else {
+                    let savedAvatar = localStorage.getItem('user_avatar');
+                    if (savedAvatar) avatarEl.src = savedAvatar;
+                }
+            }
+            
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
             // 📢 Рендерим список объявлений модели во вкладке
