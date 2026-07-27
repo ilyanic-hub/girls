@@ -2320,8 +2320,6 @@ async def api_reset_password(request: Request, data: ResetPasswordSchema, db=Dep
 #==============Кабинет модели===============
 @app.get("/api/model/profile")
 async def get_model_profile(session_user: dict = Depends(get_current_user)):
-    # session_user — это уже готовый словарь: {"id": ..., "username": "...", "is_admin": ..., "role": "..."}
-    
     # Проверяем роль прямо из сессии
     if session_user.get("role") != 'model':
         raise HTTPException(status_code=403, detail="Доступно только для моделей")
@@ -2332,7 +2330,7 @@ async def get_model_profile(session_user: dict = Depends(get_current_user)):
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # Получаем актуальный баланс и аватарку из базы (если они меняются)
+    # 📢 Добавили announcement в выборку из базы
     cursor.execute("SELECT balance, avatar, announcement FROM users WHERE username = ?", (username_str,))
     user_extra = cursor.fetchone()
     
