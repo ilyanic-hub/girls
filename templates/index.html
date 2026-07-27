@@ -1773,20 +1773,26 @@ let res = await fetch('/api/user/avatar', {
         if (response.ok) {
             alert("🎉 " + (result.message || "Альбом успешно куплен!"));
             
-            // 🔄 Вызываем функцию ПРОСМОТРА альбома для покупателя (замени openAlbumModal на название своей функции просмотра, если оно отличается)
+            // 🚀 МГНОВЕННО обновляем баланс на экране из ответа сервера (`result.new_balance`)
+            if (result.new_balance !== undefined) {
+                // Ищем все элементы на странице, где выводится баланс (в шапке, профиле и т.д.)
+                const balanceElements = document.querySelectorAll('#user-balance, #nav-balance, .user-balance-display, #model-dash-balance');
+                balanceElements.forEach(el => {
+                    if (el) el.innerText = result.new_balance;
+                });
+            }
+
+            // Открываем просмотр купленного альбома (замените функцию на вашу клиентскую)
             if (typeof openAlbumModal === 'function') {
                 openAlbumModal(albumId);
-            } else if (typeof viewAlbum === 'function') {
-                viewAlbum(albumId);
             }
             
-            // 💰 Обновляем баланс и данные на экране без перезагрузки
+            // Дополнительно обновляем данные в фоне, если нужно
             if (typeof loadUserData === 'function') loadUserData();
             if (typeof loadProfile === 'function') loadProfile();
-            if (typeof loadModelDashboard === 'function') loadModelDashboard();
             if (typeof loadAnnouncements === 'function') loadAnnouncements();
+            
         } else {
-            // Выводим сообщение о нехватке средств
             alert(result.detail || "Недостаточно средств на балансе!");
         }
     } catch (err) {
