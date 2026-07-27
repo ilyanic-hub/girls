@@ -754,8 +754,8 @@
         <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <!-- Аватарка -->
             <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
-                <span id="user-avatar-default" style="font-size: 14px;">👤</span>
-                <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                <span id="header-avatar-default" style="font-size: 14px;">👤</span>
+                <img id="header-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
             </div>
             <input type="file" id="avatar-input" style="display: none;" accept="image/*" onchange="uploadAvatar()">
             
@@ -821,24 +821,17 @@
         
         <!-- ЛЕВАЯ КОЛОНКА (Профиль, аватар, баланс и объявление) -->
         <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
-            <div style="position: relative; display: inline-block;">
-                <div onclick="document.getElementById('avatar-input').click()" style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 3px solid #ff4757; background: #f7fafc; cursor: pointer;">
-                    <img id="user-avatar-img" src="data:image/svg+xml;utf8,..." style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
-                    📷
-                    <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
-                </label>
-            </div>
-            <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
-            <p style="color: #a0aec0; font-size: 0.9rem; margin-bottom: 15px;">Аккаунт: Модель</p>
-            
-            <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold; margin-bottom: 15px;">
-                Баланс: <span id="model-dash-balance">0</span> коинов
-            </div>
-
-           
+    <div style="position: relative; display: inline-block;">
+        <div onclick="document.getElementById('avatar-input').click()" style="width: 150px; height: 150px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 3px solid #ff4757; background: #f7fafc; cursor: pointer;">
+            <img id="user-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+            <span id="user-avatar-default" style="font-size: 40px;">👤</span>
         </div>
+    </div>
+    <h2 id="model-dash-name" style="margin: 15px 0 5px 0; color: #2d3748;">Имя Модели</h2>
+    <div style="background: #fff5f6; padding: 10px; border-radius: 12px; color: #ff4757; font-weight: bold; margin-bottom: 15px;">
+        Баланс: <span id="model-dash-balance">0</span> коинов
+    </div>
+</div>
 
         <!-- ПРАВАЯ КОЛОНКА С ВКЛАДКАМИ -->
 <div style="flex: 2; min-width: 350px;">
@@ -2942,7 +2935,6 @@ async function loadModelDashboard() {
         
         const data = await response.json();
         
-        // Безопасно заполняем профиль и список объявлений
         try {
             const nameEl = document.getElementById('model-dash-name');
             const balanceEl = document.getElementById('model-dash-balance');
@@ -2951,21 +2943,42 @@ async function loadModelDashboard() {
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
-            // 3. Обновляем аватарку ТОЛЬКО в личном кабинете (шапку не трогаем вообще!)
-            const avatarImgEl = document.getElementById('user-avatar-img');
-            const avatarDefaultEl = document.getElementById('user-avatar-default');
-            
-            let avatarUrl = data.profile?.avatar || data.profile?.photo_url || localStorage.getItem('user_avatar');
+            // 1. Получаем ссылку на аватар (с сервера или из localStorage) и конвертируем Dropbox-ссылки
+            let rawAvatarUrl = data.profile?.avatar || data.profile?.photo_url || localStorage.getItem('user_avatar');
+            let avatarUrl = rawAvatarUrl;
+            if (avatarUrl && avatarUrl.includes('dropbox.com')) {
+                avatarUrl = avatarUrl.replace('dl=0', 'raw=1');
+            }
 
-            if (avatarImgEl && avatarDefaultEl) {
+            if (avatarUrl) {
+                localStorage.setItem('user_avatar', avatarUrl);
+            }
+
+            // 2. Обновляем аватарку в ЛИЧНОМ КАБИНЕТЕ
+            const dashImg = document.getElementById('user-avatar-img');
+            const dashDefault = document.getElementById('user-avatar-default');
+            if (dashImg && dashDefault) {
                 if (avatarUrl) {
-                    localStorage.setItem('user_avatar', avatarUrl);
-                    avatarImgEl.src = avatarUrl;
-                    avatarImgEl.style.display = 'block'; // Показываем картинку в кабинете
-                    avatarDefaultEl.style.display = 'none'; // Скрываем дефолтную иконку
+                    dashImg.src = avatarUrl;
+                    dashImg.style.display = 'block';
+                    dashDefault.style.display = 'none';
                 } else {
-                    avatarImgEl.style.display = 'none';
-                    avatarDefaultEl.style.display = 'flex';
+                    dashImg.style.display = 'none';
+                    dashDefault.style.display = 'flex';
+                }
+            }
+
+            // 3. Обновляем аватарку в ШАПКЕ
+            const headerImg = document.getElementById('header-avatar-img');
+            const headerDefault = document.getElementById('header-avatar-default');
+            if (headerImg && headerDefault) {
+                if (avatarUrl) {
+                    headerImg.src = avatarUrl;
+                    headerImg.style.display = 'block';
+                    headerDefault.style.display = 'none';
+                } else {
+                    headerImg.style.display = 'none';
+                    headerDefault.style.display = 'flex';
                 }
             }
             
@@ -2977,7 +2990,6 @@ async function loadModelDashboard() {
                     announcementsListContainer.innerHTML = '<p style="color: #718096; text-align: center; font-size: 0.9rem; grid-column: 1/-1;">У вас пока нет активных объявлений.</p>';
                 } else {
                     data.profile.announcements.forEach(item => {
-                        // Безопасно сериализуем объект для передачи в функцию редактирования
                         const itemJson = JSON.stringify(item).replace(/"/g, '&quot;');
                         
                         announcementsListContainer.innerHTML += `
@@ -2995,12 +3007,11 @@ async function loadModelDashboard() {
             }
 
         } catch (profileErr) {
-            console.warn("Некоторые элементы профиля не найдены на странице, но продолжаем загрузку альбомов:", profileErr);
+            console.warn("Некоторые элементы профиля не найдены на странице:", profileErr);
         }
         
-        // Ищем контейнер для альбомов (проверяем оба частых варианта id)
+        // Рендер альбомов
         let grid = document.getElementById('model-albums-list') || document.getElementById('model-albums-grid');
-        
         if (grid) {
             grid.innerHTML = '';
             
@@ -3016,7 +3027,7 @@ async function loadModelDashboard() {
                 let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
 
                 grid.innerHTML += `
-                <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+                <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;">
                     <div style="display: flex; align-items: center; gap: 15px;">
                         <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
                         <div>
@@ -3030,8 +3041,6 @@ async function loadModelDashboard() {
                 </div>
                 `;
             });
-        } else {
-            console.error("🚨 Ошибка: На HTML-странице не найден блок ни с id='model-albums-list', ни с id='model-albums-grid'!");
         }
     } catch (err) {
         console.error("Ошибка при загрузке кабинета модели:", err);
