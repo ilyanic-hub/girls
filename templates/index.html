@@ -822,7 +822,7 @@
         <!-- ЛЕВАЯ КОЛОНКА (Профиль, аватар, баланс и объявление) -->
         <div style="flex: 1; min-width: 250px; text-align: center; border-right: 1px solid #e2e8f0; padding-right: 20px;">
             <div style="position: relative; display: inline-block;">
-                <img id="model-dash-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
+                <img id="user-avatar-container" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e0' stroke-width='1'><rect width='100%25' height='100%25' fill='%23f7fafc'/><circle cx='12' cy='8' r='4'/><path d='M20 21a8 8 0 0 0-16 0'/></svg>" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 3px solid #ff4757;">
                 <label style="position: absolute; bottom: 0; right: 0; background: #ff4757; color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; box-sizing: border-box;">
                     📷
                     <input type="file" id="avatar-upload-input" accept="image/*" style="display: none;" onchange="uploadNewAvatar(this)">
@@ -2942,26 +2942,27 @@ async function loadModelDashboard() {
         
         // Безопасно заполняем профиль и список объявлений
         try {
-            const nameEl = document.getElementById('model-dash-name');
-            const avatarEl = document.getElementById('model-dash-avatar');
-            const balanceEl = document.getElementById('model-dash-balance');
-            const announcementsListContainer = document.getElementById('model-announcements-list'); // Контейнер для списка объявлений
-            
-            if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
-            
-            // 👇 Надежная загрузка аватарки с резервной копией в localStorage
-            if (avatarEl) {
-                let avatarUrl = data.profile?.avatar || data.profile?.photo_url;
-                if (avatarUrl) {
-                    avatarEl.src = avatarUrl;
-                    localStorage.setItem('user_avatar', avatarUrl);
-                } else {
-                    let savedAvatar = localStorage.getItem('user_avatar');
-                    if (savedAvatar) avatarEl.src = savedAvatar;
-                }
-            }
-            
-            if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
+    const nameEl = document.getElementById('model-dash-name');
+    const balanceEl = document.getElementById('model-dash-balance');
+    const announcementsListContainer = document.getElementById('model-announcements-list'); 
+    
+    // Ищем аватарку по вашему реальному ID (или обоим сразу на случай шапки)
+    const avatarEl = document.getElementById('user-avatar-container') || document.getElementById('model-dash-avatar');
+    
+    if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
+    if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
+    
+    // Загрузка аватарки с поддержкой сервера и localStorage
+    if (avatarEl) {
+        let avatarUrl = data.profile?.avatar || data.profile?.photo_url;
+        if (avatarUrl) {
+            avatarEl.src = avatarUrl;
+            localStorage.setItem('user_avatar', avatarUrl);
+        } else {
+            let savedAvatar = localStorage.getItem('user_avatar');
+            if (savedAvatar) avatarEl.src = savedAvatar;
+        }
+    }
             
             // 📢 Рендерим список объявлений модели во вкладке
             if (announcementsListContainer && data.profile && data.profile.announcements) {
