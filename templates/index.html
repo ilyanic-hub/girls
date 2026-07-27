@@ -1223,31 +1223,31 @@
                 setupRoleUI(user.role);
             }
 
-            // Отрисовка аватарки
-const avatarImg = document.getElementById('user-avatar-img');
-const avatarDefault = document.getElementById('user-avatar-default');
+            // Отрисовка аватарки в ШАПКЕ
+const headerAvatarImg = document.getElementById('header-avatar-img');
+const headerAvatarDefault = document.getElementById('header-avatar-default');
 
-if (avatarImg) {
-    if (user.avatar && user.avatar.trim() !== '' && user.avatar !== 'null') {
-        
-        let finalSrc = user.avatar;
-        
-        // 🌟 Авто-фикс для ссылок Dropbox: меняем dl=0 на raw=1
+if (headerAvatarImg) {
+    let avatarUrl = user?.avatar || localStorage.getItem('user_avatar');
+    
+    if (avatarUrl && avatarUrl.trim() !== '' && avatarUrl !== 'null') {
+        let finalSrc = avatarUrl;
         if (finalSrc.includes('dropbox.com') && finalSrc.includes('dl=0')) {
             finalSrc = finalSrc.replace('dl=0', 'raw=1');
         }
         
-        avatarImg.src = finalSrc; 
-        avatarImg.style.display = 'block';     
-        if (avatarDefault) avatarDefault.style.display = 'none';  
+        localStorage.setItem('user_avatar', finalSrc);
+        headerAvatarImg.src = finalSrc; 
+        headerAvatarImg.style.display = 'block';     
+        if (headerAvatarDefault) headerAvatarDefault.style.display = 'none';  
         
-        avatarImg.onerror = function() {
-            avatarImg.style.display = 'none';
-            if (avatarDefault) avatarDefault.style.display = 'block';
+        headerAvatarImg.onerror = function() {
+            headerAvatarImg.style.display = 'none';
+            if (headerAvatarDefault) headerAvatarDefault.style.display = 'block';
         };
     } else {
-        avatarImg.style.display = 'none';
-        if (avatarDefault) avatarDefault.style.display = 'block'; 
+        headerAvatarImg.style.display = 'none';
+        if (headerAvatarDefault) headerAvatarDefault.style.display = 'flex'; // или block
     }
 }
 
