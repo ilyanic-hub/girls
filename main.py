@@ -2333,14 +2333,15 @@ async def get_model_profile(session_user: dict = Depends(get_current_user)):
     cursor = db.cursor()
     
     # Получаем актуальный баланс и аватарку из базы (если они меняются)
-    cursor.execute("SELECT balance, avatar FROM users WHERE username = ?", (username_str,))
+    cursor.execute("SELECT balance, avatar, announcement FROM users WHERE username = ?", (username_str,))
     user_extra = cursor.fetchone()
     
     profile_data = {
         "username": username_str,
         "role": session_user["role"],
         "balance": user_extra["balance"] if user_extra else 0,
-        "avatar": user_extra["avatar"] if user_extra else None
+        "avatar": user_extra["avatar"] if user_extra else None,
+        "announcement": user_extra["announcement"] if user_extra and "announcement" in user_extra else ""
     }
     
     # Получаем её альбомы
