@@ -2886,7 +2886,7 @@ async function loadModelDashboard() {
     const cover = album.cover_url || defaultSvg;
 
     grid.innerHTML += `
-    <div data-album-id="${album.id}" onclick="(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
+    <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#edf2f7'" onmouseout="this.style.background='#f7fafc'">
         <div style="display: flex; align-items: center; gap: 15px;">
             <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
             <div>
