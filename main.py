@@ -2387,6 +2387,10 @@ async def get_model_profile(session_user: dict = Depends(get_current_user)):
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
+
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username_str,))
+user_row = cursor.fetchone()
+print("ВСЕ ДАННЫЕ ПОЛЬЗОВАТЕЛЯ ИЗ БД:", dict(user_row) if user_row else "Не найден")
     
     # 1. Получаем баланс и аватар из таблицы users
     cursor.execute("SELECT balance, avatar FROM users WHERE username = ?", (username_str,))
