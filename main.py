@@ -2331,23 +2331,20 @@ async def get_model_profile(session_user: dict = Depends(get_current_user)):
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # 1. Получаем баланс и аватар из таблицы users (без несуществующей колонки announcement)
+    # 1. Получаем баланс и аватар из таблицы users
     cursor.execute("SELECT balance, avatar FROM users WHERE username = ?", (username_str,))
     user_extra = cursor.fetchone()
     
-    # 2. Получаем текст объявления из таблицы announcements (берем последнее или первое по пользователю)
-    # Поле описания в вашей таблице называется `description`
-    cursor.execute("SELECT description FROM announcements WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
-    announcement_row = cursor.fetchone()
-    
-    announcement_text = announcement_row["description"] if announcement_row else ""
+    # 2. Получаем ВСЕ объявления модели из таблицы announcements
+    cursor.execute("SELECT * FROM announcements WHERE user_id = ? ORDER BY id DESC", (user_id,))
+    announcements_list = [dict(row) for row in cursor.fetchall()]
     
     profile_data = {
         "username": username_str,
         "role": session_user["role"],
         "balance": user_extra["balance"] if user_extra else 0,
         "avatar": user_extra["avatar"] if user_extra else None,
-        "announcement": announcement_text  # Передаем текст на фронтенд
+        "announcements": announcements_list  # Передаем массив всех объявлений
     }
     
     # Получаем её альбомы
