@@ -2470,6 +2470,12 @@ async function submitAnnouncement(event) {
             alert(editingAnnouncementId ? "Объявление успешно обновлено!" : "Ваше объявление успешно опубликовано!");
             closeAnnouncementModal();
             loadAnnouncements(); 
+            // 👇 ДОБАВЬТЕ ЭТУ СТРОКУ, ЧТОБЫ СПИСОК ОБНОВЛЯЛСЯ АВТОМАТИЧЕСКИ
+            if (typeof loadModelDashboard === 'function') {
+                loadModelDashboard();
+            } else if (typeof loadAnnouncements === 'function') {
+                loadAnnouncements();
+            }
         } else {
             alert("Ошибка: " + (data.detail || "Что-то пошло не так"));
         }
