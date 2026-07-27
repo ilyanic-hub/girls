@@ -1192,6 +1192,63 @@ async def create_announcement(
 
     return {"status": "success", "message": "Объявление успешно опубликовано!"}
 
+# Эндпоинт для редактирования объявления моделью
+@app.put("/api/announcements/{announcement_id}")
+async def update_announcement(
+    announcement_id: int,
+    data: AnnouncementSchema,
+    session_user: Optional[str] = Cookie(None)
+):
+    if not session_user:
+        raise HTTPException(status_code=401, detail="Необходимо авторизоваться")
+    
+    db = sqlite3.connect(DB_LOCAL_PATH)
+    cursor = db.cursor()
+    cursor.execute("SELECT id, role FROM users WHERE username = ?", (session_user,))
+    user = cursor.fetchone()
+    
+    if not user:
+        db.close()
+        raise HTTPException(status_code=401, detail="Пользователь не найден")
+        
+    user_id, role = user[0], user[1]
+    if role != "model":
+        db.close()
+        raise HTTPException(status_code=403, detail="Только модели могут редактировать объявления")
+
+    # Проверяем, принадлежит ли объявление этой модели
+    cursor.execute("SELECT id, photo_url FROM announcements WHERE id = ? AND user_id = ?", (announcement_id, user_id))
+    existing = cursor.fetchone()
+    if not existing:
+        db.close()
+        raise HTTPException(status_code=404, detail="Объявление не найдено или у вас нет прав")
+
+    # Если передана новая картинка (base64), чистим её и обновляем. Если нет — оставляем старую.
+    if data.photo_base64 and len(data.photo_base64.strip()) > 0:
+        inline_photo_url = data.photo_base64.replace("\n", "").replace("\r", "").strip()
+        cursor.execute("""
+            UPDATE announcements 
+            SET name = ?, description = ?, photo_url = ?
+            WHERE id = ?
+        """, (data.name, data.description, inline_photo_url, announcement_id))
+    else:
+        cursor.execute("""
+            UPDATE announcements 
+            SET name = ?, description = ?
+            WHERE id = ?
+        """, (data.name, data.description, announcement_id))
+        
+    db.commit()
+    db.close()
+
+    # Синхронизируем базу с Dropbox
+    try:
+        upload_db_to_dropbox()
+    except Exception as e:
+        print(f"Ошибка бэкапа базы в Dropbox: {e}")
+
+    return {"status": "success", "message": "Объявление успешно обновлено!"}
+
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
 # Эндпоинт для получения списка всех объявлений с их альбомами
