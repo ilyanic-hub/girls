@@ -531,7 +531,7 @@ class EditAlbumSchema(BaseModel):
 class AnnouncementSchema(BaseModel):
     name: str
     description: str
-    photo_base64: str  # Сюда прилетит строка Base64
+    photo_base64: Optional[str] = None  # Теперь фото необязательно при обновлении
 
 class BuyAlbumSchema(BaseModel):
     album_id: int
