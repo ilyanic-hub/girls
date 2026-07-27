@@ -2824,7 +2824,9 @@ async function submitNewAlbum(event) {
             }
             
             // 2. Если у тебя есть отдельная функция загрузки альбомов в профиле модели
-            if (typeof loadModelAlbums === 'function') {
+            if (typeof loadModelDashboard === 'function') {
+                await loadModelDashboard();
+            } else if (typeof loadModelAlbums === 'function') {
                 await loadModelAlbums();
             } else if (typeof loadProfile === 'function') {
                 await loadProfile();
