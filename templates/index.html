@@ -3125,6 +3125,59 @@ async function showModelDetails(username) {
     }
 }
 
+        // Функция переключения вкладок в личном кабинете
+function switchDashboardTab(tabName) {
+    const albumsTab = document.getElementById('dashboard-tab-albums');
+    const announcementTab = document.getElementById('dashboard-tab-announcement');
+    const btnAlbums = document.getElementById('tab-btn-albums');
+    const btnAnnouncement = document.getElementById('tab-btn-announcement');
+
+    if (tabName === 'albums') {
+        albumsTab.style.display = 'block';
+        announcementTab.style.display = 'none';
+        
+        btnAlbums.style.background = '#ff4757';
+        btnAlbums.style.color = 'white';
+        
+        btnAnnouncement.style.background = '#edf2f7';
+        btnAnnouncement.style.color = '#4a5568';
+    } else {
+        albumsTab.style.display = 'none';
+        announcementTab.style.display = 'block';
+        
+        btnAnnouncement.style.background = '#ff4757';
+        btnAnnouncement.style.color = 'white';
+        
+        btnAlbums.style.background = '#edf2f7';
+        btnAlbums.style.color = '#4a5568';
+    }
+}
+
+// Сохранение объявления из вкладки
+async function saveDashboardAnnouncement() {
+    const newText = document.getElementById('dashboard-announcement-input').value;
+
+    try {
+        const response = await fetch('/api/model/update-announcement', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ announcement: newText })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert("✅ Объявление успешно сохранено!");
+            if (typeof loadAnnouncements === 'function') await loadAnnouncements();
+        } else {
+            alert(result.detail || "Не удалось сохранить объявление");
+        }
+    } catch (err) {
+        console.error("Ошибка при сохранении объявления:", err);
+        alert("Произошла ошибка при отправке данных на сервер");
+    }
+}
+
         // Переключение вкладок внутри карточки модели
 function switchModalTab(tabName) {
     const bioTab = document.getElementById('modal-tab-bio-content');
