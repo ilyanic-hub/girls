@@ -859,16 +859,20 @@
         </div>
     </div>
 
-    <!-- Вкладка 2: Объявление (полноценный редактор) -->
-    <div id="dashboard-tab-announcement" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3 style="margin: 0; color: #2d3748;">Управление объявлением</h3>
-            <button onclick="saveDashboardAnnouncement()" class="btn" style="background: #48bb78; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0; color: white; border: none; border-radius: 8px; cursor: pointer;">💾 Сохранить</button>
-        </div>
-        <p style="font-size: 0.9rem; color: #718096; margin-bottom: 10px;">Этот текст увидят пользователи в ленте объявлений:</p>
-        <textarea id="dashboard-announcement-input" placeholder="Напишите текст вашего объявления..." 
-                  style="width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #cbd5e0; resize: vertical; min-height: 200px; box-sizing: border-box; font-family: sans-serif; font-size: 1rem; line-height: 1.5;"></textarea>
+    <!-- Вкладка 2: Мои объявления (списком) -->
+<div id="dashboard-tab-announcement" style="display: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; color: #2d3748;">Мои объявления</h3>
+        <button onclick="openCreateAnnouncementModal()" class="btn" style="background: #2ed573; font-size: 0.85rem; padding: 8px 15px; width: auto; margin: 0; color: white; border: none; border-radius: 8px; cursor: pointer;">
+            ➕ Новое объявление
+        </button>
     </div>
+    
+    <!-- Контейнер, куда будут динамически подгружаться карточки объявлений -->
+    <div id="model-announcements-list" style="display: flex; flex-direction: column; gap: 12px;">
+        <!-- Сюда JS загрузит список объявлений -->
+    </div>
+</div>
 
 </div>
     </div>
