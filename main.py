@@ -2325,21 +2325,29 @@ async def get_model_profile(session_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Доступно только для моделей")
         
     username_str = session_user["username"]
+    user_id = session_user.get("id") # ID пользователя из сессии
     
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
     
-    # 📢 Добавили announcement в выборку из базы
-    cursor.execute("SELECT balance, avatar, announcement FROM users WHERE username = ?", (username_str,))
+    # 1. Получаем баланс и аватар из таблицы users (без несуществующей колонки announcement)
+    cursor.execute("SELECT balance, avatar FROM users WHERE username = ?", (username_str,))
     user_extra = cursor.fetchone()
+    
+    # 2. Получаем текст объявления из таблицы announcements (берем последнее или первое по пользователю)
+    # Поле описания в вашей таблице называется `description`
+    cursor.execute("SELECT description FROM announcements WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+    announcement_row = cursor.fetchone()
+    
+    announcement_text = announcement_row["description"] if announcement_row else ""
     
     profile_data = {
         "username": username_str,
         "role": session_user["role"],
         "balance": user_extra["balance"] if user_extra else 0,
         "avatar": user_extra["avatar"] if user_extra else None,
-        "announcement": user_extra["announcement"] if user_extra and "announcement" in user_extra else ""
+        "announcement": announcement_text  # Передаем текст на фронтенд
     }
     
     # Получаем её альбомы
