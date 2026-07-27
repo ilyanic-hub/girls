@@ -1773,11 +1773,6 @@ let res = await fetch('/api/user/avatar', {
         if (response.ok) {
             alert("🎉 " + (result.message || "Альбом успешно куплен!"));
             
-            // 🔄 Исправлено: вызываем функцию открытия/перезагрузки модалки альбома
-            // (Замени 'openEditAlbumModal' на ту функцию, которая у тебя открывает просмотр альбома для покупателя)
-            if (response.ok) {
-            alert("🎉 " + (result.message || "Альбом успешно куплен!"));
-            
             // 🔄 Вызываем функцию ПРОСМОТРА альбома для покупателя (замени openAlbumModal на название своей функции просмотра, если оно отличается)
             if (typeof openAlbumModal === 'function') {
                 openAlbumModal(albumId);
