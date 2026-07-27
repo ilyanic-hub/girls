@@ -3011,13 +3011,18 @@ async function loadModelDashboard() {
             console.warn("Некоторые элементы профиля не найдены на странице:", profileErr);
         }
         
-        // Рендер альбомов
+        // 🖼️ Рендер альбомов (красивая сетка с карточками)
         let grid = document.getElementById('model-albums-list') || document.getElementById('model-albums-grid');
         if (grid) {
+            // Применяем стили сетки к контейнеру
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(260px, 1fr))';
+            grid.style.gap = '20px';
+            grid.style.marginTop = '15px';
             grid.innerHTML = '';
             
             if (!data.albums || data.albums.length === 0) {
-                grid.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">У вас еще нет альбомов.</p>';
+                grid.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1; padding: 30px; background: #f8fafc; border-radius: 12px;">У вас еще нет альбомов.</p>';
                 return;
             }
             
@@ -3028,16 +3033,23 @@ async function loadModelDashboard() {
                 let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
 
                 grid.innerHTML += `
-                <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #f7fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; width: 100%; cursor: pointer; transition: all 0.2s ease;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <img src="${cover}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" alt="Cover">
-                        <div>
-                            <h4 style="margin: 0; color: #2d3748; font-weight: 600;">${album.title}</h4>
-                            <p style="margin: 3px 0 0 0; font-size: 0.8rem; color: #718096;">${album.is_paid ? `🔒 Платный (${album.price} коинов)` : '🔓 Бесплатный'}</p>
-                        </div>
+                <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)'">
+                    <!-- Обложка альбома сверху -->
+                    <div style="width: 100%; height: 180px; overflow: hidden; background: #f1f5f9; position: relative;">
+                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover;" alt="Cover">
+                        <span style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;">
+                            ${album.is_paid ? `🔒 ${album.price} коинов` : '🔓 Бесплатно'}
+                        </span>
                     </div>
-                    <div style="color: #4a5568; font-size: 0.85rem; font-weight: 500;">
-                        Смотреть &rarr;
+                    <!-- Название и статус снизу -->
+                    <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 4px 0; color: #2d3748; font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${album.title}</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: #718096;">Альбом</p>
+                        </div>
+                        <div style="background: #fff0f2; color: #ff4757; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: bold;">
+                            &rarr;
+                        </div>
                     </div>
                 </div>
                 `;
