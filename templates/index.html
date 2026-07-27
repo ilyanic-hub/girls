@@ -2951,33 +2951,17 @@ async function loadModelDashboard() {
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
-            // 3. Обновляем аватарку в шапке и в личном кабинете
-            let avatarUrl = data.profile?.avatar || data.profile?.photo_url;
-            if (avatarUrl) {
-                localStorage.setItem('user_avatar', avatarUrl);
-            } else {
-                avatarUrl = localStorage.getItem('user_avatar');
-            }
-
-            // Обновление шапки сайта
-            const headerAvatar = document.getElementById('user-avatar-container');
-            if (headerAvatar) {
-                if (headerAvatar.tagName === 'IMG' && avatarUrl) {
-                    headerAvatar.src = avatarUrl;
-                } else if (avatarUrl) {
-                    const innerImg = headerAvatar.querySelector('img');
-                    if (innerImg) innerImg.src = avatarUrl;
-                }
-            }
-
-            // Обновление большой аватарки в личной карточке профиля
+            // 3. Обновляем аватарку ТОЛЬКО в личном кабинете (шапку не трогаем вообще!)
             const avatarImgEl = document.getElementById('user-avatar-img');
             const avatarDefaultEl = document.getElementById('user-avatar-default');
             
+            let avatarUrl = data.profile?.avatar || data.profile?.photo_url || localStorage.getItem('user_avatar');
+
             if (avatarImgEl && avatarDefaultEl) {
                 if (avatarUrl) {
+                    localStorage.setItem('user_avatar', avatarUrl);
                     avatarImgEl.src = avatarUrl;
-                    avatarImgEl.style.display = 'block'; // Показываем картинку
+                    avatarImgEl.style.display = 'block'; // Показываем картинку в кабинете
                     avatarDefaultEl.style.display = 'none'; // Скрываем дефолтную иконку
                 } else {
                     avatarImgEl.style.display = 'none';
