@@ -2513,8 +2513,12 @@ async function deleteAnnouncement(id) {
 
         const data = await response.json();
         if (response.ok) {
-            alert("Объявление успешно удалено!");
-            loadAnnouncements();
+            // 1. Сразу переназначаем или обновляем кабинет модели, чтобы список перерисовался
+            if (typeof loadModelDashboard === 'function') {
+                loadModelDashboard();
+            } else {
+                location.reload(); // запасной вариант, если функция называется иначе
+            }
         } else {
             alert("Ошибка при удалении: " + (data.detail || "Что-то пошло не так"));
         }
