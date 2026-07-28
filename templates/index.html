@@ -2438,7 +2438,7 @@ let editingAnnouncementId = null;
 // --- Улучшенная функция отправки / редактирования объявления ---
 // --- ОТПРАВКА ФОРМЫ НОВОГО ОБЪЯВЛЕНИЯ ---
 async function submitAnnouncement(event) {
-    event.preventDefault(); // Останавливаем стандартную перезагрузку страницы
+    event.preventDefault();
 
     const nameInput = document.getElementById('announce-name');
     const descInput = document.getElementById('announce-desc');
@@ -2448,73 +2448,70 @@ async function submitAnnouncement(event) {
     const description = descInput ? descInput.value.trim() : '';
     const photoFile = photoInput && photoInput.files.length > 0 ? photoInput.files[0] : null;
 
-    const token = localStorage.getItem('token');
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    try {
-        // Если ваш бэкенд принимает FormData (для отправки файлов)
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('description', description);
-        if (photoFile) {
-            formData.append('photo', photoFile);
-        }
-
-        const response = await fetch('/api/announcements', {
-            method: 'POST',
-            headers: headers, // Важно: при использовании FormData заголовок 'Content-Type' ставить НЕ нужно, браузер сделает это сам
-            body: formData
-        });
-
-        const responseText = await response.text();
-        let data;
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            data = { detail: responseText };
-        }
-
-        if (response.ok) {
-            alert("Объявление успешно создано!");
-            
-            const modal = document.getElementById('announcementModal');
-            if (modal) modal.style.display = 'none';
-
-            const form = document.getElementById('announcementForm');
-            if (form) form.reset();
-
-            if (typeof loadModelDashboard === 'function') {
-                loadModelDashboard();
-            }
-        } else {
-            // Теперь здесь выведется точная ошибка от сервера
-            alert("Ошибка при создании: " + (data.detail || data.message || "Внутренняя ошибка сервера"));
-            console.error("Ответ сервера:", responseText);
-        }
-
-        if (response.ok) {
-            alert("Объявление успешно создано!");
-            
-            // Закрываем модальное окно
-            const modal = document.getElementById('announcementModal');
-            if (modal) modal.style.display = 'none';
-
-            // Очищаем форму
-            const form = document.getElementById('announcementForm');
-            if (form) form.reset();
-
-            // Перезагружаем кабинет модели, чтобы новое объявление сразу появилось в списке
-            if (typeof loadModelDashboard === 'function') {
-                loadModelDashboard();
-            }
-        } else {
-            alert("Ошибка при создании: " + (data.detail || "Что-то пошло не так"));
-        }
-    } catch (error) {
-        console.error("Ошибка сети при создании объявления:", error);
-        alert("Произошла ошибка сети.");
+    if (!photoFile) {
+        alert("Пожалуйста, выберите фото");
+        return;
     }
+
+    // Конвертируем файл в Base64
+    const reader = new FileReader();
+    reader.readAsDataURL(photoFile);
+    
+    reader.onload = async function () {
+        const base64String = reader.result; // строка вида "data:image/jpeg;base64,..."
+
+        const payload = {
+            name: name,
+            description: description,
+            photo_base64: base64String
+        };
+
+        const token = localStorage.getItem('token');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        try {
+            const response = await fetch('/api/announcements', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload)
+            });
+
+            const responseText = await response.text();
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
+                data = { detail: responseText };
+            }
+
+            if (response.ok) {
+                alert("Объявление успешно создано!");
+                
+                const modal = document.getElementById('announcementModal');
+                if (modal) modal.style.display = 'none';
+
+                const form = document.getElementById('announcementForm');
+                if (form) form.reset();
+
+                if (typeof loadModelDashboard === 'function') {
+                    loadModelDashboard();
+                }
+            } else {
+                alert("Ошибка при создании: " + (data.detail || data.message || "Внутренняя ошибка сервера"));
+            }
+        } catch (error) {
+            console.error("Ошибка сети при создании объявления:", error);
+            alert("Произошла ошибка сети.");
+        }
+    };
+
+    reader.onerror = function (error) {
+        console.error("Ошибка чтения файла:", error);
+        alert("Не удалось прочитать файл картинки.");
+    };
 }
 
         // --- Функция подготовки модалки к редактированию ---
