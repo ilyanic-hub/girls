@@ -1134,6 +1134,7 @@ def check_and_rotate_round(db):
             print(f"Ошибка при автоматической смене раунда: {e}")
 
 # Эндпоинт для создания объявления моделью
+# Эндпоинт для создания объявления моделью
 @app.post("/api/announcements")
 async def create_announcement(
     data: AnnouncementSchema, # Принимаем данные по схеме
@@ -1156,7 +1157,7 @@ async def create_announcement(
         db.close()
         raise HTTPException(status_code=403, detail="Только модели могут создавать объявления")
 
-    # Чистим строку Base64 от возможных переносов строк (как в твоем рабочем коде)
+    # Чистим строку Base64 от возможных переносов строк
     inline_photo_url = data.photo_base64.replace("\n", "").replace("\r", "").strip()
     created_at = datetime.now().isoformat()
 
@@ -1174,21 +1175,6 @@ async def create_announcement(
         upload_db_to_dropbox()
     except Exception as e:
         print(f"Ошибка бэкапа базы в Dropbox: {e}")
-
-    return {"status": "success", "message": "Объявление успешно опубликовано!"}
-
-    # Записываем объявление в базу данных (теперь с вечной ссылкой из Dropbox)
-    cursor.execute("""
-        INSERT INTO announcements (user_id, name, description, photo_url, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, (user_id, name, description, photo_url, created_at))
-    db.commit()
-    db.close()
-
-    try:
-        upload_db_to_dropbox()
-    except Exception as e:
-        print(f"Ошибка бекапа БД в Dropbox: {e}")
 
     return {"status": "success", "message": "Объявление успешно опубликовано!"}
 
