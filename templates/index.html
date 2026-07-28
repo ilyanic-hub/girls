@@ -2467,7 +2467,31 @@ async function submitAnnouncement(event) {
             body: formData
         });
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            data = { detail: responseText };
+        }
+
+        if (response.ok) {
+            alert("Объявление успешно создано!");
+            
+            const modal = document.getElementById('announcementModal');
+            if (modal) modal.style.display = 'none';
+
+            const form = document.getElementById('announcementForm');
+            if (form) form.reset();
+
+            if (typeof loadModelDashboard === 'function') {
+                loadModelDashboard();
+            }
+        } else {
+            // Теперь здесь выведется точная ошибка от сервера
+            alert("Ошибка при создании: " + (data.detail || data.message || "Внутренняя ошибка сервера"));
+            console.error("Ответ сервера:", responseText);
+        }
 
         if (response.ok) {
             alert("Объявление успешно создано!");
