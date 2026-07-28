@@ -3066,49 +3066,46 @@ async function loadModelDashboard() {
             const defaultSvg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150' fill='none' stroke='%23cbd5e0' stroke-width='1.5'><rect width='100%25' height='100%25' fill='%23f1f5f9'/><path d='M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' stroke-linecap='round' stroke-linejoin='round'/></svg>";
 
             data.albums.forEach(album => {
-    let rawPhoto = (album.photos && album.photos.length > 0) ? album.photos[0] : '';
-    let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
+                let rawPhoto = (album.photos && album.photos.length > 0) ? album.photos[0] : '';
+                let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
 
-    // Проверяем, является ли альбом платным (можете заменить условие на свою переменную проверки покупки, например !album.is_unlocked)
-    let isLocked = album.is_paid; 
-
-    // Применяем размытие, если альбом платный
-    let blurStyle = isLocked ? 'filter: blur(8px); transform: scale(1.05);' : '';
-    
-    grid.innerHTML += `
-    <div data-album-id="${album.id}" onclick="openEditAlbumModal(${album.id})" style="background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)'">
-        <!-- Обложка альбома (с размытием для платных) -->
-        <div style="width: 100%; height: 180px; overflow: hidden; background: #f1f5f9; position: relative;">
-            <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}" alt="Cover">
-            
-            ${isLocked ? `
-                <!-- Затемнение и замок для платных альбомов -->
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
-                    <div style="font-size: 24px; margin-bottom: 4px;">🔒</div>
-                    <span style="font-size: 0.8rem; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 12px; backdrop-filter: blur(4px);">
-                        ${album.price} коинов
-                    </span>
+                let isLocked = album.is_paid; 
+                let blurStyle = isLocked ? 'filter: blur(8px); transform: scale(1.05);' : '';
+                
+                grid.innerHTML += `
+                <div onclick="openEditAlbumModal(${album.id})" style="background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);" onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 10px 15px -3px rgba(0,0,0,0.08)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0,0,0,0.02)'">
+                    <!-- Обложка альбома (с размытием для платных) -->
+                    <div style="width: 100%; height: 180px; overflow: hidden; background: #f1f5f9; position: relative;">
+                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}" alt="Cover">
+                        
+                        ${isLocked ? `
+                            <!-- Затемнение и замок для платных альбомов -->
+                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
+                                <div style="font-size: 24px; margin-bottom: 4px;">🔒</div>
+                                <span style="font-size: 0.8rem; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 12px; backdrop-filter: blur(4px);">
+                                    ${album.price} коинов
+                                </span>
+                            </div>
+                        ` : `
+                            <!-- Плашка для бесплатных -->
+                            <span style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;">
+                                🔓 Бесплатно
+                            </span>
+                        `}
+                    </div>
+                    <!-- Информация под обложкой -->
+                    <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0 0 4px 0; color: #2d3748; font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${album.title || 'Альбом'}</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: #718096;">Альбом</p>
+                        </div>
+                        <div style="background: #fff0f2; color: #ff4757; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: bold;">
+                            &rarr;
+                        </div>
+                    </div>
                 </div>
-            ` : `
-                <!-- Плашка для бесплатных -->
-                <span style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;">
-                    🔓 Бесплатно
-                </span>
-            `}
-        </div>
-        <!-- Информация под обложкой -->
-        <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h4 style="margin: 0 0 4px 0; color: #2d3748; font-size: 1rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${album.title}</h4>
-                <p style="margin: 0; font-size: 0.8rem; color: #718096;">Альбом</p>
-            </div>
-            <div style="background: #fff0f2; color: #ff4757; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: bold;">
-                &rarr;
-            </div>
-        </div>
-    </div>
-    `;
-});
+                `;
+            });
         }
     } catch (err) {
         console.error("Ошибка при загрузке кабинета модели:", err);
