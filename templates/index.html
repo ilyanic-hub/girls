@@ -2362,24 +2362,49 @@ function openModelDetailsModal(item) {
 
         // --- ФУНКЦИИ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
 // Открытие модального окна создания нового объявления
+// --- НАДЕЖНОЕ ОТКРЫТИЕ МОДАЛЬНОГО ОКНА ОБЪЯВЛЕНИЙ ---
 function openCreateAnnouncementModal() {
-    // Если у вас есть модальное окно для создания/редактирования, вызовите его здесь.
-    // Пример, если используется общее модальное окно:
-    const modal = document.getElementById('announcement-modal'); // замените на ID вашего модального окна
-    if (modal) {
-        // Очищаем форму перед созданием
-        const form = document.getElementById('announcement-form');
-        if (form) form.reset();
-        
-        // Убираем ID, если поле скрыто (чтобы сервер понял, что это создание, а не обновление)
-        const idField = document.getElementById('announcement-id');
-        if (idField) idField.value = '';
+    let modal = document.getElementById('announcementModal');
+    
+    // Если модального окна по какой-то причине нет на странице, создаем его на лету
+    if (!modal) {
+        const modalHtml = `
+        <div id="announcementModal" class="deposit-modal" onclick="closeAnnouncementModal()" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+            <div class="deposit-modal-content" onclick="event.stopPropagation()" style="background: white; padding: 30px; border-radius: 16px; width: 100%; max-width: 500px; position: relative; box-sizing: border-box;">
+                <span class="deposit-close" onclick="closeAnnouncementModal()" style="position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #a0aec0;">&times;</span>
+                <h2 style="color: var(--accent); margin-top: 0; margin-bottom: 15px;">📸 Создать объявление</h2>
+                <p style="color: #718096; margin-bottom: 20px; font-size: 0.9rem;">Заполните анкету, чтобы появиться в общей ленте объявлений</p>
+                
+                <form id="announcementForm" onsubmit="submitAnnouncement(event)">
+                    <div style="margin-bottom: 15px; text-align: left;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Ваше имя/псевдоним:</label>
+                        <input type="text" id="announce-name" required placeholder="Например: Алина, 21" style="width:100%; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box;">
+                    </div>
 
-        modal.style.display = 'block'; // или 'flex' в зависимости от вашей верстки
-    } else {
-        console.warn("Модальное окно объявления не найдено в HTML!");
+                    <div style="margin-bottom: 15px; text-align: left;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Описание профиля:</label>
+                        <textarea id="announce-desc" required placeholder="Расскажите о себе..." style="width:100%; height:80px; padding:10px; border:1px solid #cbd5e0; border-radius:8px; box-sizing: border-box; resize: none; font-family: inherit;"></textarea>
+                    </div>
+
+                    <div style="margin-bottom: 20px; text-align: left;">
+                        <label style="display:block; margin-bottom:5px; font-weight:bold; color:#4a5568;">Главное фото:</label>
+                        <input type="file" id="announce-photo" accept="image/*" required style="width:100%; padding:5px;">
+                    </div>
+
+                    <button type="submit" class="btn-pay-submit" style="background: var(--accent); width: 100%; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer;">Опубликовать объявление</button>
+                </form>
+            </div>
+        </div>`;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('announcementModal');
+    }
+
+    if (modal) {
+        modal.style.display = 'flex';
     }
 }
+
 function closeAnnouncementModal() {
     const modal = document.getElementById('announcementModal');
     if (modal) {
