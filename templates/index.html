@@ -2411,81 +2411,60 @@ function closeAnnouncementModal() {
 let editingAnnouncementId = null; 
 
 // --- Улучшенная функция отправки / редактирования объявления ---
+// --- ОТПРАВКА ФОРМЫ НОВОГО ОБЪЯВЛЕНИЯ ---
 async function submitAnnouncement(event) {
-    event.preventDefault();
-    
-    const name = document.getElementById('announce-name').value;
-    const description = document.getElementById('announce-desc').value;
-    const photoInput = document.getElementById('announce-photo');
-    const photoFile = photoInput.files[0];
+    event.preventDefault(); // Останавливаем стандартную перезагрузку страницы
 
-    // Если создаем новое и нет фото — ругаемся. 
-    // Если редактируем — фото может остаться старым (не загружаться повторно).
-    if (!photoFile && !editingAnnouncementId) {
-        alert("Пожалуйста, выберите фото!");
-        return;
-    }
+    const nameInput = document.getElementById('announce-name');
+    const descInput = document.getElementById('announce-desc');
+    const photoInput = document.getElementById('announce-photo');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const description = descInput ? descInput.value.trim() : '';
+    const photoFile = photoInput && photoInput.files.length > 0 ? photoInput.files[0] : null;
 
     const token = localStorage.getItem('token');
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    // Вспомогательная функция для Base64
-    const toBase64 = file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
-
     try {
-        let base64Photo = null;
+        // Если ваш бэкенд принимает FormData (для отправки файлов)
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
         if (photoFile) {
-            base64Photo = await toBase64(photoFile);
+            formData.append('photo', photoFile);
         }
 
-        const payload = {
-            name: name,
-            description: description
-        };
-        
-        // Добавляем фото в payload только если оно выбрано
-        if (base64Photo) {
-            payload.photo_base64 = base64Photo;
-        }
-
-        let url = '/api/announcements';
-        let method = 'POST';
-
-        // Если мы в режиме редактирования:
-        if (editingAnnouncementId) {
-            url = `/api/announcements/${editingAnnouncementId}`;
-            method = 'PUT'; // или 'PATCH' в зависимости от вашего API
-        }
-
-        const response = await fetch(url, {
-            method: method,
-            headers: headers,
-            body: JSON.stringify(payload)
+        const response = await fetch('/api/announcements', {
+            method: 'POST',
+            headers: headers, // Важно: при использовании FormData заголовок 'Content-Type' ставить НЕ нужно, браузер сделает это сам
+            body: formData
         });
 
         const data = await response.json();
+
         if (response.ok) {
-            alert(editingAnnouncementId ? "Объявление успешно обновлено!" : "Ваше объявление успешно опубликовано!");
-            closeAnnouncementModal();
-            loadAnnouncements(); 
-            // 👇 ДОБАВЬТЕ ЭТУ СТРОКУ, ЧТОБЫ СПИСОК ОБНОВЛЯЛСЯ АВТОМАТИЧЕСКИ
+            alert("Объявление успешно создано!");
+            
+            // Закрываем модальное окно
+            const modal = document.getElementById('announcementModal');
+            if (modal) modal.style.display = 'none';
+
+            // Очищаем форму
+            const form = document.getElementById('announcementForm');
+            if (form) form.reset();
+
+            // Перезагружаем кабинет модели, чтобы новое объявление сразу появилось в списке
             if (typeof loadModelDashboard === 'function') {
                 loadModelDashboard();
-            } else if (typeof loadAnnouncements === 'function') {
-                loadAnnouncements();
             }
         } else {
-            alert("Ошибка: " + (data.detail || "Что-то пошло не так"));
+            alert("Ошибка при создании: " + (data.detail || "Что-то пошло не так"));
         }
     } catch (error) {
-        console.error("Ошибка отправки объявления:", error);
-        alert("Произошла ошибка при обработке или отправке данных.");
+        console.error("Ошибка сети при создании объявления:", error);
+        alert("Произошла ошибка сети.");
     }
 }
 
