@@ -2270,20 +2270,27 @@ async function deletePhotoFromAlbum(albumId, photoId) {
         }
 
         async function vote(contestantId, event) {
-            try {
-                let res = await fetch(`/api/vote?contestant_id=${contestantId}`, { method: 'POST' });
-                let data = await res.json();
-                
-                if (res.ok) {
-                    createHeart(event.clientX, event.clientY);
-                    checkAuth(); 
-                } else {
-                    alert(data.detail || "Ошибка при голосовании");
-                }
-            } catch (err) { 
-                alert("Ошибка сети.");
-            }
+    try {
+        let res = await fetch('/api/vote', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contestant_id: contestantId })
+        });
+        
+        let data = await res.json();
+        
+        if (res.ok) {
+            createHeart(event.clientX, event.clientY);
+            checkAuth();
+            if (typeof loadContestants === 'function') loadContestants(); // Перезагрузка списка участников для обновления счетчика голосов
+        } else {
+            alert(data.detail || "Ошибка при голосовании");
         }
+    } catch (err) { 
+        console.error("Ошибка голосования:", err);
+        alert("Ошибка сети.");
+    }
+}
 
         function createHeart(x, y) {
             const heart = document.createElement('div');
