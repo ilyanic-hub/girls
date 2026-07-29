@@ -2812,6 +2812,7 @@ function updateLightboxImage() {
 
        
 // Функция открытия формы для РЕДАКТИРОВАНИЯ (вызывается при клике на кнопку)
+// Функция открытия формы для РЕДАКТИРОВАНИЯ (вызывается при клике на кнопку)
 function editAnnouncement(id, name, description, currentPhotoBase64) {
     editingAnnouncementId = id;
     
@@ -2830,8 +2831,11 @@ function editAnnouncement(id, name, description, currentPhotoBase64) {
     const modalTitle = document.querySelector('#announcementModal h2');
     if (modalTitle) modalTitle.innerText = "✏️ Редактировать объявление";
 
-    // Открываем модальное окно
-    openAnnouncementModal();
+    // ИСПРАВЛЕНО: Вместо несуществующей openAnnouncementModal() открываем само модальное окно
+    const modal = document.getElementById('announcementModal');
+    if (modal) {
+        modal.style.display = 'flex'; // или 'block', в зависимости от вашей верстки
+    }
     
     // Сохраняем текущую Base64 картинку в специальный дата-атрибут формы, 
     // чтобы если пользователь не выберет новый файл, отправилась старая фотография
