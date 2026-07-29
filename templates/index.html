@@ -1587,7 +1587,7 @@ function showUserUI(user, buttonsContainer) {
     let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
     if (!wallet) return;
 
-    let amount = prompt("Какую сумму вы хотите вывести?");
+    let amount = prompt("Какую сумму вы хотите вывести? Комиссия 2.5%");
     if (!amount) return;
 
     const token = localStorage.getItem('token');
