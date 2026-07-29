@@ -2517,6 +2517,7 @@ async function submitAnnouncement(event) {
 }
 
         // --- Функция подготовки модалки к редактированию ---
+// --- Функция подготовки и открытия модалки для РЕДАКТИРОВАНИЯ ---
 function openEditAnnouncementModal(announcement) {
     editingAnnouncementId = announcement.id;
     
@@ -2530,7 +2531,11 @@ function openEditAnnouncementModal(announcement) {
     const modalTitle = document.querySelector('#announcementModal h2');
     if (modalTitle) modalTitle.innerText = "📝 Редактировать объявление";
 
-    openAnnouncementModal();
+    // Открываем саму модалку напрямую, без несуществующей функции
+    const modal = document.getElementById('announcementModal');
+    if (modal) {
+        modal.style.display = 'flex'; // или 'block' в зависимости от вашей верстки
+    }
 }
 
         // --- Авторизованный запрос на удаление ---
