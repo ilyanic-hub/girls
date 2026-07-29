@@ -543,6 +543,8 @@ class AnnouncementSchema(BaseModel):
 class BuyAlbumSchema(BaseModel):
     album_id: int
 
+MIN_WITHDRAW_AMOUNT = 100.0
+
 class WithdrawRequest(BaseModel):
     wallet: str
     amount: float
@@ -2686,9 +2688,19 @@ async def get_album_details(
 async def api_withdraw(data: WithdrawRequest, current_user = Depends(get_current_user), db=Depends(get_db)):
     wallet = data.wallet.strip()
     amount = data.amount
+    
+    # 🛑 Укажите минимальную сумму вывода здесь
+    MIN_AMOUNT = 100.0 
 
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Неверная сумма для вывода")
+
+    # Проверка минималки
+    if amount < MIN_AMOUNT:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Минимальная сумма для вывода: {MIN_AMOUNT} коинов"
+        )
 
     username = current_user.get("username")
 
@@ -2709,8 +2721,7 @@ async def api_withdraw(data: WithdrawRequest, current_user = Depends(get_current
             detail=f"Недостаточно средств. Ваш баланс: {current_balance} коинов"
         )
 
-    # Опционально: если вы хотите сразу списывать коины при запросе на вывод, 
-    # раскомментируйте строки ниже:
+    # Списание средств
     new_balance = current_balance - amount
     cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, username))
     db.commit()
