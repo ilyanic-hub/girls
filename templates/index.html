@@ -1133,6 +1133,7 @@
 
        async function checkAuth() {
     // Функция для поиска и скрытия/показа кнопки Кабинет по её тексту
+    // Функция для поиска и скрытия/показа кнопки Кабинет и Вывод по роли
     const handleDashboardVisibility = (role) => {
         // Находим все возможные элементы внутри блока авторизованного юзера
         const userBlock = document.getElementById('header-user-block');
@@ -1144,21 +1145,25 @@
 
         elements.forEach(el => {
             if (el.textContent.trim().includes('Кабинет')) {
-                // Берем именно тот элемент, который кликабелен (обычно ссылка <a> или <button>)
                 cabinetBtn = el;
             }
         });
 
         // Также проверяем старый мобильный ID на всякий случай
         const mobileBtn = document.getElementById('mobile-menu-model-dashboard');
+        
+        // Находим кнопку вывода по её ID
+        const withdrawBtn = document.getElementById('withdraw-btn');
 
         if (role === 'model') {
-            if (cabinetBtn) cabinetBtn.style.display = 'inline-flex'; // или 'block' / 'flex' в зависимости от верстки
+            if (cabinetBtn) cabinetBtn.style.display = 'inline-flex';
             if (mobileBtn) mobileBtn.style.display = 'block';
+            if (withdrawBtn) withdrawBtn.style.display = 'inline-block'; // 💸 Показываем модельке
         } else {
             // Для обычных пользователей ('user') и гостей ('guest') — жестко прячем!
             if (cabinetBtn) cabinetBtn.style.display = 'none';
             if (mobileBtn) mobileBtn.style.display = 'none';
+            if (withdrawBtn) withdrawBtn.style.display = 'none'; // 🔒 Скрываем от обычных юзеров
         }
     };
 
