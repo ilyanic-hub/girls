@@ -2690,12 +2690,31 @@ async def api_withdraw(data: WithdrawRequest, current_user = Depends(get_current
     if amount <= 0:
         raise HTTPException(status_code=400, detail="Неверная сумма для вывода")
 
-    username = current_user.get("username", "Неизвестно")
+    username = current_user.get("username")
 
-    # Здесь можно добавить проверку баланса пользователя в БД, если нужно:
-    # cursor = db.cursor()
-    # cursor.execute("SELECT balance FROM users WHERE username = ?", (username,))
-    # ...
+    # Получаем актуальный баланс пользователя из базы данных
+    cursor = db.cursor()
+    cursor.execute("SELECT balance FROM users WHERE username = ?", (username,))
+    row = cursor.fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    current_balance = row[0]
+
+    # 🛑 Проверка: хватает ли средств на балансе
+    if current_balance < amount:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Недостаточно средств. Ваш баланс: {current_balance} коинов"
+        )
+
+    # Опционально: если вы хотите сразу списывать коины при запросе на вывод, 
+    # раскомментируйте строки ниже:
+    # new_balance = current_balance - amount
+    # cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, username))
+    # db.commit()
+    # upload_db_to_dropbox()
 
     # Отправляем уведомление в Telegram администратору
     try:
