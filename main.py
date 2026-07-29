@@ -14,6 +14,7 @@ import shutil
 import secrets
 import logging
 import dropbox
+import requests
 
 from sqlalchemy.orm import Session
 from dropbox.exceptions import ApiError  # 🌟 Добавь эту строчку!
@@ -63,20 +64,26 @@ conn.row_factory = sqlite3.Row  # <-- ДОБАВЬ ЭТУ СТРОКУ
 TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
 TELEGRAM_CHAT_ID = "8501380785"
 
-def send_telegram_notification(username: str):
-    """Отправляет уведомление в Telegram о новом пользователе"""
+TELEGRAM_BOT_TOKEN = "8923888437:AAEsIYtyGYT3kSE7ZDAS8s84O9YRhpPdGB0"
+ADMIN_CHAT_ID = "8501380785"
+
+def send_telegram_notification(text: str):
+    """Универсальная функция отправки сообщения в Telegram"""
+    if not TELEGRAM_BOT_TOKEN or not ADMIN_CHAT_ID:
+        return
+    
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": ADMIN_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
     try:
-        message = f"🎉 **Новая регистрация на сайте!**\n👤 Пользователь: `{username}`"
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": message,
-            "parse_mode": "Markdown"
-        }
-        # Отправляем асинхронно или через обычный requests (таймаут 3 сек, чтобы сайт не завис)
-        requests.post(url, json=payload, timeout=3)
+        response = requests.post(url, json=payload, timeout=5)
+        if not response.ok:
+            print(f"Ошибка отправки уведомления в Telegram: {response.text}")
     except Exception as e:
-        print(f"Ошибка отправки уведомления в Telegram: {e}")
+        print(f"Ошибка сети при отправке в Telegram: {e}")
 
 
 # Папка, куда будут сохраняться аватарки
