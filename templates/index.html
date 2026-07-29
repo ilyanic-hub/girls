@@ -2496,8 +2496,8 @@ async function submitAnnouncement(event) {
                 const form = document.getElementById('announcementForm');
                 if (form) form.reset();
 
-                if (typeof  === 'function') {
-                    ();
+                if (typeof loadModelDashboard === 'function') {
+                    loadModelDashboard();
                 }
             } else {
                 alert("Ошибка при создании: " + (data.detail || data.message || "Внутренняя ошибка сервера"));
