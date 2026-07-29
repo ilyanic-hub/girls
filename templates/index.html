@@ -2549,8 +2549,8 @@ async function deleteAnnouncement(id) {
         const data = await response.json();
         if (response.ok) {
             // 1. Сразу переназначаем или обновляем кабинет модели, чтобы список перерисовался
-            if (typeof  === 'function') {
-                ();
+            if (typeof loadModelDashboard === 'function') {
+                loadModelDashboard();
             } else {
                 location.reload(); // запасной вариант, если функция называется иначе
             }
