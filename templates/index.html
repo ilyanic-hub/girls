@@ -2356,9 +2356,10 @@ function openModelDetailsModal(item) {
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin-top: 10px;">
                 ${item.albums.map((alb) => {
                     // Проверяем, платный ли альбом
-                    const isLocked = Boolean(alb.is_paid);
-                    // Стили размытия для платных альбомов
-                    const blurStyle = isLocked ? 'filter: blur(6px) !important; -webkit-filter: blur(6px) !important; transform: scale(1.05);' : '';
+                    // Альбом заблокирован, если он НЕ куплен (вы можете также добавить проверку, платный ли он вообще, например: alb.price > 0 && !alb.is_purchased)
+const isLocked = !alb.is_purchased;
+// Стили размытия для заблокированных альбомов
+const blurStyle = isLocked ? 'filter: blur(6px) !important; -webkit-filter: blur(6px) !important; transform: scale(1.05);' : '';
 
                     return `
                         <div onclick="openAlbumModal(${alb.id})" style="cursor: pointer; text-align: center;">
