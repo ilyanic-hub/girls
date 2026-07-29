@@ -1663,7 +1663,7 @@ let res = await fetch('/api/user/avatar', {
     body: formData
 });
         if (res.ok) {
-            alert("Аватарка успешно загружена в Dropbox и обновлена!");
+            alert("Аватарка успешно загружена и обновлена!");
             checkAuth(); // Перезапускаем проверку, чтобы шапка обновила изображение
         } else {
             let errData = await res.json();
