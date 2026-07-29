@@ -1853,7 +1853,7 @@ let res = await fetch('/api/user/avatar', {
     }
 }
 
-        async function buyAlbum(albumId, price) {
+        async function buyAlbum(albumId, price, item) {
     if (!confirm(`Вы уверены, что хотите купить этот альбом за ${price} коинов?`)) {
         return;
     }
@@ -1870,21 +1870,32 @@ let res = await fetch('/api/user/avatar', {
         if (response.ok) {
             alert("🎉 " + (result.message || "Альбом успешно куплен!"));
             
-            // 🚀 МГНОВЕННО обновляем баланс на экране из ответа сервера (`result.new_balance`)
+            // 🚀 МГНОВЕННО обновляем баланс на экране из ответа сервера
             if (result.new_balance !== undefined) {
-                // Ищем все элементы на странице, где выводится баланс (в шапке, профиле и т.д.)
                 const balanceElements = document.querySelectorAll('#user-balance, #nav-balance, .user-balance-display, #model-dash-balance');
                 balanceElements.forEach(el => {
                     if (el) el.innerText = result.new_balance;
                 });
             }
 
-            // Открываем просмотр купленного альбома (замените функцию на вашу клиентскую)
+            // 🔓 МГНОВЕННО СНИМАЕМ РАЗМЫТИЕ В МАССИВЕ И ПЕРЕРИСОВЫВАЕМ ОКНО МОДЕЛИ
+            if (item && item.albums) {
+                const purchasedAlbum = item.albums.find(alb => alb.id === albumId);
+                if (purchasedAlbum) {
+                    purchasedAlbum.is_purchased = true;
+                }
+                // Перерисовываем модальное окно модели, чтобы убрать замок и размытие
+                if (typeof openModelDetailsModal === 'function') {
+                    openModelDetailsModal(item);
+                }
+            }
+
+            // Открываем просмотр самого альбома (если нужно)
             if (typeof openAlbumModal === 'function') {
                 openAlbumModal(albumId);
             }
             
-            // Дополнительно обновляем данные в фоне, если нужно
+            // Дополнительно обновляем общие данные в фоне
             if (typeof loadUserData === 'function') loadUserData();
             if (typeof loadProfile === 'function') loadProfile();
             if (typeof loadAnnouncements === 'function') loadAnnouncements();
