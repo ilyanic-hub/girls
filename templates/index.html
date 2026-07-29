@@ -1308,7 +1308,7 @@ if (headerAvatarImg) {
     if (activeTab) {
         activeTab.style.display = 'block';
         if (tabId === 'model-dashboard') {
-            (); 
+            loadModelDashboard(); 
         }
     }
 
@@ -2636,7 +2636,7 @@ async function deleteAnnouncement(id) {
     } else if (tabName === 'announcements' || tabName === 'tab-announcements') {
         loadAnnouncements();
     } else if (tabName === 'model-dashboard') {
-        ();
+        loadModelDashboard();
     }
 }
         // Загрузка объявлений из API бэкенда
