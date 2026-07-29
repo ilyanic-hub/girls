@@ -735,21 +735,21 @@
         <a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a>
     </span>
     
-    <!-- БЛОК ДЛЯ ГОСТЯ -->
-<div id="header-guest-block" style="display: flex; align-items: center; gap: 10px;">
-    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f7fafc; border: 1px solid #e2e8f0;">
-            <span style="font-size: 14px;">👤</span>
+    <!-- БЛОК ДЛЯ ГОСТЯ (Скрывается скриптом, когда вошли) -->
+    <div id="header-guest-block" style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f7fafc; border: 1px solid #e2e8f0;">
+                <span style="font-size: 14px;">👤</span>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+                <b style="color: var(--text-muted);">Гость</b> 
+            </div>
         </div>
-        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
-            <b style="color: var(--text-muted);">Гость</b> 
-        </div>
+        <button class="btn-deposit" onclick="showTab('auth-page', event)" style="background: var(--accent); color: white;">Войти</button>
     </div>
-    <button class="btn-deposit" onclick="showTab('auth-page', event)" style="background: var(--accent); color: white;">Войти</button>
-</div>
 
-    <!-- ==================== БЛОК ДЛЯ АВТОРИЗОВАННОГО (По умолчанию скрыт) ==================== -->
-<div id="header-user-block" style="display: none; align-items: center; gap: 10px;">
+    <!-- БЛОК ДЛЯ АВТОРИЗОВАННОГО (Показывается скриптом только после входа вместе с кнопками управления) -->
+    <div id="header-user-block" style="display: none; align-items: center; gap: 10px; flex-wrap: wrap;">
         <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <!-- Аватарка -->
             <div id="user-avatar-container" onclick="document.getElementById('avatar-input').click()" style="width: 28px; height: 28px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: #fff0f2; cursor: pointer;" title="Нажмите, чтобы изменить аватарку">
@@ -765,20 +765,16 @@
                 💰 <span id="user-balance" style="font-weight:bold; color: #2d3748;">0</span>
             </div>
         </div>
-</div>
 
-        <!-- 👤 ДОБАВЛЕНО: Кнопка Личного кабинета -->
+        <!-- Кнопки управления аккаунтом теперь спрятаны внутри блока авторизованного пользователя -->
         <button class="btn-deposit" onclick="switchTab('model-dashboard', event)" style="background: #f8fafc; color: var(--text-main); border: 1px solid #cbd5e0;">
             👤 Кабинет
         </button>
+        <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
+        <button id="logout-btn" class="btn-deposit" onclick="logout()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
+    </div>
 
-    <button class="btn-deposit" onclick="openDepositModal()">+ Пополнить</button>
-    <!-- ИСПРАВЛЕНО: id="logout-btn" и onclick="logout()" -->
-    <button id="logout-btn" class="btn-deposit" onclick="logout()" style="background: #fff5f6; color: #ff4757; border: 1px solid #ff4757;">Выйти</button>
-</div>
-
-
-    <!-- Резервный контейнер, если он используется твоими скриптами -->
+    <!-- Резервный контейнер -->
     <div id="auth-buttons-container" style="display: none;"></div>
 </div>
             </header>
