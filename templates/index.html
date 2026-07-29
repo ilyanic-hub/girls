@@ -2036,7 +2036,7 @@ async function deleteEntireAlbum(e) {
 
         // Обновляем дашборд / список альбомов
         if (typeof loadModelDashboard === 'function') {
-            await ();
+            await loadModelDashboard();
         } else if (typeof loadAlbums === 'function') {
             await loadAlbums();
         }
@@ -2938,7 +2938,7 @@ async function submitNewAlbum(event) {
             
             // 2. Если у тебя есть отдельная функция загрузки альбомов в профиле модели
             if (typeof loadModelDashboard === 'function') {
-                await ();
+                await loadModelDashboard();
             } else if (typeof loadModelAlbums === 'function') {
                 await loadModelAlbums();
             } else if (typeof loadProfile === 'function') {
