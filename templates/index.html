@@ -1610,6 +1610,16 @@ function showUserUI(user, buttonsContainer) {
 
         if (response.ok) {
             alert(`Заявка на вывод ${amount} коинов успешно создана! Администратор скоро обработает её.`);
+
+            // 🔄 МГНОВЕННО ОБНОВЛЯЕМ БАЛАНС В ШАПКЕ БЕЗ ПЕРЕЗАГРУЗКИ СТРАНИЦЫ
+            const balanceSpan = document.getElementById('user-balance');
+            if (balanceSpan) {
+                // Берем текущий баланс из шапки, переводим в число и вычитаем списанную сумму
+                let currentBalance = parseFloat(balanceSpan.innerText) || 0;
+                let newBalance = currentBalance - parseFloat(amount);
+                balanceSpan.innerText = newBalance >= 0 ? newBalance : 0;
+            }
+
         } else {
             alert("Ошибка: " + (data.detail || "Не удалось отправить заявку"));
         }
