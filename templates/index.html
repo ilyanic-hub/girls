@@ -1583,15 +1583,41 @@ function showUserUI(user, buttonsContainer) {
     }
 }
 
-        function openWithdrawModal() {
-            let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
-            if (wallet) {
-                let amount = prompt("Какую сумму вы хотите вывести?");
-                if (amount) {
-                    alert(`Заявка на вывод ${amount} коинов на кошелек ${wallet} успешно создана и отправлена администрации!`);
-                }
-            }
+        async function openWithdrawModal() {
+    let wallet = prompt("Введите ваш USDT (TRC-20) адрес для вывода заработанных средств:");
+    if (!wallet) return;
+
+    let amount = prompt("Какую сумму вы хотите вывести?");
+    if (!amount) return;
+
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+        const response = await fetch('/api/withdraw', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+                wallet: wallet,
+                amount: parseFloat(amount)
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            alert(`Заявка на вывод ${amount} коинов успешно создана! Администратор скоро обработает её.`);
+        } else {
+            alert("Ошибка: " + (data.detail || "Не удалось отправить заявку"));
         }
+    } catch (error) {
+        console.error("Ошибка сети:", error);
+        alert("Произошла ошибка сети.");
+    }
+}
 
         
 
