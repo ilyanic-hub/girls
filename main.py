@@ -2682,6 +2682,37 @@ async def get_album_details(
         raise HTTPException(status_code=500, detail="Ошибка сервера при чтении альбома")
 
 
+@app.post("/api/withdraw")
+async def api_withdraw(data: WithdrawRequest, current_user = Depends(get_current_user), db=Depends(get_db)):
+    wallet = data.wallet.strip()
+    amount = data.amount
+
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Неверная сумма для вывода")
+
+    username = current_user.get("username", "Неизвестно")
+
+    # Здесь можно добавить проверку баланса пользователя в БД, если нужно:
+    # cursor = db.cursor()
+    # cursor.execute("SELECT balance FROM users WHERE username = ?", (username,))
+    # ...
+
+    # Отправляем уведомление в Telegram администратору
+    try:
+        message = (
+            f"💸 **Новый запрос на вывод средств!**\n\n"
+            f"👤 Модель: `{username}`\n"
+            f"💰 Сумма: `{amount}` коинов\n"
+            f"🌐 Кошелек (USDT TRC-20):\n`{wallet}`"
+        )
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}, timeout=3)
+    except Exception as telegram_err:
+        print(f"Ошибка Telegram при выводе: {telegram_err}")
+
+    return {"status": "success", "message": "Заявка успешно создана"}
+
+
 # ================= СТАТУС КОНКУРСА (ТАЙМЕР) =================
 @app.get("/api/contest-status")
 async def get_contest_status():
