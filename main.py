@@ -1978,19 +1978,23 @@ async def admin_add_contestant(data: ContestantSchema, session_user: Optional[st
     return {"status": "success"}
 
 @app.post("/api/vote")
-async def api_vote(contestant_id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
+async def api_vote(data: VoteSchema, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
     if not session_user:
         raise HTTPException(status_code=401, detail="Нужно войти в аккаунт")
+        
     cursor = db.cursor()
     cursor.execute("SELECT balance FROM users WHERE username = ?", (session_user,))
     user = cursor.fetchone()
-    if user and user["balance"] >= 10:
-        cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = ?", (session_user,))
-        cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (contestant_id,))
-        db.commit()
-        upload_db_to_dropbox()
-        return {"status": "success"}
-    raise HTTPException(status_code=400, detail="Недостаточно средств")
+    
+    if not user or user["balance"] < 10:
+        raise HTTPException(status_code=400, detail="Недостаточно средств")
+        
+    cursor.execute("UPDATE users SET balance = balance - 10 WHERE username = ?", (session_user,))
+    cursor.execute("UPDATE contestants SET votes_count = votes_count + 1 WHERE id = ?", (data.contestant_id,))
+    db.commit()
+    upload_db_to_dropbox()
+    
+    return {"status": "success"}
 
 @app.delete("/api/admin/contestants/{id}")
 async def delete_contestant(id: int, session_user: Optional[str] = Cookie(None), db=Depends(get_db)):
