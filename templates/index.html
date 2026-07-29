@@ -2090,8 +2090,8 @@ async function saveAlbumChanges(event) {
         if (editModal) editModal.style.display = 'none';
 
         // 3. Просто перезагружаем список альбомов в личном кабинете
-        if (typeof  === 'function') {
-            ();
+        if (typeof loadModelDashboard === 'function') {
+            loadModelDashboard();
         }
 
         // 3. Запрашиваем свежие данные альбома
