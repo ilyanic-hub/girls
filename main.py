@@ -2711,10 +2711,10 @@ async def api_withdraw(data: WithdrawRequest, current_user = Depends(get_current
 
     # Опционально: если вы хотите сразу списывать коины при запросе на вывод, 
     # раскомментируйте строки ниже:
-    # new_balance = current_balance - amount
-    # cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, username))
-    # db.commit()
-    # upload_db_to_dropbox()
+    new_balance = current_balance - amount
+    cursor.execute("UPDATE users SET balance = ? WHERE username = ?", (new_balance, username))
+    db.commit()
+    upload_db_to_dropbox()
 
     # Отправляем уведомление в Telegram администратору
     try:
