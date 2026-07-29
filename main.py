@@ -543,6 +543,10 @@ class AnnouncementSchema(BaseModel):
 class BuyAlbumSchema(BaseModel):
     album_id: int
 
+class WithdrawRequest(BaseModel):
+    wallet: str
+    amount: float
+
 
 @app.post("/api/admin/adult-models/{model_id}/dropbox-folder")
 async def add_google_drive_folder(model_id: int, data: PhotoLinkSchema, db = Depends(get_db)):
