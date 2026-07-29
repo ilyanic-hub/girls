@@ -771,6 +771,7 @@ async def buy_adult_model_access(data: BuyModelRequest, session_user: Optional[s
         raise HTTPException(status_code=500, detail=f"Ошибка на стороне сервера БД: {str(e)}")
 
 #======= Покупка фотоальбомов ===========
+#======= Покупка фотоальбомов ===========
 @app.post("/api/albums/buy")
 async def buy_album(
     data: BuyAlbumSchema,
@@ -793,8 +794,12 @@ async def buy_album(
 
         album = dict(album)
         price = album.get("price", 0)
+        
+        # ⚠️ ВАЖНО: Убедитесь, что колонка владельца альбома называется именно так 
+        # (часто это 'username', 'model_username' или 'author'). Замените при необходимости.
+        album_owner = album.get("username") or album.get("model_username") or album.get("author")
 
-        # 2. Безопасно проверяем баланс пользователя (подходит и для 'balance', и для 'coins')
+        # 2. Безопасно проверяем баланс пользователя (покупателя)
         cursor.execute("SELECT * FROM users WHERE username = ?", (session_user,))
         user_row = cursor.fetchone()
         if not user_row:
@@ -816,7 +821,7 @@ async def buy_album(
                 detail=f"Недостаточно средств на балансе! Стоимость: {price}, у вас: {user_balance}"
             )
 
-        # 4. Списываем средства и сохраняем покупку
+        # 4. Списываем средства у покупателя и сохраняем покупку
         new_balance = user_balance - price
         cursor.execute(f"UPDATE users SET {balance_col} = ? WHERE username = ?", (new_balance, session_user))
 
@@ -825,6 +830,19 @@ async def buy_album(
             INSERT INTO purchases (username, item_type, item_id, price, created_at)
             VALUES (?, 'album', ?, ?, ?)
         """, (session_user, data.album_id, price, created_at))
+
+        # 5. 💰 ЗАЧИСЛЯЕМ СРЕДСТВА МОДЕЛИ (владельцу альбома)
+        if album_owner and album_owner != session_user and price > 0:
+            # Получаем текущий баланс модели
+            cursor.execute(f"SELECT * FROM users WHERE username = ?", (album_owner,))
+            owner_row = cursor.fetchone()
+            if owner_row:
+                owner = dict(owner_row)
+                owner_balance_col = "balance" if "balance" in owner else "coins"
+                owner_balance = owner.get(owner_balance_col, 0) or 0
+                
+                new_owner_balance = owner_balance + price
+                cursor.execute(f"UPDATE users SET {owner_balance_col} = ? WHERE username = ?", (new_owner_balance, album_owner))
 
         db.commit()
         db.close()
