@@ -2968,7 +2968,24 @@ async function submitNewAlbum(event) {
 // Функция инициализации личного кабинета модели
 async function loadModelDashboard() {
     try {
-        const response = await fetch('/api/model/profile');
+        const token = localStorage.getItem('token');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch('/api/model/profile', {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (response.status === 401) {
+            alert("Сессия истекла или вы не авторизованы. Пожалуйста, войдите снова.");
+            const authPage = document.getElementById('auth-page');
+            if (authPage) authPage.style.display = 'flex';
+            return;
+        }
+
         if (!response.ok) return;
         
         const data = await response.json();
@@ -2981,46 +2998,31 @@ async function loadModelDashboard() {
             if (nameEl && data.profile && data.profile.username) nameEl.innerText = data.profile.username;
             if (balanceEl && data.profile && data.profile.balance !== undefined) balanceEl.innerText = data.profile.balance;
             
-            // 1. Получаем ссылку на аватар и конвертируем Dropbox-ссылки
+            // 1. Аватарки
             let rawAvatarUrl = data.profile?.avatar || data.profile?.photo_url || localStorage.getItem('user_avatar');
             let avatarUrl = rawAvatarUrl;
             if (avatarUrl && avatarUrl.includes('dropbox.com')) {
                 avatarUrl = avatarUrl.replace('dl=0', 'raw=1');
             }
+            if (avatarUrl) localStorage.setItem('user_avatar', avatarUrl);
 
-            if (avatarUrl) {
-                localStorage.setItem('user_avatar', avatarUrl);
-            }
-
-            // 2. Обновляем аватарку в ЛИЧНОМ КАБИНЕТЕ
             const dashImg = document.getElementById('user-avatar-img');
             const dashDefault = document.getElementById('user-avatar-default');
-            if (dashImg && dashDefault) {
-                if (avatarUrl) {
-                    dashImg.src = avatarUrl;
-                    dashImg.style.display = 'block';
-                    dashDefault.style.display = 'none';
-                } else {
-                    dashImg.style.display = 'none';
-                    dashDefault.style.display = 'flex';
-                }
+            if (dashImg && dashDefault && avatarUrl) {
+                dashImg.src = avatarUrl;
+                dashImg.style.display = 'block';
+                dashDefault.style.display = 'none';
             }
 
-            // 3. Обновляем аватарку в ШАПКЕ
             const headerImg = document.getElementById('header-avatar-img');
             const headerDefault = document.getElementById('header-avatar-default');
-            if (headerImg && headerDefault) {
-                if (avatarUrl) {
-                    headerImg.src = avatarUrl;
-                    headerImg.style.display = 'block';
-                    headerDefault.style.display = 'none';
-                } else {
-                    headerImg.style.display = 'none';
-                    headerDefault.style.display = 'flex';
-                }
+            if (headerImg && headerDefault && avatarUrl) {
+                headerImg.src = avatarUrl;
+                headerImg.style.display = 'block';
+                headerDefault.style.display = 'none';
             }
             
-            // 📢 Рендерим список объявлений модели во вкладке
+            // 📢 Рендерим список объявлений (С РАЗМЫТИЕМ для платных/скрытых)
             if (announcementsListContainer && data.profile && data.profile.announcements) {
                 announcementsListContainer.innerHTML = '';
                 
@@ -3029,24 +3031,48 @@ async function loadModelDashboard() {
                 } else {
                     data.profile.announcements.forEach(item => {
                         const itemDiv = document.createElement('div');
-                        itemDiv.style.cssText = "background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;";
+                        itemDiv.style.cssText = "background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; padding: 0; display: flex; flex-direction: column; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);";
                         
-                        const contentDiv = document.createElement('div');
-                        contentDiv.style.cssText = "cursor: pointer; flex-grow: 1;";
-                        contentDiv.innerHTML = `
-                            <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1rem;">${item.name || 'Объявление'}</h4>
-                            <p style="margin: 0; color: #718096; font-size: 0.85rem; line-height: 1.4;">${item.description || ''}</p>
-                            <span style="font-size: 0.75rem; color: #a0aec0; display: inline-block; margin-top: 5px;">📅 ${item.created_at || ''}</span>
+                        // Проверяем, платное ли объявление (или скрытое)
+                        let isLocked = item.is_paid || item.price > 0; 
+                        let blurStyle = isLocked ? 'filter: blur(8px); transform: scale(1.05);' : '';
+                        
+                        let rawPhoto = item.photo || item.photo_url || (item.photos && item.photos[0]) || '';
+                        let photoUrl = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : '';
+
+                        itemDiv.innerHTML = `
+                            ${photoUrl ? `
+                                <div style="width: 100%; height: 200px; overflow: hidden; background: #f1f5f9; position: relative;">
+                                    <img src="${photoUrl}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}" alt="Announce Photo">
+                                    
+                                    ${isLocked ? `
+                                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
+                                            <div style="font-size: 24px; margin-bottom: 4px;">🔒</div>
+                                            <span style="font-size: 0.8rem; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 12px; backdrop-filter: blur(4px);">
+                                                ${item.price || 0} коинов
+                                            </span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="cursor: pointer; flex-grow: 1;" class="edit-announcement-trigger">
+                                    <h4 style="margin: 0 0 5px 0; color: #2d3748; font-size: 1rem;">${item.name || 'Объявление'}</h4>
+                                    <p style="margin: 0; color: #718096; font-size: 0.85rem; line-height: 1.4;">${item.description || ''}</p>
+                                    <span style="font-size: 0.75rem; color: #a0aec0; display: inline-block; margin-top: 5px;">📅 ${item.created_at || ''}</span>
+                                </div>
+                                <button class="delete-announcement-btn" style="background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-left: 10px;">Удалить</button>
+                            </div>
                         `;
-                        contentDiv.addEventListener('click', () => openEditAnnouncementModal(item));
 
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.style.cssText = "background: #fed7d7; color: #c53030; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; margin-left: 10px;";
-                        deleteBtn.innerText = "Удалить";
-                        deleteBtn.addEventListener('click', () => deleteAnnouncement(item.id));
+                        // Вешаем безопасные обработчики событий
+                        itemDiv.querySelector('.edit-announcement-trigger').addEventListener('click', () => openEditAnnouncementModal(item));
+                        itemDiv.querySelector('.delete-announcement-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            deleteAnnouncement(item.id);
+                        });
 
-                        itemDiv.appendChild(contentDiv);
-                        itemDiv.appendChild(deleteBtn);
                         announcementsListContainer.appendChild(itemDiv);
                     });
                 }
@@ -3056,7 +3082,7 @@ async function loadModelDashboard() {
             console.warn("Некоторые элементы профиля не найдены на странице:", profileErr);
         }
         
-        // 🖼️ Рендер альбомов через DOM-элементы (безопасно от синтаксических ошибок)
+        // 🖼️ Рендер альбомов (ОБЫЧНЫЙ, без размытия)
         let grid = document.getElementById('model-albums-list') || document.getElementById('model-albums-grid');
         if (grid) {
             grid.style.display = 'grid';
@@ -3075,31 +3101,14 @@ async function loadModelDashboard() {
             data.albums.forEach(album => {
                 let rawPhoto = (album.photos && album.photos.length > 0) ? album.photos[0] : '';
                 let cover = rawPhoto ? rawPhoto.replace('dl=0', 'raw=1') : defaultSvg;
-                let isLocked = album.is_paid; 
-                let blurStyle = isLocked ? 'filter: blur(8px); transform: scale(1.05);' : '';
                 
                 const card = document.createElement('div');
                 card.style.cssText = "background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; transition: all 0.25s ease; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);";
-                card.onmouseover = function() { this.style.transform = 'translateY(-4px)'; this.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.08)'; };
-                card.onmouseout = function() { this.style.transform = 'translateY(0)'; this.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.02)'; };
-                
                 card.addEventListener('click', () => openEditAlbumModal(album.id));
 
                 card.innerHTML = `
                     <div style="width: 100%; height: 180px; overflow: hidden; background: #f1f5f9; position: relative;">
-                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover; ${blurStyle}" alt="Cover">
-                        ${isLocked ? `
-                            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
-                                <div style="font-size: 24px; margin-bottom: 4px;">🔒</div>
-                                <span style="font-size: 0.8rem; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 12px; backdrop-filter: blur(4px);">
-                                    ${album.price || 0} коинов
-                                </span>
-                            </div>
-                        ` : `
-                            <span style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 500;">
-                                🔓 Бесплатно
-                            </span>
-                        `}
+                        <img src="${cover}" style="width: 100%; height: 100%; object-fit: cover;" alt="Cover">
                     </div>
                     <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center;">
                         <div>
