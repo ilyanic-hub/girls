@@ -735,19 +735,18 @@
         <a href="/admin" style="color: var(--accent); font-weight: bold; text-decoration: none; margin-right: 10px;">Админка ➡️</a>
     </span>
     
-    <!-- ==================== БЛОК ДЛЯ ГОСТЯ (По умолчанию виден) ==================== -->
-    <div id="header-guest-block" style="display: flex; align-items: center; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f7fafc; border: 1px solid #e2e8f0;">
-                <span style="font-size: 14px;">👤</span>
-            </div>
-            <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
-                <b style="color: var(--text-muted);">Гость</b> 
-            </div>
+    <!-- БЛОК ДЛЯ ГОСТЯ -->
+<div id="header-guest-block" style="display: flex; align-items: center; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px; background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <div style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f7fafc; border: 1px solid #e2e8f0;">
+            <span style="font-size: 14px;">👤</span>
         </div>
-        <!-- Кнопка вызова окна логина (подставь свою функцию, если она называется иначе) -->
-        <button class="btn-deposit" onclick="switchTab('auth-page', event)" style="background: var(--accent); color: white;">Войти</button>
+        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500;">
+            <b style="color: var(--text-muted);">Гость</b> 
+        </div>
     </div>
+    <button class="btn-deposit" onclick="showTab('auth-page', event)" style="background: var(--accent); color: white;">Войти</button>
+</div>
 
     <!-- ==================== БЛОК ДЛЯ АВТОРИЗОВАННОГО (По умолчанию скрыт) ==================== -->
 <div id="header-user-block" style="display: none; align-items: center; gap: 10px;">
