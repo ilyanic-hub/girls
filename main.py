@@ -1269,9 +1269,10 @@ async def update_announcement(
 
 # Эндпоинт для получения списка всех объявлений для вкладки на фронтенде
 # Эндпоинт для получения списка всех объявлений с их альбомами
+# Эндпоинт для получения списка всех объявлений с их альбомами
 @app.get("/api/announcements")
 @app.get("/api/announcements/")
-async def get_announcements():
+async def get_announcements(session_user: Optional[str] = Cookie(None)):
     db = sqlite3.connect(DB_LOCAL_PATH)
     db.row_factory = sqlite3.Row
     cursor = db.cursor()
@@ -1297,11 +1298,24 @@ async def get_announcements():
                     
                     for alb in album_rows:
                         album_dict = dict(alb)
+                        album_id = album_dict["id"]
+                        
+                        # 🔍 Проверяем, купил ли текущий пользователь этот альбом
+                        is_purchased = False
+                        if session_user:
+                            cursor.execute("""
+                                SELECT 1 FROM purchases 
+                                WHERE username = ? AND item_type = 'album' AND item_id = ?
+                            """, (session_user, album_id))
+                            is_purchased = cursor.fetchone() is not None
+                        
+                        album_dict["is_purchased"] = is_purchased
+
                         cover = album_dict.get("cover_url") or album_dict.get("cover_photo_url") or ""
                         
                         # Если явной обложки нет, берём ПЕРВОЕ фото из альбома
                         if not cover:
-                            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? LIMIT 1", (album_dict["id"],))
+                            cursor.execute("SELECT photo_url FROM album_photos WHERE album_id = ? LIMIT 1", (album_id,))
                             first_photo = cursor.fetchone()
                             if first_photo:
                                 cover = first_photo["photo_url"] or ""
