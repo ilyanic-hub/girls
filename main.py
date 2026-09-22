@@ -38,10 +38,7 @@ from slowapi.errors import RateLimitExceeded
 import pytz
 from dotenv import load_dotenv
 
-# Добавьте этот роут к вашему объекту app
-@app.get("/teldericc792411e1838a6647386be0929afce6.txt", response_class=PlainTextResponse)
-def telderi_verification():
-    return "Telderi"
+
     
 load_dotenv()
 
@@ -54,6 +51,11 @@ router = APIRouter()
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Добавьте этот роут к вашему объекту app
+@app.get("/teldericc792411e1838a6647386be0929afce6.txt", response_class=PlainTextResponse)
+def telderi_verification():
+    return "Telderi"
+    
 BOT_TOKEN = "8425385137:AAHehDwbSQjhiBIf-oZGgC7YFscXhJGHINA"  # Токен от @BotFather
 CHANNEL_ID = "@photo_rating_club"  # Твой канал
 
