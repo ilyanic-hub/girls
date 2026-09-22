@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request, UploadFile, File, APIRouter, Form, status
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
@@ -37,7 +37,6 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
 from dotenv import load_dotenv
-from fastapi.responses import PlainTextResponse
 
 # Добавьте этот роут к вашему объекту app
 @app.get("/teldericc792411e1838a6647386be0929afce6.txt", response_class=PlainTextResponse)
