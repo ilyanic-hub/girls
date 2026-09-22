@@ -37,7 +37,13 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 import pytz
 from dotenv import load_dotenv
+from fastapi.responses import PlainTextResponse
 
+# Добавьте этот роут к вашему объекту app
+@app.get("/teldericc792411e1838a6647386be0929afce6.txt", response_class=PlainTextResponse)
+def telderi_verification():
+    return "Telderi"
+    
 load_dotenv()
 
 # Включаем логирование, чтобы видеть ошибки бота в логах сервера
